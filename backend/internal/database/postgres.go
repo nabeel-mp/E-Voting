@@ -2,6 +2,7 @@ package database
 
 import (
 	"E-voting/internal/config"
+	"E-voting/internal/models"
 	"fmt"
 	"log"
 
@@ -29,5 +30,6 @@ func ConnectPostgres() {
 	}
 
 	PostgresDB = db
-	log.Println(" PostgreSQL connected")
+	db.AutoMigrate(&models.Admin{})
+	log.Println(" PostgreSQL connected & Migrated")
 }
