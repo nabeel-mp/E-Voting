@@ -45,3 +45,37 @@ func AdminLogin(email, password string) (string, error) {
 
 	return token, nil
 }
+
+func ListAdmins() ([]models.Admin, error) {
+	return repository.GetAllAdmins()
+}
+
+func BlockUnblockSubAdmin(
+	targetAdminID uint,
+	requesterRole string,
+	requesterID uint,
+	block bool,
+) error {
+
+	admin, err := repository.FindAdminByID(targetAdminID)
+	if err != nil {
+		return errors.New("admin not found")
+	}
+
+	// Prevent blocking Super Admin
+	if admin.Role == "SUPER_ADMIN" {
+		return errors.New("cannot block super admin")
+	}
+
+	// Prevent self-block
+	if admin.ID == requesterID {
+		return errors.New("cannot block yourself")
+	}
+
+	// Only Sub Admins can be blocked/unblocked
+	if admin.Role != "SUB_ADMIN" {
+		return errors.New("invalid target admin")
+	}
+
+	return repository.UpdateAdminStatus(admin.ID, !block)
+}

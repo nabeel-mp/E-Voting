@@ -27,6 +27,9 @@ func RegisterRoutes(app *fiber.App) {
 
 	app.Post("/auth/admin/create-sub-admin", middleware.AuthMiddleware("SUPER_ADMIN"), CreateSubAdmin)
 
-	// app.Get("/auth/admin/list", middleware.AuthMiddleware("SUPER_ADMIN"),list)
+	app.Get("/auth/admin/list", middleware.AuthMiddleware("SUPER_ADMIN"), ListAdmins)
+
+	app.Post("/auth/admin/block", middleware.AuthMiddleware("SUPER_ADMIN"), BlockSubAdmin)
+	app.Post("/auth/admin/unblock", middleware.AuthMiddleware("SUPER_ADMIN"), UnblockSubAdmin)
 
 }
