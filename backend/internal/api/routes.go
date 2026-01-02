@@ -25,4 +25,8 @@ func RegisterRoutes(app *fiber.App) {
 	app.Post("/auth/voter/register", middleware.AuthMiddleware("SUB_ADMIN"), RegisterVoter)
 	app.Post("/auth/voter/login", VoterLogin)
 
+	app.Post("/auth/admin/create-sub-admin", middleware.AuthMiddleware("SUPER_ADMIN"), CreateSubAdmin)
+
+	// app.Get("/auth/admin/list", middleware.AuthMiddleware("SUPER_ADMIN"),list)
+
 }

@@ -16,3 +16,7 @@ func FindAdminByEmail(email string) (*models.Admin, error) {
 func CreateAdmin(admin *models.Admin) error {
 	return database.PostgresDB.Create(admin).Error
 }
+
+func CreateSubAdmin(admin *models.Admin) error {
+	return database.PostgresDB.Create(admin).Error
+}
