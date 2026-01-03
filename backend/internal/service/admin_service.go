@@ -7,7 +7,33 @@ import (
 	"errors"
 )
 
-func CreateSubAdmin(email, password string) error {
+// func CreateSubAdmin(email, password string) error {
+// 	hashedPwd, err := utils.HashPassword(password)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	admin := &models.Admin{
+// 		Email:    email,
+// 		Password: hashedPwd,
+// 		Role:     "SUB_ADMIN",
+// 		IsActive: true,
+// 	}
+
+// 	err = repository.CreateSubAdmin(admin)
+// 	if err != nil {
+// 		return errors.New("admin already exists or invalid data")
+// 	}
+
+// 	return nil
+// }
+
+func CreateSubAdmin(
+	email, password string,
+	actorID uint,
+	actorRole string,
+) error {
+
 	hashedPwd, err := utils.HashPassword(password)
 	if err != nil {
 		return err
@@ -20,10 +46,20 @@ func CreateSubAdmin(email, password string) error {
 		IsActive: true,
 	}
 
-	err = repository.CreateSubAdmin(admin)
+	err = repository.CreateAdmin(admin)
 	if err != nil {
-		return errors.New("admin already exists or invalid data")
+		return errors.New("admin already exists")
 	}
+
+	LogAdminAction(
+		actorID,
+		actorRole,
+		"CREATE_SUB_ADMIN",
+		admin.ID,
+		map[string]interface{}{
+			"email": email,
+		},
+	)
 
 	return nil
 }
@@ -50,10 +86,40 @@ func ListAdmins() ([]models.Admin, error) {
 	return repository.GetAllAdmins()
 }
 
+// func BlockUnblockSubAdmin(
+// 	targetAdminID uint,
+// 	requesterRole string,
+// 	requesterID uint,
+// 	block bool,
+// ) error {
+
+// 	admin, err := repository.FindAdminByID(targetAdminID)
+// 	if err != nil {
+// 		return errors.New("admin not found")
+// 	}
+
+// 	// Prevent blocking Super Admin
+// 	if admin.Role == "SUPER_ADMIN" {
+// 		return errors.New("cannot block super admin")
+// 	}
+
+// 	// Prevent self-block
+// 	if admin.ID == requesterID {
+// 		return errors.New("cannot block yourself")
+// 	}
+
+// 	// Only Sub Admins can be blocked/unblocked
+// 	if admin.Role != "SUB_ADMIN" {
+// 		return errors.New("invalid target admin")
+// 	}
+
+// 	return repository.UpdateAdminStatus(admin.ID, !block)
+// }
+
 func BlockUnblockSubAdmin(
 	targetAdminID uint,
-	requesterRole string,
 	requesterID uint,
+	requesterRole string,
 	block bool,
 ) error {
 
@@ -62,20 +128,33 @@ func BlockUnblockSubAdmin(
 		return errors.New("admin not found")
 	}
 
-	// Prevent blocking Super Admin
 	if admin.Role == "SUPER_ADMIN" {
-		return errors.New("cannot block super admin")
+		return errors.New("cannot modify super admin")
 	}
 
-	// Prevent self-block
 	if admin.ID == requesterID {
-		return errors.New("cannot block yourself")
+		return errors.New("cannot modify yourself")
 	}
 
-	// Only Sub Admins can be blocked/unblocked
-	if admin.Role != "SUB_ADMIN" {
-		return errors.New("invalid target admin")
+	err = repository.UpdateAdminStatus(admin.ID, !block)
+	if err != nil {
+		return err
 	}
 
-	return repository.UpdateAdminStatus(admin.ID, !block)
+	action := "UNBLOCK_SUB_ADMIN"
+	if block {
+		action = "BLOCK_SUB_ADMIN"
+	}
+
+	LogAdminAction(
+		requesterID,
+		requesterRole,
+		action,
+		admin.ID,
+		map[string]interface{}{
+			"email": admin.Email,
+		},
+	)
+
+	return nil
 }

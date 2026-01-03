@@ -22,7 +22,10 @@ func CreateSubAdmin(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
-	err := service.CreateSubAdmin(req.Email, req.Password)
+	actorID := uint(c.Locals("user_id").(float64))
+	actorRole := c.Locals("role").(string)
+
+	err := service.CreateSubAdmin(req.Email, req.Password, actorID, actorRole)
 	if err != nil {
 		return utils.Error(c, 400, err.Error())
 	}
@@ -57,13 +60,13 @@ func BlockSubAdmin(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
-	requesterID := uint(c.Locals("user_id").(float64))
-	requesterRole := c.Locals("role").(string)
+	actorID := uint(c.Locals("user_id").(float64))
+	actorRole := c.Locals("role").(string)
 
 	err := service.BlockUnblockSubAdmin(
 		req.AdminID,
-		requesterRole,
-		requesterID,
+		actorID,
+		actorRole,
 		true,
 	)
 
@@ -80,13 +83,13 @@ func UnblockSubAdmin(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
-	requesterID := uint(c.Locals("user_id").(float64))
-	requesterRole := c.Locals("role").(string)
+	actorID := uint(c.Locals("user_id").(float64))
+	actorRole := c.Locals("role").(string)
 
 	err := service.BlockUnblockSubAdmin(
 		req.AdminID,
-		requesterRole,
-		requesterID,
+		actorID,
+		actorRole,
 		false,
 	)
 
