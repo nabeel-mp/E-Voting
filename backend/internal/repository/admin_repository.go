@@ -13,17 +13,13 @@ func FindAdminByEmail(email string) (*models.Admin, error) {
 	return &admin, err
 }
 
-func CreateAdmin(admin *models.Admin) error {
-	return database.PostgresDB.Create(admin).Error
-}
-
 func CreateSubAdmin(admin *models.Admin) error {
 	return database.PostgresDB.Create(admin).Error
 }
 
 func GetAllAdmins() ([]models.Admin, error) {
 	var admins []models.Admin
-	err := database.PostgresDB.Find(&admins).Error
+	err := database.PostgresDB.Preload("Role").Find(&admins).Error
 	return admins, err
 }
 

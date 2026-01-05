@@ -19,10 +19,7 @@ func RegisterRoutes(app *fiber.App) {
 	auth.Post("/voter/login", VoterLogin)
 	auth.Post("/voter/verify-otp", VerifyOTP)
 
-	app.Get("/vote/verify", VerifyPublicVote)
-
-	voter := app.Group("/vote", middleware.PermissionMiddleware("VOTER"))
-	voter.Post("/cast", CastVote)
+	// voter := app.Group("/vote", middleware.PermissionMiddleware("VOTER"))
 
 	adminAction := app.Group("/admin")
 

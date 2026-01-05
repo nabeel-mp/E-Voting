@@ -1,4 +1,3 @@
-# ---------- Stage 1: Build ----------
 FROM golang:1.25-alpine AS builder
 
 # Set working directory
@@ -15,10 +14,8 @@ RUN go mod download
 COPY . .
 
 # Build the Go application as a static binary
-# CGO_ENABLED=0 ensures it runs on lean images like alpine/scratch
 RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/main.go
 
-# ---------- Stage 2: Final Run ----------
 FROM alpine:latest
 
 # Install runtime dependencies for timezones and SSL

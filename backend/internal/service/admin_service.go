@@ -43,7 +43,7 @@ func CreateSubAdmin(
 		IsSuper:  false,
 	}
 
-	err = repository.CreateAdmin(admin)
+	err = repository.CreateSubAdmin(admin)
 	if err != nil {
 		return errors.New("admin already exists")
 	}
@@ -72,18 +72,12 @@ func AdminLogin(email, password string) (string, error) {
 		return "", errors.New("invalid credentials")
 	}
 
-	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name)
+	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name, admin.IsSuper)
 	if err != nil {
 		return "", err
 	}
 
 	return token, nil
-}
-
-func ListAdmins() ([]models.Admin, error) {
-	var admins []models.Admin
-	err := database.PostgresDB.Preload("Role").Find(&admins).Error
-	return admins, err
 }
 
 func BlockUnblockSubAdmin(

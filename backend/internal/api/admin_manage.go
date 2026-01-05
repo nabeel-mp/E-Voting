@@ -1,6 +1,7 @@
 package api
 
 import (
+	"E-voting/internal/repository"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
 
@@ -51,6 +52,13 @@ func CreateSubAdmin(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Role ID is required")
 	}
 
+	userIDLocal := c.Locals("user_id")
+	roleLocal := c.Locals("role")
+
+	if userIDLocal == nil || roleLocal == nil {
+		return utils.Error(c, 401, "Unauthorized: user data missing")
+	}
+
 	actorID := uint(c.Locals("user_id").(float64))
 	actorRole := c.Locals("role").(string)
 
@@ -63,7 +71,7 @@ func CreateSubAdmin(c *fiber.Ctx) error {
 }
 
 func ListAdmins(c *fiber.Ctx) error {
-	admins, err := service.ListAdmins()
+	admins, err := repository.GetAllAdmins()
 	if err != nil {
 		return utils.Error(c, 500, "Failed to fetch admins")
 	}
