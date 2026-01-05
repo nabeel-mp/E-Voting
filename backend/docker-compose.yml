@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL for core data (Admins, Voters, Verifications)
   postgres_db:
@@ -37,22 +35,27 @@ services:
     ports:
       - "${APP_PORT:-3000}:${APP_PORT:-3000}"
     environment:
+      # Application Settings
       APP_NAME: "E-Voting-System"
       APP_PORT: ${APP_PORT:-3000}
       APP_ENV: development
+      
+      # Security (CRITICAL: Must be in your .env file)
       JWT_SECRET: ${JWT_SECRET}
+      
+      # Database Connections (Matching internal/config/config.go)
       POSTGRES_HOST: postgres_db
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-evoting_db}
+      
+      # MongoDB for Audit Trails
       MONGO_URI: "mongodb://mongo_db:27017"
       MONGO_DB: ${MONGO_DB:-evoting_logs}
-      SUREPASS_API_KEY: ${SUREPASS_API_KEY}
-    depends_on:
-      - postgres_db
-      - mongo_db
+      
 
+# Persistent storage to prevent data loss when containers restart
 volumes:
   postgres_data:
   mongo_data:
