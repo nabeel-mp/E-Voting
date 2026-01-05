@@ -34,4 +34,7 @@ func RegisterRoutes(app *fiber.App) {
 	app.Post("/auth/admin/unblock", middleware.AuthMiddleware("SUPER_ADMIN"), UnblockSubAdmin)
 	app.Get("/audit/logs", middleware.AuthMiddleware("SUPER_ADMIN"), GetAuditLogs)
 
+	app.Post("/vote/cast", middleware.AuthMiddleware("VOTER"), CastVote)
+	app.Get("/vote/verify", VerifyPublicVote)
+
 }

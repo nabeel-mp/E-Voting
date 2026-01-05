@@ -21,3 +21,7 @@ func UpdateVoterOTP(voter *models.Voter) error {
 		"otp_expires_at": voter.OTPExpiresAt,
 	}).Error
 }
+
+func SaveVote(vote *models.Vote) error {
+	return database.PostgresDB.Create(vote).Error
+}
