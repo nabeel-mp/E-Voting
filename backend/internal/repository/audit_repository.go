@@ -13,7 +13,6 @@ func SaveAuditLog(log models.AuditLog) {
 
 	collection := database.MongoDB.Collection("audit_logs")
 
-	// Fire-and-forget (never block main flow)
 	_, _ = collection.InsertOne(ctx, log)
 }
 
