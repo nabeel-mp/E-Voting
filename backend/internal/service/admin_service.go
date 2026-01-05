@@ -1,14 +1,31 @@
 package service
 
 import (
+	"E-voting/internal/database"
 	"E-voting/internal/models"
 	"E-voting/internal/repository"
 	"E-voting/internal/utils"
 	"errors"
+	"strings"
 )
+
+func CreateRole(name string, permissions []string) error {
+	role := models.Role{
+		Name:        name,
+		Permissions: strings.Join(permissions, ","),
+	}
+	return database.PostgresDB.Create(&role).Error
+}
+
+func GetRoles() ([]models.Role, error) {
+	var roles []models.Role
+	err := database.PostgresDB.Find(&roles).Error
+	return roles, err
+}
 
 func CreateSubAdmin(
 	email, password string,
+	roleID uint,
 	actorID uint,
 	actorRole string,
 ) error {
@@ -21,8 +38,9 @@ func CreateSubAdmin(
 	admin := &models.Admin{
 		Email:    email,
 		Password: hashedPwd,
-		Role:     "SUB_ADMIN",
+		RoleID:   roleID,
 		IsActive: true,
+		IsSuper:  false,
 	}
 
 	err = repository.CreateAdmin(admin)
@@ -36,7 +54,8 @@ func CreateSubAdmin(
 		"CREATE_SUB_ADMIN",
 		admin.ID,
 		map[string]interface{}{
-			"email": email,
+			"email":   email,
+			"role_id": roleID,
 		},
 	)
 
@@ -53,7 +72,7 @@ func AdminLogin(email, password string) (string, error) {
 		return "", errors.New("invalid credentials")
 	}
 
-	token, err := utils.GenerateJWT(admin.ID, admin.Role)
+	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name)
 	if err != nil {
 		return "", err
 	}
@@ -62,7 +81,9 @@ func AdminLogin(email, password string) (string, error) {
 }
 
 func ListAdmins() ([]models.Admin, error) {
-	return repository.GetAllAdmins()
+	var admins []models.Admin
+	err := database.PostgresDB.Preload("Role").Find(&admins).Error
+	return admins, err
 }
 
 func BlockUnblockSubAdmin(
@@ -77,7 +98,7 @@ func BlockUnblockSubAdmin(
 		return errors.New("admin not found")
 	}
 
-	if admin.Role == "SUPER_ADMIN" {
+	if admin.IsSuper {
 		return errors.New("cannot modify super admin")
 	}
 

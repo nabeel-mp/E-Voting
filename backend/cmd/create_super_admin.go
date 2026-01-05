@@ -18,7 +18,7 @@ func Main() {
 	admin := models.Admin{
 		Email:    "nabeelmp698@gmail.com",
 		Password: password,
-		Role:     "SUPER_ADMIN",
+		IsSuper:  true,
 		IsActive: true,
 	}
 
@@ -27,5 +27,5 @@ func Main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(" Super Admin created")
+	fmt.Println(" Super Admin created with full system permission")
 }

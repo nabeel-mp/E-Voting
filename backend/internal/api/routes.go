@@ -13,28 +13,38 @@ func RegisterRoutes(app *fiber.App) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return utils.Success(c, service.HealthCheck())
 	})
-	app.Post("/auth/admin/login", AdminLogin)
 
-	app.Get("/admin/secure",
-		middleware.AuthMiddleware("SUPER_ADMIN"),
-		func(c *fiber.Ctx) error {
-			return utils.Success(c, "Welcome Super Admin")
-		},
-	)
+	auth := app.Group("/auth")
+	auth.Post("/admin/login", AdminLogin)
+	auth.Post("/voter/login", VoterLogin)
+	auth.Post("/voter/verify-otp", VerifyOTP)
 
-	app.Post("/auth/voter/register", middleware.AuthMiddleware("SUB_ADMIN"), RegisterVoter)
-	app.Post("/auth/voter/login", VoterLogin)
-	app.Post("/auth/voter/verify-otp", VerifyOTP)
-
-	app.Post("/auth/admin/create-sub-admin", middleware.AuthMiddleware("SUPER_ADMIN"), CreateSubAdmin)
-
-	app.Get("/auth/admin/list", middleware.AuthMiddleware("SUPER_ADMIN"), ListAdmins)
-
-	app.Post("/auth/admin/block", middleware.AuthMiddleware("SUPER_ADMIN"), BlockSubAdmin)
-	app.Post("/auth/admin/unblock", middleware.AuthMiddleware("SUPER_ADMIN"), UnblockSubAdmin)
-	app.Get("/audit/logs", middleware.AuthMiddleware("SUPER_ADMIN"), GetAuditLogs)
-
-	app.Post("/vote/cast", middleware.AuthMiddleware("VOTER"), CastVote)
 	app.Get("/vote/verify", VerifyPublicVote)
 
+	voter := app.Group("/vote", middleware.PermissionMiddleware("VOTER"))
+	voter.Post("/cast", CastVote)
+
+	adminAction := app.Group("/admin")
+
+	adminAction.Post("/voter/register", middleware.PermissionMiddleware("register_voter"), RegisterVoter)
+
+	superAdmin := app.Group("/auth/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
+
+	// Role & Permission Management
+	superAdmin.Post("/roles", CreateRoleHandler)
+	superAdmin.Get("/roles", ListRolesHandler)
+
+	// Admin Account Management
+	superAdmin.Post("/create-sub-admin", middleware.PermissionMiddleware("manage_admins"), CreateSubAdmin)
+	superAdmin.Get("/list", ListAdmins)
+	superAdmin.Post("/block", BlockSubAdmin)
+	superAdmin.Post("/unblock", UnblockSubAdmin)
+
+	// System Audit Logs
+	app.Get("/audit/logs", middleware.PermissionMiddleware("SUPER_ADMIN"), GetAuditLogs)
+
+	// Secure Test Route
+	superAdmin.Get("/secure", func(c *fiber.Ctx) error {
+		return utils.Success(c, "Welcome Super Admin")
+	})
 }

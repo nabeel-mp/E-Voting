@@ -10,10 +10,35 @@ import (
 type CreateSubAdminRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	RoleID   uint   `json:"role_id"`
 }
 
 type AdminStatusRequest struct {
 	AdminID uint `json:"admin_id"`
+}
+
+func CreateRoleHandler(c *fiber.Ctx) error {
+	type Req struct {
+		Name        string   `json:"name"`
+		Permissions []string `json:"permissions"`
+	}
+	var req Req
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	if err := service.CreateRole(req.Name, req.Permissions); err != nil {
+		return utils.Error(c, 500, "Failed to create role")
+	}
+	return utils.Success(c, "Role created successfully")
+}
+
+func ListRolesHandler(c *fiber.Ctx) error {
+	roles, err := service.GetRoles()
+	if err != nil {
+		return utils.Error(c, 500, "Failed to fetch roles")
+	}
+	return utils.Success(c, roles)
 }
 
 func CreateSubAdmin(c *fiber.Ctx) error {
@@ -22,10 +47,14 @@ func CreateSubAdmin(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
+	if req.RoleID == 0 {
+		return utils.Error(c, 400, "Role ID is required")
+	}
+
 	actorID := uint(c.Locals("user_id").(float64))
 	actorRole := c.Locals("role").(string)
 
-	err := service.CreateSubAdmin(req.Email, req.Password, actorID, actorRole)
+	err := service.CreateSubAdmin(req.Email, req.Password, req.RoleID, actorID, actorRole)
 	if err != nil {
 		return utils.Error(c, 400, err.Error())
 	}
@@ -39,14 +68,14 @@ func ListAdmins(c *fiber.Ctx) error {
 		return utils.Error(c, 500, "Failed to fetch admins")
 	}
 
-	// Hide passwords
 	response := make([]fiber.Map, 0)
 	for _, a := range admins {
 		response = append(response, fiber.Map{
 			"id":        a.ID,
 			"email":     a.Email,
-			"role":      a.Role,
+			"role_name": a.Role.Name,
 			"is_active": a.IsActive,
+			"is_super":  a.IsSuper,
 			"created":   a.CreatedAt,
 		})
 	}
