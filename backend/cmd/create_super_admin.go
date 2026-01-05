@@ -7,25 +7,43 @@ import (
 	"E-voting/internal/utils"
 	"fmt"
 	"log"
+
+	"gorm.io/gorm"
 )
 
 func Main() {
 	config.LoadConfig()
 	database.ConnectPostgres()
 
-	password, _ := utils.HashPassword("super786")
+	err := database.PostgresDB.Transaction(func(tx *gorm.DB) error {
+		role := models.Role{
+			Name:        "SUPER_ADMIN",
+			Permissions: "all",
+		}
 
-	admin := models.Admin{
-		Email:    "nabeelmp698@gmail.com",
-		Password: password,
-		IsSuper:  true,
-		IsActive: true,
-	}
+		if err := tx.Where(models.Role{Name: "SUPER_ADMIN"}).FirstOrCreate(&role).Error; err != nil {
+			return err
+		}
 
-	err := database.PostgresDB.Create(&admin).Error
+		password, err := utils.HashPassword("super786")
+		if err != nil {
+			return err
+		}
+
+		admin := models.Admin{
+			Email:    "nabeelmp698@gmail.com",
+			Password: password,
+			RoleID:   role.ID,
+			IsSuper:  true,
+			IsActive: true,
+		}
+
+		return tx.Where(models.Admin{Email: admin.Email}).FirstOrCreate(&admin).Error
+	})
+
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to seed Super Admin: %v", err)
 	}
 
-	fmt.Println(" Super Admin created with full system permission")
+	fmt.Println("Successfully created Super Admin and linked to Role.")
 }
