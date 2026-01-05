@@ -30,6 +30,6 @@ func ConnectPostgres() {
 	}
 
 	PostgresDB = db
-	db.AutoMigrate(&models.Admin{}, &models.Voter{}, &models.AadhaarVerification{})
+	db.AutoMigrate(&models.Admin{})
 	log.Println(" PostgreSQL connected & Migrated")
 }

@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for core data (Admins, Voters, Verifications)
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: evoting_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-evoting_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # MongoDB for Audit Logs
+  mongo_db:
+    image: mongo:latest
+    container_name: evoting_mongo
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-evoting_logs}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # Backend Go Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evoting_backend
+    restart: always
+    ports:
+      - "${APP_PORT:-3000}:${APP_PORT:-3000}"
+    environment:
+      APP_NAME: "E-Voting-System"
+      APP_PORT: ${APP_PORT:-3000}
+      APP_ENV: development
+      JWT_SECRET: ${JWT_SECRET}
+      POSTGRES_HOST: postgres_db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-evoting_db}
+      MONGO_URI: "mongodb://mongo_db:27017"
+      MONGO_DB: ${MONGO_DB:-evoting_logs}
+      SUREPASS_API_KEY: ${SUREPASS_API_KEY}
+    depends_on:
+      - postgres_db
+      - mongo_db
+
+volumes:
+  postgres_data:
+  mongo_data:
