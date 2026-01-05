@@ -5,6 +5,7 @@ import (
 	"E-voting/internal/repository"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -12,7 +13,6 @@ import (
 // RegisterVoterRequest defines the input schema for voter registration
 type RegisterVoterRequest struct {
 	FullName string `json:"full_name"`
-	VoterID  string `json:"voter_id"`
 	Mobile   string `json:"mobile"`
 	Aadhaar  string `json:"aadhaar"`
 }
@@ -27,17 +27,19 @@ func RegisterVoter(c *fiber.Ctx) error {
 	}
 
 	// Basic validation
-	if req.VoterID == "" || req.Mobile == "" || req.Aadhaar == "" {
+	if req.Mobile == "" || req.Aadhaar == "" {
 		return utils.Error(c, 400, "Missing required fields")
 	}
 
 	// Hash the Aadhaar number before storing it for security
 	hashedAadhaar := utils.HashAadhaar(req.Aadhaar)
 
+	generatedVoterID := fmt.Sprintf("VOTE-%d", utils.RandomNumber())
+
 	// Create the voter model
 	voter := &models.Voter{
 		FullName:    req.FullName,
-		VoterID:     req.VoterID,
+		VoterID:     generatedVoterID,
 		Mobile:      req.Mobile,
 		AadhaarHash: hashedAadhaar,
 	}
@@ -59,9 +61,12 @@ func RegisterVoter(c *fiber.Ctx) error {
 		"REGISTER_VOTER",
 		voter.ID,
 		map[string]interface{}{
-			"voter_id": req.VoterID,
+			"voter_id": generatedVoterID,
 		},
 	)
 
-	return utils.Success(c, "Voter registered successfully")
+	return utils.Success(c, fiber.Map{
+		"message":  "Voter registered successfully",
+		"voter_id": generatedVoterID,
+	})
 }
