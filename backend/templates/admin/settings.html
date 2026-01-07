@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>E-Voting Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body class="font-sans bg-gray-100 text-gray-800">
+
+<div id="app" class="flex h-screen overflow-hidden">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="bg-white w-64 border-r border-gray-200 transition-all">
+    <div class="p-6 text-2xl font-bold text-indigo-600">E-Voting</div>
+    <ul class="space-y-2 text-lg" id="navList"></ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6 overflow-y-auto">
+<h1 class="text-3xl font-bold text-indigo-700 mb-4">Admin Profile</h1>
+
+<form class="max-w-lg bg-white p-6 shadow rounded-lg space-y-4">
+  <div>
+    <label class="block text-sm font-medium text-gray-700">Name</label>
+    <input type="text" class="w-full border px-3 py-2 rounded" value="Admin User" />
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-gray-700">Email</label>
+    <input type="email" class="w-full border px-3 py-2 rounded" value="admin@vote.com" />
+  </div>
+  <button class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700">
+    Update Profile
+  </button>
+</form>
+
+
+      </main>
+</div>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>

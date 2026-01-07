@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>E-Voting Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body class="font-sans bg-gray-100 text-gray-800">
+
+<div id="app" class="flex h-screen overflow-hidden">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="bg-white w-64 border-r border-gray-200 transition-all">
+    <div class="p-6 text-2xl font-bold text-indigo-600">E-Voting</div>
+    <ul class="space-y-2 text-lg" id="navList"></ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6 overflow-y-auto">
+
+    <h1 class="text-3xl font-bold text-indigo-700 mb-4">Manage Voters</h1>
+
+<table class="min-w-full bg-white shadow rounded-lg">
+  <thead class="bg-indigo-100 text-left">
+    <tr>
+      <th class="py-3 px-4">Voter ID</th>
+      <th class="py-3 px-4">Name</th>
+      <th class="py-3 px-4">Email</th>
+      <th class="py-3 px-4">Status</th>
+      <th class="py-3 px-4">Actions</th>
+    </tr>
+  </thead>
+  <tbody id="votersTable">
+    <!-- JS will populate -->
+  </tbody>
+</table>
+
+<script>
+const voters = [
+  { id: "V001", name: "Alice", email: "alice@example.com", status: "Voted" },
+  { id: "V002", name: "Bob", email: "bob@example.com", status: "Not Voted" }
+];
+
+const table = document.getElementById("votersTable");
+voters.forEach(v => {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td class="py-2 px-4">${v.id}</td>
+    <td class="py-2 px-4">${v.name}</td>
+    <td class="py-2 px-4">${v.email}</td>
+    <td class="py-2 px-4">${v.status}</td>
+    <td class="py-2 px-4">
+      <button class="text-indigo-600 hover:underline">Edit</button>
+      <button class="text-red-600 hover:underline ml-2">Delete</button>
+    </td>`;
+  table.appendChild(tr);
+});
+</script>
+
+
+
+      </main>
+</div>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>
