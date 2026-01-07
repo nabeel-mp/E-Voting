@@ -80,6 +80,24 @@ func AdminLogin(email, password string) (string, error) {
 	return token, nil
 }
 
+func SetAdminStatus(targetID uint, requesterID uint, status bool) error {
+	if targetID == requesterID {
+		return errors.New("cannot modify yourself")
+	}
+
+	result := database.PostgresDB.Model(&models.Admin{}).
+		Where("id = ? AND is_super = ?", targetID, false).
+		Update("is_active", status)
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("admin not found or is a super admin")
+	}
+	return nil
+}
+
 func BlockUnblockSubAdmin(
 	targetAdminID uint,
 	requesterID uint,

@@ -3,6 +3,8 @@ package repository
 import (
 	"E-voting/internal/database"
 	"E-voting/internal/models"
+
+	"gorm.io/gorm"
 )
 
 func FindAdminByEmail(email string) (*models.Admin, error) {
@@ -13,13 +15,17 @@ func FindAdminByEmail(email string) (*models.Admin, error) {
 	return &admin, err
 }
 
+func ActiveAdmin(db *gorm.DB) *gorm.DB {
+	return db.Where("is_active = ?", true)
+}
+
 func CreateSubAdmin(admin *models.Admin) error {
 	return database.PostgresDB.Create(admin).Error
 }
 
 func GetAllAdmins() ([]models.Admin, error) {
 	var admins []models.Admin
-	err := database.PostgresDB.Preload("Role").Find(&admins).Error
+	err := database.PostgresDB.Scopes(ActiveAdmin).Preload("Role").Find(&admins).Error
 	return admins, err
 }
 

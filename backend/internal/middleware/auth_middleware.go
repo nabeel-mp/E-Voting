@@ -30,19 +30,16 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 		claims := token.Claims.(jwt.MapClaims)
 		c.Locals("user_id", claims["user_id"])
 		c.Locals("role", claims["role"])
-		isSuper, ok := claims["is_super"].(bool)
 
-		if !ok {
-			isSuper = false
-		}
-
-		if isSuper {
+		role := claims["role"].(string)
+		if role == "SUPER_ADMIN" {
 			return c.Next()
 		}
 
 		var admin models.Admin
-		database.PostgresDB.Preload("Role").First(&admin, claims["user_id"])
-
+		if err := database.PostgresDB.First(&admin, claims["user_id"]).Error; err != nil || !admin.IsActive {
+			return utils.Error(c, 401, "Account inactive or not found")
+		}
 		if !strings.Contains(admin.Role.Permissions, requiredPermission) {
 			return utils.Error(c, 403, "Permission denied: "+requiredPermission)
 		}
