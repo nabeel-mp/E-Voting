@@ -1,6 +1,7 @@
 package api
 
 import (
+	"E-voting/internal/database"
 	"E-voting/internal/models"
 	"E-voting/internal/repository"
 	"E-voting/internal/service"
@@ -60,4 +61,15 @@ func RegisterVoter(c *fiber.Ctx) error {
 		"message":  "Voter registered successfully",
 		"voter_id": generatedVoterID,
 	})
+}
+
+func ListVoters(c *fiber.Ctx) error {
+	var voters []models.Voter
+	// Fetch all voters from Postgres
+	err := database.PostgresDB.Find(&voters).Error
+	if err != nil {
+		return utils.Error(c, 500, "Failed to fetch voters")
+	}
+
+	return utils.Success(c, voters)
 }

@@ -1,6 +1,8 @@
 package api
 
 import (
+	"E-voting/internal/database"
+	"E-voting/internal/models"
 	"E-voting/internal/repository"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
@@ -135,4 +137,27 @@ func UnblockSubAdmin(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, "Sub Admin unblocked")
+}
+
+func UpdateAdminProfile(c *fiber.Ctx) error {
+	type UpdateReq struct {
+		Email string `json:"email"`
+	}
+	var req UpdateReq
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request body")
+	}
+
+	// Get ID from JWT middleware locals
+	userID := uint(c.Locals("user_id").(float64))
+
+	err := database.PostgresDB.Model(&models.Admin{}).Where("id = ?", userID).Updates(models.Admin{
+		Email: req.Email,
+	}).Error
+
+	if err != nil {
+		return utils.Error(c, 500, "Failed to update profile")
+	}
+
+	return utils.Success(c, "Profile updated successfully")
 }

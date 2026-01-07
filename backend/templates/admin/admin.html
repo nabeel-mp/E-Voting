@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>E-Voting Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body class="font-sans bg-gray-100 text-gray-800">
+
+<div id="app" class="flex h-screen overflow-hidden">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="bg-white w-64 border-r border-gray-200 transition-all">
+    <div class="p-6 text-2xl font-bold text-indigo-600">E-Voting</div>
+    <ul class="space-y-2 text-lg" id="navList"></ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6 overflow-y-auto">
+<h1 class="text-3xl font-bold text-indigo-700 mb-4">System Administrators</h1>
+<tbody id="adminsTable"></tbody>
+
+<script>
+async function fetchAdmins() {
+    const response = await apiFetch("/auth/admin/list");
+    const table = document.getElementById("adminsTable");
+    table.innerHTML = response.data.map(a => `
+        <tr class="border-b">
+            <td class="py-2 px-4">${a.email}</td>
+            <td class="py-2 px-4"><span class="px-2 py-1 bg-gray-200 rounded text-xs">${a.role_name}</span></td>
+            <td class="py-2 px-4">
+                <button onclick="toggleStatus(${a.id}, ${a.is_active})" 
+                        class="${a.is_active ? 'text-red-600' : 'text-green-600'} hover:underline">
+                    ${a.is_active ? 'Block' : 'Unblock'}
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function toggleStatus(id, currentStatus) {
+    const endpoint = currentStatus ? "/auth/admin/block" : "/auth/admin/unblock";
+    await apiFetch(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({ admin_id: id })
+    });
+    fetchAdmins();
+}
+fetchAdmins();
+</script>
+
+
+      </main>
+</div>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>

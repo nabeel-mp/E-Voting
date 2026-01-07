@@ -6,3 +6,23 @@
   background: #A5B4FC;
   border-radius: 4px;
 }
+
+:root {
+  --indigo-primary: #4f46e5;
+  --indigo-light: #a5b4fc;
+}
+
+body { background-color: #f9fafb; }
+
+.sidebar-link-active {
+  background-color: #e0e7ff;
+  color: #4338ca;
+  border-right: 4px solid var(--indigo-primary);
+}
+
+/* Custom scrollbar using your defined colors */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb {
+  background: var(--indigo-light);
+  border-radius: 4px;
+}

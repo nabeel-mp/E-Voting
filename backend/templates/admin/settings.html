@@ -3,41 +3,70 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>E-Voting Admin</title>
+  <title>Admin Settings | E-Voting</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="assets/css/styles.css" />
 </head>
 <body class="font-sans bg-gray-100 text-gray-800">
-
 <div id="app" class="flex h-screen overflow-hidden">
-  <!-- Sidebar -->
-  <aside id="sidebar" class="bg-white w-64 border-r border-gray-200 transition-all">
+  <aside id="sidebar" class="bg-white w-64 border-r border-gray-200">
     <div class="p-6 text-2xl font-bold text-indigo-600">E-Voting</div>
     <ul class="space-y-2 text-lg" id="navList"></ul>
   </aside>
 
-  <!-- Main Content -->
-  <main class="flex-1 p-6 overflow-y-auto">
-<h1 class="text-3xl font-bold text-indigo-700 mb-4">Admin Profile</h1>
+  <main class="flex-1 p-8 overflow-y-auto">
+    <h1 class="text-3xl font-bold text-indigo-700 mb-6">Account Settings</h1>
 
-<form class="max-w-lg bg-white p-6 shadow rounded-lg space-y-4">
-  <div>
-    <label class="block text-sm font-medium text-gray-700">Name</label>
-    <input type="text" class="w-full border px-3 py-2 rounded" value="Admin User" />
-  </div>
-  <div>
-    <label class="block text-sm font-medium text-gray-700">Email</label>
-    <input type="email" class="w-full border px-3 py-2 rounded" value="admin@vote.com" />
-  </div>
-  <button class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700">
-    Update Profile
-  </button>
-</form>
-
-
-      </main>
+    <div class="max-w-lg bg-white p-8 shadow rounded-lg">
+      <form id="settingsForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Admin Email</label>
+          <input type="email" id="adminEmail" required class="w-full border px-4 py-2 rounded mt-1 focus:ring-indigo-500" />
+        </div>
+        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition">
+          Update Profile
+        </button>
+      </form>
+      <p id="statusMsg" class="mt-4 text-center hidden"></p>
+    </div>
+  </main>
 </div>
 
 <script src="assets/js/main.js"></script>
+<script>
+async function loadProfile() {
+    // You can parse the email directly from the JWT if stored, 
+    // or fetch from a "me" endpoint.
+    const token = localStorage.getItem("admin_token");
+    if (!token) return;
+    
+    // For this example, we assume the user's data is part of the token 
+    // or you can add a simple GET /api/admin/me route
+}
+
+document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('adminEmail').value;
+  const statusMsg = document.getElementById('statusMsg');
+
+  try {
+    const response = await fetch('/api/admin/update-profile', {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('admin_token')}` 
+      },
+      body: JSON.stringify({ email })
+    });
+
+    const result = await response.json();
+    statusMsg.innerText = result.success ? "Profile updated!" : result.error;
+    statusMsg.className = `mt-4 text-center ${result.success ? 'text-green-600' : 'text-red-600'}`;
+    statusMsg.classList.remove('hidden');
+  } catch (err) {
+    statusMsg.innerText = "Connection error";
+    statusMsg.classList.remove('hidden');
+  }
+});
+</script>
 </body>
 </html>

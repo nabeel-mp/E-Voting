@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Audit Logs | E-Voting Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="font-sans bg-gray-100 text-gray-800">
+<div class="flex h-screen overflow-hidden">
+  <main class="flex-1 p-8 overflow-y-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-indigo-700">System Audit Logs</h1>
+        <button onclick="fetchLogs()" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Refresh</button>
+    </div>
+
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+      <table class="min-w-full leading-normal">
+        <thead>
+          <tr class="bg-indigo-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <th class="px-5 py-3 border-b-2 border-gray-200">Timestamp</th>
+            <th class="px-5 py-3 border-b-2 border-gray-200">Actor (Role)</th>
+            <th class="px-5 py-3 border-b-2 border-gray-200">Action</th>
+            <th class="px-5 py-3 border-b-2 border-gray-200">Target ID</th>
+            <th class="px-5 py-3 border-b-2 border-gray-200">Details</th>
+          </tr>
+        </thead>
+        <tbody id="logsTableBody">
+          </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script>
+async function fetchLogs() {
+  const tableBody = document.getElementById('logsTableBody');
+  tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Loading logs...</td></tr>';
+
+  try {
+    const response = await fetch('/api/audit/logs', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` }
+    });
+    const result = await response.json();
+
+    if (result.success) {
+      tableBody.innerHTML = result.data.map(log => `
+        <tr class="hover:bg-gray-50">
+          <td class="px-5 py-5 border-b border-gray-200 text-sm">
+            ${new Date(log.timestamp).toLocaleString()}
+          </td>
+          <td class="px-5 py-5 border-b border-gray-200 text-sm">
+            Admin #${log.actor_id} <span class="text-gray-500">(${log.actor_role})</span>
+          </td>
+          <td class="px-5 py-5 border-b border-gray-200 text-sm">
+            <span class="px-2 py-1 font-semibold leading-tight text-indigo-700 bg-indigo-100 rounded-full">
+                ${log.action}
+            </span>
+          </td>
+          <td class="px-5 py-5 border-b border-gray-200 text-sm">
+            ${log.target_id || 'N/A'}
+          </td>
+          <td class="px-5 py-5 border-b border-gray-200 text-sm">
+            <pre class="text-xs bg-gray-100 p-1 rounded">${JSON.stringify(log.metadata)}</pre>
+          </td>
+        </tr>
+      `).join('');
+    } else {
+      tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">${result.error}</td></tr>`;
+    }
+  } catch (err) {
+    tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-red-500">Failed to connect to server</td></tr>';
+  }
+}
+
+fetchLogs();
+</script>
+</body>
+</html>

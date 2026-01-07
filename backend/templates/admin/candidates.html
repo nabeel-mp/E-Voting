@@ -3,62 +3,106 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>E-Voting Admin</title>
+  <title>Manage Candidates | E-Voting Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="assets/css/styles.css" />
 </head>
 <body class="font-sans bg-gray-100 text-gray-800">
+<div class="flex h-screen overflow-hidden">
+  <main class="flex-1 p-8 overflow-y-auto">
+    <h1 class="text-3xl font-bold text-indigo-700 mb-6">Candidate & Party Management</h1>
 
-<div id="app" class="flex h-screen overflow-hidden">
-  <!-- Sidebar -->
-  <aside id="sidebar" class="bg-white w-64 border-r border-gray-200 transition-all">
-    <div class="p-6 text-2xl font-bold text-indigo-600">E-Voting</div>
-    <ul class="space-y-2 text-lg" id="navList"></ul>
-  </aside>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+      <div class="bg-white p-6 shadow rounded-lg">
+        <h2 class="text-xl font-bold mb-4">Add New Party</h2>
+        <form id="partyForm" class="space-y-4">
+          <input type="text" id="partyName" placeholder="Party Name" required class="w-full border p-2 rounded">
+          <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Save Party</button>
+        </form>
+      </div>
 
-  <!-- Main Content -->
-  <main class="flex-1 p-6 overflow-y-auto">
+      <div class="bg-white p-6 shadow rounded-lg">
+        <h2 class="text-xl font-bold mb-4">Add New Candidate</h2>
+        <form id="candidateForm" class="space-y-4">
+          <input type="text" id="candName" placeholder="Full Name" required class="w-full border p-2 rounded">
+          <select id="partySelect" required class="w-full border p-2 rounded">
+            <option value="">Select Party</option>
+          </select>
+          <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">Save Candidate</button>
+        </form>
+      </div>
+    </div>
 
-
-    <h1 class="text-3xl font-bold text-indigo-700 mb-4">Manage Candidates</h1>
-
-<table class="min-w-full bg-white shadow rounded-lg">
-  <thead class="bg-indigo-100">
-    <tr>
-      <th class="py-3 px-4">Candidate</th>
-      <th class="py-3 px-4">Party</th>
-      <th class="py-3 px-4">Votes</th>
-      <th class="py-3 px-4">Actions</th>
-    </tr>
-  </thead>
-  <tbody id="candidatesTable"></tbody>
-</table>
-
-<script>
-const candidates = [
-  { name: "Emma", party: "Party A", votes: 350 },
-  { name: "Liam", party: "Party B", votes: 280 },
-];
-
-const candTable = document.getElementById("candidatesTable");
-candidates.forEach(c => {
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td class="py-2 px-4">${c.name}</td>
-    <td class="py-2 px-4">${c.party}</td>
-    <td class="py-2 px-4">${c.votes}</td>
-    <td class="py-2 px-4">
-      <button class="text-indigo-600 hover:underline">Edit</button>
-      <button class="text-red-600 hover:underline ml-2">Remove</button>
-    </td>`;
-  candTable.appendChild(tr);
-});
-</script>
-
-
-      </main>
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+      <table class="min-w-full leading-normal">
+        <thead class="bg-indigo-100">
+          <tr>
+            <th class="px-5 py-3 text-left">Candidate Name</th>
+            <th class="px-5 py-3 text-left">Party</th>
+            <th class="px-5 py-3 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="candidatesTable"></tbody>
+      </table>
+    </div>
+  </main>
 </div>
 
-<script src="assets/js/main.js"></script>
+<script>
+async function loadParties() {
+  const res = await fetch('/api/admin/parties', {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` }
+  });
+  const data = await res.json();
+  if (data.success) {
+    const select = document.getElementById('partySelect');
+    select.innerHTML = '<option value="">Select Party</option>' + 
+      data.data.map(p => `<option value="${p.ID}">${p.name}</option>`).join('');
+  }
+}
+
+async function loadCandidates() {
+  const res = await fetch('/api/admin/candidates', {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` }
+  });
+  const data = await res.json();
+  if (data.success) {
+    document.getElementById('candidatesTable').innerHTML = data.data.map(c => `
+      <tr class="border-b">
+        <td class="px-5 py-4">${c.full_name}</td>
+        <td class="px-5 py-4">${c.party.name}</td>
+        <td class="px-5 py-4"><button class="text-red-600">Remove</button></td>
+      </tr>
+    `).join('');
+  }
+}
+
+document.getElementById('partyForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('partyName').value;
+  await fetch('/api/admin/parties', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
+    body: JSON.stringify({ name })
+  });
+  loadParties();
+  e.target.reset();
+});
+
+document.getElementById('candidateForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const full_name = document.getElementById('candName').value;
+  const party_id = parseInt(document.getElementById('partySelect').value);
+  await fetch('/api/admin/candidates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
+    body: JSON.stringify({ full_name, party_id })
+  });
+  loadCandidates();
+  e.target.reset();
+});
+
+loadParties();
+loadCandidates();
+</script>
 </body>
 </html>

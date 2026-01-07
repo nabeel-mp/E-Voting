@@ -7,18 +7,23 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html/v2"
 )
 
 func main() {
 
 	config.LoadConfig()
 
+	engine := html.New("./templates", ".html")
+
 	database.ConnectPostgres()
 	database.ConnectMongo()
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{Views: engine})
 
 	api.RegisterRoutes(app)
+
+	app.Get("/admin/dashboard", api.GetDashboardData)
 
 	log.Printf(" %s running on port %s",
 		config.Config.AppName,
