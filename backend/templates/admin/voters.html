@@ -8,6 +8,10 @@
 </head>
 <body class="font-sans bg-gray-100 text-gray-800">
 <div class="flex h-screen overflow-hidden">
+    <aside id="sidebar" class="bg-white w-64 border-r border-gray-200">
+    <div class="p-6 text-2xl font-bold text-indigo-600">E-Voting</div>
+    <ul class="space-y-2 text-lg" id="navList"></ul> </aside>
+    
   <main class="flex-1 p-8 overflow-y-auto">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-indigo-700">Voter List</h1>
@@ -44,6 +48,8 @@
     </div>
   </main>
 </div>
+    <script src="assets/js/main.js"></script>
+
 
 <script>
 async function fetchVoters() {

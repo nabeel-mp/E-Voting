@@ -13,7 +13,7 @@
 
     <div id="app" class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <aside id="sidebar" class="bg-white w-64 border-r border-gray-200 transition-all">
+        <aside id="sidebar" class="bg-white w-64 border-r border-gray-200">
             <div class="p-6 text-2xl font-bold text-indigo-600">E-Voting</div>
             <ul class="space-y-2 text-lg" id="navList"></ul>
         </aside>
@@ -21,29 +21,29 @@
         <!-- Main Content -->
         <main class="flex-1 p-6 overflow-y-auto">
 
-           <h1 class="text-3xl font-bold text-indigo-700 mb-6">Dashboard</h1>
+            <h1 class="text-3xl font-bold text-indigo-700 mb-6">Dashboard</h1>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-  <div class="bg-white p-6 shadow rounded-lg border-l-4 border-indigo-500">
-    <p class="text-sm text-gray-500">Total Voters</p>
-    <h2 class="text-3xl font-bold">{{ .TotalVoters }}</h2>
-  </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white p-6 shadow rounded-lg border-l-4 border-indigo-500">
+                    <p class="text-sm text-gray-500">Total Voters</p>
+                    <h2 class="text-3xl font-bold">{{ .TotalVoters }}</h2>
+                </div>
 
-  <div class="bg-white p-6 shadow rounded-lg border-l-4 border-green-500">
-    <p class="text-sm text-gray-500">Votes Cast</p>
-    <h2 class="text-3xl font-bold">{{ .VotesCast }}</h2>
-  </div>
+                <div class="bg-white p-6 shadow rounded-lg border-l-4 border-green-500">
+                    <p class="text-sm text-gray-500">Votes Cast</p>
+                    <h2 class="text-3xl font-bold">{{ .VotesCast }}</h2>
+                </div>
 
-  <div class="bg-white p-6 shadow rounded-lg border-l-4 border-red-500">
-    <p class="text-sm text-gray-500">Candidates</p>
-    <h2 class="text-3xl font-bold">{{ .Candidates }}</h2>
-  </div>
+                <div class="bg-white p-6 shadow rounded-lg border-l-4 border-red-500">
+                    <p class="text-sm text-gray-500">Candidates</p>
+                    <h2 class="text-3xl font-bold">{{ .Candidates }}</h2>
+                </div>
 
-  <div class="bg-white p-6 shadow rounded-lg border-l-4 border-yellow-500">
-    <p class="text-sm text-gray-500">Active Elections</p>
-    <h2 class="text-3xl font-bold">{{ .ActiveElections }}</h2>
-  </div>
-</div>
+                <div class="bg-white p-6 shadow rounded-lg border-l-4 border-yellow-500">
+                    <p class="text-sm text-gray-500">Active Elections</p>
+                    <h2 class="text-3xl font-bold">{{ .ActiveElections }}</h2>
+                </div>
+            </div>
 
         </main>
     </div>

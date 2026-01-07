@@ -52,9 +52,9 @@ func RegisterRoutes(app *fiber.App) {
 	adminAuth := app.Group("/api/admin", middleware.PermissionMiddleware(""))
 	adminAuth.Put("/update-profile", UpdateAdminProfile)
 
-	adminGroup := app.Group("/admin", middleware.PermissionMiddleware("")) // Base middleware to check token
+	adminGroup := app.Group("/admin", middleware.PermissionMiddleware("SUPER_ADMIN")) // Base middleware to check token
 
-	adminGroup.Get("/dashboard", GetDashboardData) //
+	adminGroup.Get("/dashboard", GetDashboardData)
 	adminGroup.Get("/voters", func(c *fiber.Ctx) error { return c.Render("admin/voters", nil) })
 	adminGroup.Get("/results", func(c *fiber.Ctx) error { return c.Render("admin/results", nil) })
 

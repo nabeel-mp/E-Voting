@@ -11,14 +11,17 @@ function parseJwt(token) {
 
 const navList = document.getElementById("navList");
 const token = localStorage.getItem("admin_token");
+if (!token && window.location.pathname !== "/admin/login") {
+    window.location.href = "/admin/login";
+}
 const user = parseJwt(token);
 
 // Define all possible links and their required roles/permissions
 const allLinks = [
     { title: "Dashboard", href: "/admin/dashboard", icon: "📊" },
     { title: "Manage Voters", href: "/admin/voters", icon: "👥" },
-    { title: "Register Voter", href: "/admin/voter/register", icon: "📝", permission: "register_voter" },
     { title: "Results", href: "/admin/results", icon: "📈" },
+    { title: "Settings", href: "/admin/settings", icon: "⚙️" },
 ];
 
 // Super Admin specific links
@@ -26,6 +29,7 @@ const superAdminLinks = [
     { title: "Create Role", href: "/admin/roles/create", icon: "🛡️" },
     { title: "Add Staff", href: "/admin/staff/add", icon: "👤" },
     { title: "Audit Logs", href: "/admin/audit-logs", icon: "📋" },
+    { title: "Manage Candidates", href: "/admin/candidates", icon: "🗳️" },
 ];
 
 if (user) {
