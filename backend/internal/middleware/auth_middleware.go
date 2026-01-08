@@ -32,6 +32,15 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 		c.Locals("role", claims["role"])
 
 		role := claims["role"].(string)
+		// userID := uint(claims["user_id"].(float64))
+
+		if role == "VOTER" {
+			if requiredPermission != "VOTER" {
+				return utils.Error(c, 403, "Voters cannot access admin routes")
+			}
+			return c.Next()
+		}
+
 		if role == "SUPER_ADMIN" {
 			return c.Next()
 		}

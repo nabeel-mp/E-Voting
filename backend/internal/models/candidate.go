@@ -8,8 +8,9 @@ type Party struct {
 
 type Candidate struct {
 	BaseModel
-	FullName string `gorm:"not null" json:"full_name"`
-	PartyID  uint   `gorm:"not null" json:"party_id"`
-	Party    Party  `gorm:"foreignKey:PartyID" json:"party"`
-	Bio      string `json:"bio"`
+	FullName   string `gorm:"not null" json:"full_name"`
+	ElectionID uint   `gorm:"not null"`
+	PartyID    uint   `gorm:"not null" json:"party_id"`
+	Party      Party  `gorm:"foreignKey:PartyID" json:"party"`
+	Bio        string `json:"bio"`
 }

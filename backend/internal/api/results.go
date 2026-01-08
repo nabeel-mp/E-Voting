@@ -21,7 +21,7 @@ func GetElectionResults(c *fiber.Ctx) error {
 		Select("candidates.full_name as candidate_name, parties.name as party_name, count(votes.id) as vote_count").
 		Joins("join candidates on candidates.id = votes.candidate_id").
 		Joins("join parties on parties.id = candidates.party_id").
-		Group("candidates.full_name, parties.name").
+		Group("candidates.id, candidates.full_name, parties.name").
 		Scan(&results).Error
 
 	if err != nil {

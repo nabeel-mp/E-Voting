@@ -24,7 +24,7 @@ func main() {
 
 	api.RegisterRoutes(app)
 
-	app.Get("/admin/dashboard", api.GetDashboardData)
+	// app.Get("/admin/dashboard", api.GetDashboardData)
 
 	log.Printf(" %s running on port %s",
 		config.Config.AppName,

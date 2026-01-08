@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8080"; // Adjusted to match backend port
+const API_BASE_URL = "http://localhost:3000"; // Adjusted to match backend port
 
 function getToken() {
   return localStorage.getItem("admin_token");
