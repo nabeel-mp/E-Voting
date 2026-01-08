@@ -20,6 +20,7 @@ func main() {
 	database.ConnectMongo()
 
 	app := fiber.New(fiber.Config{Views: engine})
+	app.Static("/assets", "./templates/assets")
 
 	api.RegisterRoutes(app)
 
