@@ -10,6 +10,7 @@ import (
 func FindAdminByEmail(email string) (*models.Admin, error) {
 	var admin models.Admin
 	err := database.PostgresDB.
+		Preload("Role").
 		Where("email = ? AND is_active = true", email).
 		First(&admin).Error
 	return &admin, err
@@ -31,7 +32,7 @@ func GetAllAdmins() ([]models.Admin, error) {
 
 func FindAdminByID(id uint) (*models.Admin, error) {
 	var admin models.Admin
-	err := database.PostgresDB.First(&admin, id).Error
+	err := database.PostgresDB.Preload("Role").First(&admin, id).Error
 	return &admin, err
 }
 

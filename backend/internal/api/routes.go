@@ -88,12 +88,11 @@
 // 	// System Audit Logs
 // 	app.Get("/audit/logs", middleware.PermissionMiddleware("SUPER_ADMIN"), GetAuditLogs)
 
-// 	// Secure Test Route
-// 	// superAdmin.Get("/secure", func(c *fiber.Ctx) error {
-// 	// 	return utils.Success(c, "Welcome Super Admin")
-// 	// })
-// }
-
+//		// Secure Test Route
+//		// superAdmin.Get("/secure", func(c *fiber.Ctx) error {
+//		// 	return utils.Success(c, "Welcome Super Admin")
+//		// })
+//	}
 package api
 
 import (
@@ -115,18 +114,20 @@ func RegisterRoutes(app *fiber.App) {
 		return c.Render("admin/login", nil)
 	})
 
-	// Protected Pages (Middleware ensures user is logged in for these)
-	// Note: You generally need a separate "Cookie/Session" middleware for page renders,
-	// but assuming you handle redirection on client-side if API fails:
+	// Protected Pages (Middleware verifies token presence/validity if applied,
+	// but usually rendered pages are protected by client-side JS redirection if API fails.
+	// We allow rendering, main.js will redirect if no token.)
 	app.Get("/admin/dashboard", func(c *fiber.Ctx) error { return c.Render("admin/Dashboard", nil) })
 	app.Get("/admin/settings", func(c *fiber.Ctx) error { return c.Render("admin/settings", nil) })
 	app.Get("/admin/voters", func(c *fiber.Ctx) error { return c.Render("admin/voters", nil) })
 	app.Get("/admin/results", func(c *fiber.Ctx) error { return c.Render("admin/results", nil) })
+	app.Get("/admin/system-admins", func(c *fiber.Ctx) error { return c.Render("admin/admin", nil) })
 
 	// Super Admin Pages
+	// Ideally shielded by middleware, but client-side also handles it.
 	superAdminPages := app.Group("/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
 	superAdminPages.Get("/roles/create", func(c *fiber.Ctx) error { return c.Render("admin/create_role", nil) })
-	superAdminPages.Get("/staff/add", func(c *fiber.Ctx) error { return c.Render("admin/add_staffs", nil) }) // Fixed filename typo: add_staff -> add_staffs
+	superAdminPages.Get("/staff/add", func(c *fiber.Ctx) error { return c.Render("admin/add_staffs", nil) })
 	superAdminPages.Get("/audit-logs", func(c *fiber.Ctx) error { return c.Render("admin/audit_logs", nil) })
 	superAdminPages.Get("/candidates", func(c *fiber.Ctx) error { return c.Render("admin/candidates", nil) })
 
@@ -135,15 +136,12 @@ func RegisterRoutes(app *fiber.App) {
 	// 1. Auth Routes (Public)
 	auth := app.Group("/api/auth")
 	auth.Post("/admin/login", AdminLogin)
-	auth.Post("/voter/login", VoterLogin)     // Uncommented
-	auth.Post("/voter/verify-otp", VerifyOTP) // Uncommented
+	auth.Post("/voter/login", VoterLogin)
+	auth.Post("/voter/verify-otp", VerifyOTP)
 
-	// 2. Admin API (Protected)
-	// We group these under /api/auth/admin to match your frontend JS calls
-	// or better yet, standardize to /api/admin.
-	// Below aligns with your provided HTML fetch calls (e.g. add_staffs.html uses /api/auth/admin/create-sub-admin)
+	// 2. Admin API Routes
 
-	// General Admin Routes
+	// General Admin Profile
 	adminAPI := app.Group("/api/admin", middleware.PermissionMiddleware(""))
 	adminAPI.Put("/update-profile", UpdateAdminProfile)
 	adminAPI.Get("/dashboard", GetDashboardData)
@@ -164,24 +162,19 @@ func RegisterRoutes(app *fiber.App) {
 	candidateAPI.Post("/candidates", CreateCandidate)
 	candidateAPI.Get("/candidates", ListCandidates)
 
-	// Staff & Role Management (Super Admin) - Matching frontend URLs
-	// The frontend in add_staffs.html calls: /api/auth/admin/create-sub-admin
-	// The frontend in create_role.html calls: /api/auth/admin/roles
-	// The frontend in admin.html calls: /auth/admin/list
-
-	// To make it clean, we will route them here:
+	// Staff & Role Management (Super Admin & 'manage_admins')
+	// Mapped to match existing frontend AJAX calls
 	staffMgmt := app.Group("/api/auth/admin", middleware.PermissionMiddleware("manage_admins"))
 	staffMgmt.Post("/create-sub-admin", CreateSubAdmin)
-	staffMgmt.Get("/roles", ListRolesHandler) // You need to verify this exists or create it
+	staffMgmt.Get("/roles", ListRolesHandler)
 	staffMgmt.Post("/roles", CreateRoleHandler)
 
-	// Admin List & Block (Matching admin.html)
-	// admin.html calls /auth/admin/list. We should redirect or fix frontend.
-	// Assuming we fix frontend to /api/admin/list:
-	superAdminAPI := app.Group("/auth/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
-	superAdminAPI.Get("/list", ListAdmins)
-	superAdminAPI.Post("/block", BlockSubAdmin)
-	superAdminAPI.Post("/unblock", UnblockSubAdmin)
+	// Admin List & Block (Matching admin.html legacy route)
+	// admin.html calls /auth/admin/list.
+	superAdminLegacy := app.Group("/auth/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
+	superAdminLegacy.Get("/list", ListAdmins)
+	superAdminLegacy.Post("/block", BlockSubAdmin)
+	superAdminLegacy.Post("/unblock", UnblockSubAdmin)
 
 	// Audit Logs
 	app.Get("/api/audit/logs", middleware.PermissionMiddleware("SUPER_ADMIN"), GetAuditLogs)
