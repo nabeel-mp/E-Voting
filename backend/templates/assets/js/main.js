@@ -19,12 +19,11 @@ if (!token && window.location.pathname !== "/admin/login") {
 }
 
 // 2. MENU CONFIGURATION WITH PERMISSIONS
-// 'reqPermission' matches the strings used in your Go middleware and database
 const menuItems = [
     {
         title: "Overview",
         path: "/admin/dashboard",
-        reqPermission: null, // Available to all logged-in admins
+        reqPermission: null, 
         icon: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>`
     },
     {
@@ -81,28 +80,27 @@ function renderSidebar() {
     const navList = document.getElementById("navList");
     const userInfo = document.getElementById("userInfo");
     
+    // Safety check: if element doesn't exist, we might be on a page without a sidebar
     if (!navList || !user) return;
 
     const isSuperAdmin = user.is_super || user.role === "SUPER_ADMIN";
-    // We get permissions string from JWT and split it into an array
     const userPermissions = (user.permissions || "").split(","); 
     const currentPath = window.location.pathname;
 
-    // Filter Items Logic
     const visibleItems = menuItems.filter(item => {
-        // If no permission required, show it
+        // Show items with no specific permission requirement
         if (!item.reqPermission) return true;
         
         // Super admin sees everything
         if (isSuperAdmin) return true;
 
-        // Check if user has the specific permission in their list
+        // Check exact permission match
         return userPermissions.includes(item.reqPermission);
     });
 
-    // Render HTML
     navList.innerHTML = visibleItems.map(item => {
         const isActive = currentPath === item.path;
+        // Adjusted active class for better visibility
         const activeClass = isActive 
             ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/20 shadow-sm" 
             : "text-slate-400 hover:bg-slate-800 hover:text-white border-transparent";
@@ -123,9 +121,8 @@ function renderSidebar() {
         </li>
     `;
 
-    // Render User Info (Bottom of Sidebar)
     if (userInfo) {
-        const roleDisplay = user.role.replace('_', ' ');
+        const roleDisplay = user.role.replace(/_/g, ' ');
         userInfo.innerHTML = `
             <div class="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white shadow-lg">
                 ${user.role.substring(0, 2).toUpperCase()}
@@ -143,4 +140,10 @@ function logout() {
     window.location.href = "/admin/login";
 }
 
-document.addEventListener('DOMContentLoaded', renderSidebar);
+// FIX: Ensure renderSidebar runs even if DOMContentLoaded has already passed
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderSidebar);
+} else {
+    // DOM is already ready, run immediately
+    renderSidebar();
+}
