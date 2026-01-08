@@ -3,58 +3,88 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Manage Candidates | E-Voting Admin</title>
+  <title>Manage Candidates | E-Voting</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+      body { font-family: 'Inter', sans-serif; }
+      @keyframes gradient-move { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+      .animate-gradient { background-size: 200% 200%; animation: gradient-move 15s ease infinite; }
+      .sidebar-entrance { animation: slide-right-fade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      @keyframes slide-right-fade { 0% { opacity: 0; transform: translateX(-20px); } 100% { opacity: 1; transform: translateX(0); } }
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: #0f172a; }
+      ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  </style>
 </head>
-<body class="font-sans bg-gray-100 text-gray-800">
-<div class="flex h-screen overflow-hidden">
-    <aside id="sidebar" class="bg-white w-64 border-r border-gray-200">
-    <div class="p-6 text-2xl font-bold text-indigo-600">E-Voting</div>
-    <ul class="space-y-2 text-lg" id="navList"></ul> </aside>
-  <main class="flex-1 p-8 overflow-y-auto">
-    <h1 class="text-3xl font-bold text-indigo-700 mb-6">Candidate & Party Management</h1>
+<body class="bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 animate-gradient text-slate-200 h-screen overflow-hidden">
+<div class="flex h-full">
+    <aside id="sidebar" class="sidebar-entrance w-64 bg-slate-900/80 backdrop-blur-md border-r border-slate-700/50 flex flex-col z-20 shadow-2xl">
+        <div class="p-6 flex items-center gap-3">
+             <div class="h-8 w-8 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 font-bold">C</div>
+            <span class="text-xl font-bold text-white tracking-tight">E-Voting</span>
+        </div>
+        <nav class="flex-1 px-4 py-4 overflow-y-auto"><ul id="navList" class="space-y-1"></ul></nav>
+    </aside>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-      <div class="bg-white p-6 shadow rounded-lg">
-        <h2 class="text-xl font-bold mb-4">Add New Party</h2>
-        <form id="partyForm" class="space-y-4">
-          <input type="text" id="partyName" placeholder="Party Name" required class="w-full border p-2 rounded">
-          <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Save Party</button>
-        </form>
-      </div>
+    <main class="flex-1 p-8 overflow-y-auto relative">
+        <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none"></div>
 
-      <div class="bg-white p-6 shadow rounded-lg">
-        <h2 class="text-xl font-bold mb-4">Add New Candidate</h2>
-        <form id="candidateForm" class="space-y-4">
-          <input type="text" id="candName" placeholder="Full Name" required class="w-full border p-2 rounded">
-          <select id="partySelect" required class="w-full border p-2 rounded">
-            <option value="">Select Party</option>
-          </select>
-          <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">Save Candidate</button>
-        </form>
-      </div>
-    </div>
+        <h1 class="text-3xl font-bold text-white tracking-tight mb-8 relative z-10">Candidate & Party Management</h1>
 
-    <div class="bg-white shadow rounded-lg overflow-hidden">
-      <table class="min-w-full leading-normal">
-        <thead class="bg-indigo-100">
-          <tr>
-            <th class="px-5 py-3 text-left">Candidate Name</th>
-            <th class="px-5 py-3 text-left">Party</th>
-            <th class="px-5 py-3 text-left">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="candidatesTable"></tbody>
-      </table>
-    </div>
-  </main>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 relative z-10">
+            <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-6 rounded-2xl shadow-lg">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-white">Add Party</h2>
+                </div>
+                <form id="partyForm" class="space-y-4">
+                    <input type="text" id="partyName" placeholder="Party Name" required 
+                           class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition">
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-lg font-medium shadow-lg shadow-emerald-500/20 transition-all">Save Party</button>
+                </form>
+            </div>
+
+            <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-6 rounded-2xl shadow-lg">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-white">Add Candidate</h2>
+                </div>
+                <form id="candidateForm" class="space-y-4">
+                    <input type="text" id="candName" placeholder="Candidate Full Name" required 
+                           class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition">
+                    <select id="partySelect" required 
+                            class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition">
+                        <option value="">Select Party</option>
+                    </select>
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-lg font-medium shadow-lg shadow-indigo-500/20 transition-all">Save Candidate</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl relative z-10">
+            <table class="min-w-full text-left">
+                <thead class="bg-slate-900/50 text-slate-400 uppercase text-xs font-semibold tracking-wider">
+                    <tr>
+                        <th class="px-6 py-4">Candidate Name</th>
+                        <th class="px-6 py-4">Party</th>
+                        <th class="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="candidatesTable" class="divide-y divide-slate-700/50 text-sm text-slate-300"></tbody>
+            </table>
+        </div>
+    </main>
 </div>
 
+<script src="assets/js/main.js"></script>
 <script>
 async function loadParties() {
-  const res = await fetch('/api/admin/parties', {
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` }
-  });
+  const res = await fetch('/api/admin/parties', { headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` } });
   const data = await res.json();
   if (data.success) {
     const select = document.getElementById('partySelect');
@@ -62,52 +92,33 @@ async function loadParties() {
       data.data.map(p => `<option value="${p.ID}">${p.name}</option>`).join('');
   }
 }
-
 async function loadCandidates() {
-  const res = await fetch('/api/admin/candidates', {
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` }
-  });
+  const res = await fetch('/api/admin/candidates', { headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` } });
   const data = await res.json();
   if (data.success) {
     document.getElementById('candidatesTable').innerHTML = data.data.map(c => `
-      <tr class="border-b">
-        <td class="px-5 py-4">${c.full_name}</td>
-        <td class="px-5 py-4">${c.party.name}</td>
-        <td class="px-5 py-4"><button class="text-red-600">Remove</button></td>
+      <tr class="hover:bg-slate-700/30 transition-colors">
+        <td class="px-6 py-4 font-medium text-white">${c.full_name}</td>
+        <td class="px-6 py-4"><span class="px-2 py-1 rounded bg-slate-700 text-xs">${c.party.name}</span></td>
+        <td class="px-6 py-4 text-right"><button class="text-rose-400 hover:text-rose-300 transition-colors">Remove</button></td>
       </tr>
     `).join('');
   }
 }
-
 document.getElementById('partyForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('partyName').value;
-  await fetch('/api/admin/parties', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
-    body: JSON.stringify({ name })
-  });
-  loadParties();
-  e.target.reset();
+  await fetch('/api/admin/parties', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` }, body: JSON.stringify({ name }) });
+  loadParties(); e.target.reset();
 });
-
 document.getElementById('candidateForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const full_name = document.getElementById('candName').value;
   const party_id = parseInt(document.getElementById('partySelect').value);
-  await fetch('/api/admin/candidates', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
-    body: JSON.stringify({ full_name, party_id })
-  });
-  loadCandidates();
-  e.target.reset();
+  await fetch('/api/admin/candidates', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` }, body: JSON.stringify({ full_name, party_id }) });
+  loadCandidates(); e.target.reset();
 });
-
-loadParties();
-loadCandidates();
+loadParties(); loadCandidates();
 </script>
-    <script src="assets/js/main.js"></script>
-
 </body>
 </html>

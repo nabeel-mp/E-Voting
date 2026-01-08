@@ -3,68 +3,65 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin Settings | E-Voting</title>
+  <title>Settings | E-Voting</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+      body { font-family: 'Inter', sans-serif; }
+      @keyframes gradient-move { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+      .animate-gradient { background-size: 200% 200%; animation: gradient-move 15s ease infinite; }
+      .sidebar-entrance { animation: slide-right-fade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      @keyframes slide-right-fade { 0% { opacity: 0; transform: translateX(-20px); } 100% { opacity: 1; transform: translateX(0); } }
+  </style>
 </head>
-<body class="font-sans bg-gray-100 text-gray-800">
-<div id="app" class="flex h-screen overflow-hidden">
-  <aside id="sidebar" class="bg-white w-64 border-r border-gray-200">
-    <div class="p-6 text-2xl font-bold text-indigo-600">E-Voting</div>
-    <ul class="space-y-2 text-lg" id="navList"></ul> </aside>
-
-  <main class="flex-1 p-8 overflow-y-auto">
-    <h1 class="text-3xl font-bold text-indigo-700 mb-6">Account Settings</h1>
-
-    <div class="max-w-lg bg-white p-8 shadow rounded-lg">
-      <form id="settingsForm" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Admin Email</label>
-          <input type="email" id="adminEmail" required class="w-full border px-4 py-2 rounded mt-1 focus:ring-indigo-500" />
+<body class="bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 animate-gradient text-slate-200 h-screen overflow-hidden">
+<div class="flex h-full">
+    <aside id="sidebar" class="sidebar-entrance w-64 bg-slate-900/80 backdrop-blur-md border-r border-slate-700/50 flex flex-col z-20 shadow-2xl">
+        <div class="p-6 flex items-center gap-3">
+             <div class="h-8 w-8 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 font-bold">S</div>
+            <span class="text-xl font-bold text-white tracking-tight">E-Voting</span>
         </div>
-        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition">
-          Update Profile
-        </button>
+        <nav class="flex-1 px-4 py-4 overflow-y-auto"><ul id="navList" class="space-y-1"></ul></nav>
+    </aside>
+
+  <main class="flex-1 p-8 overflow-y-auto relative">
+    <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none"></div>
+    <h1 class="text-3xl font-bold text-white tracking-tight mb-8 relative z-10">Account Settings</h1>
+
+    <div class="max-w-2xl bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-2xl shadow-xl relative z-10">
+      <form id="settingsForm" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-slate-400 mb-2">Admin Email Address</label>
+          <input type="email" id="adminEmail" required 
+            class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition" />
+        </div>
+        <div class="pt-4 border-t border-slate-700/50">
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-lg font-medium shadow-lg shadow-indigo-500/20 transition-all">
+            Update Profile
+            </button>
+        </div>
       </form>
       <p id="statusMsg" class="mt-4 text-center hidden"></p>
     </div>
   </main>
 </div>
-
 <script src="assets/js/main.js"></script>
 <script>
-async function loadProfile() {
-    // You can parse the email directly from the JWT if stored, 
-    // or fetch from a "me" endpoint.
-    const token = localStorage.getItem("admin_token");
-    if (!token) return;
-    
-    // For this example, we assume the user's data is part of the token 
-    // or you can add a simple GET /api/admin/me route
-}
-
 document.getElementById('settingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('adminEmail').value;
   const statusMsg = document.getElementById('statusMsg');
-
   try {
     const response = await fetch('/api/admin/update-profile', {
       method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('admin_token')}` 
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
       body: JSON.stringify({ email })
     });
-
     const result = await response.json();
-    statusMsg.innerText = result.success ? "Profile updated!" : result.error;
-    statusMsg.className = `mt-4 text-center ${result.success ? 'text-green-600' : 'text-red-600'}`;
+    statusMsg.innerText = result.success ? "Profile updated successfully!" : result.error;
+    statusMsg.className = `mt-4 text-center text-sm font-medium ${result.success ? 'text-emerald-400' : 'text-rose-400'}`;
     statusMsg.classList.remove('hidden');
-  } catch (err) {
-    statusMsg.innerText = "Connection error";
-    statusMsg.classList.remove('hidden');
-  }
+  } catch (err) { statusMsg.innerText = "Connection error"; statusMsg.classList.remove('hidden'); }
 });
 </script>
 </body>
