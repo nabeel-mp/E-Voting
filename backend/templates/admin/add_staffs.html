@@ -17,12 +17,25 @@
 <body class="bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 animate-gradient text-slate-200 h-screen overflow-hidden">
 <div class="flex h-full">
     <aside id="sidebar" class="sidebar-entrance w-64 bg-slate-900/80 backdrop-blur-md border-r border-slate-700/50 flex flex-col z-20 shadow-2xl">
-        <div class="p-6 flex items-center gap-3">
-             <div class="h-8 w-8 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 font-bold">A</div>
-            <span class="text-xl font-bold text-white tracking-tight">E-Voting</span>
+    <div class="p-6 flex items-center gap-3">
+        <div class="h-8 w-8 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(79,70,229,0.2)]">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.745 3.745 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.745 3.745 0 013.296-1.043A3.745 3.745 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.745 3.745 0 013.296 1.043 3.745 3.745 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+            </svg>
         </div>
-        <nav class="flex-1 px-4 py-4 overflow-y-auto"><ul id="navList" class="space-y-1"></ul></nav>
-    </aside>
+        <span class="text-xl font-bold text-white tracking-tight">E-Voting</span>
+    </div>
+
+    <nav class="flex-1 px-4 py-4 overflow-y-auto">
+        <ul id="navList" class="space-y-1">
+            </ul>
+    </nav>
+
+    <div class="p-4 border-t border-slate-700/50">
+        <div id="userInfo" class="flex items-center gap-3">
+            </div>
+    </div>
+</aside>
 
   <main class="flex-1 p-8 overflow-y-auto relative">
     <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none"></div>
