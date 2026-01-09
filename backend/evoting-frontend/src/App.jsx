@@ -12,6 +12,7 @@ import Staff from './pages/Staff';
 import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 import Layout from './components/layout';
+import Roles from './pages/Role';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
             <Route path="results" element={<Results />} />
             <Route path="admins" element={<SystemAdmins />} />
             <Route path="staff" element={<Staff />} />
+            <Route path="Roles" element={<Roles />} />
             <Route path="audit" element={<AuditLogs />} />
             <Route path="settings" element={<Settings />} />
           </Route>

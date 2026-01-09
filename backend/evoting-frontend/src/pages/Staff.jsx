@@ -1,98 +1,147 @@
-// nabeel-mp/e-voting/E-Voting-e827307a9ccaf9e84bf5d22239f0e8c4b0f5aa02/backend/evoting-frontend/src/pages/Staff.jsx
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
+import { 
+  UserPlus, 
+  Mail, 
+  Lock, 
+  Briefcase, 
+  CheckCircle2, 
+  Loader2,
+  ShieldAlert
+} from 'lucide-react';
 
 const Staff = () => {
   const [roles, setRoles] = useState([]);
-  const [form, setForm] = useState({ email: '', password: '', role_id: '' });
-  const [roleForm, setRoleForm] = useState({ name: '', permissions: '' });
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  
+  // Staff Form State
+  const [staffForm, setStaffForm] = useState({ email: '', password: '', role_id: '' });
+  const [staffLoading, setStaffLoading] = useState(false);
 
+  // Fetch roles only for the dropdown selection
   const fetchRoles = async () => {
     try {
       const res = await api.get('/api/auth/admin/roles');
       if (res.data.success) setRoles(res.data.data);
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+    } finally {
+      setLoadingRoles(false);
+    }
   };
 
   useEffect(() => { fetchRoles(); }, []);
 
   const handleCreateStaff = async (e) => {
     e.preventDefault();
+    setStaffLoading(true);
     try {
       await api.post('/api/auth/admin/create-sub-admin', {
-        ...form,
-        role_id: parseInt(form.role_id)
+        ...staffForm,
+        role_id: parseInt(staffForm.role_id)
       });
-      alert("Staff created successfully");
-      setForm({ email: '', password: '', role_id: '' });
-    } catch (err) { alert(err.response?.data?.error || "Failed"); }
-  };
-
-  const handleCreateRole = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/api/auth/admin/roles', {
-        name: roleForm.name,
-        permissions: roleForm.permissions.split(',').map(p => p.trim())
-      });
-      alert("Role created");
-      setRoleForm({ name: '', permissions: '' });
-      fetchRoles();
-    } catch (err) { alert("Failed"); }
+      alert("Staff created successfully!"); 
+      setStaffForm({ email: '', password: '', role_id: '' });
+    } catch (err) { 
+      alert(err.response?.data?.error || "Failed to create staff"); 
+    } finally {
+      setStaffLoading(false);
+    }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Create Staff */}
-      <div className="bg-slate-800 p-8 rounded-xl border border-slate-700 h-fit">
-        <h2 className="text-2xl font-bold text-white mb-6">Create Staff Member</h2>
-        <form onSubmit={handleCreateStaff} className="space-y-4">
-          <div>
-            <label className="text-sm text-slate-400">Email</label>
-            <input type="email" required className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white mt-1"
-              value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
-          </div>
-          <div>
-            <label className="text-sm text-slate-400">Password</label>
-            <input type="password" required className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white mt-1"
-              value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
-          </div>
-          <div>
-            <label className="text-sm text-slate-400">Role</label>
-            <select required className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white mt-1"
-              value={form.role_id} onChange={e => setForm({...form, role_id: e.target.value})}>
-              <option value="">Select Role</option>
-              {roles.map(r => <option key={r.ID} value={r.ID}>{r.Name}</option>)}
-            </select>
-          </div>
-          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg font-medium mt-2">
-            Create Account
-          </button>
-        </form>
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
+      
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-white tracking-tight">Staff Management</h1>
+        <p className="text-slate-400 mt-2">Register new administrators and assign their access levels.</p>
       </div>
 
-      {/* Manage Roles */}
-      <div className="bg-slate-800 p-8 rounded-xl border border-slate-700 h-fit">
-        <h2 className="text-2xl font-bold text-white mb-6">Create Role</h2>
-        <form onSubmit={handleCreateRole} className="space-y-4 mb-8">
-          <input placeholder="Role Name (e.g. MODERATOR)" required className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white"
-            value={roleForm.name} onChange={e => setRoleForm({...roleForm, name: e.target.value})} />
-          <input placeholder="Permissions (comma separated: register_voter, view_results)" required className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white"
-            value={roleForm.permissions} onChange={e => setRoleForm({...roleForm, permissions: e.target.value})} />
-          <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg">
-            Add Role
-          </button>
-        </form>
+      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+        
+        {/* Background Decorative Element */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
 
-        <h3 className="text-lg font-semibold text-white mb-4">Existing Roles</h3>
-        <ul className="space-y-2">
-          {roles.map(r => (
-            <li key={r.ID} className="bg-slate-900 p-3 rounded border border-slate-700">
-              <span className="text-indigo-400 font-bold">{r.Name}</span>
-              <p className="text-xs text-slate-500 mt-1">{r.Permissions}</p>
-            </li>
-          ))}
-        </ul>
+        <div className="flex items-center gap-4 mb-8 border-b border-slate-800 pb-6 relative z-10">
+          <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+            <UserPlus size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white">Register New Staff</h2>
+            <p className="text-sm text-slate-500">Enter credentials below</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleCreateStaff} className="space-y-6 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Email Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-300">Email Address</label>
+              <div className="relative group">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                <input 
+                  type="email" 
+                  required 
+                  value={staffForm.email} 
+                  onChange={e => setStaffForm({...staffForm, email: e.target.value})}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
+                  placeholder="staff@voting.com"
+                />
+              </div>
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-300">Password</label>
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                <input 
+                  type="password" 
+                  required 
+                  value={staffForm.password} 
+                  onChange={e => setStaffForm({...staffForm, password: e.target.value})}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {/* Role Selection */}
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-sm font-medium text-slate-300">Assign Role</label>
+              <div className="relative group">
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                <select 
+                  required 
+                  value={staffForm.role_id} 
+                  onChange={e => setStaffForm({...staffForm, role_id: e.target.value})}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer"
+                >
+                  <option value="" className="text-slate-500">Select a role...</option>
+                  {roles.map(r => <option key={r.ID} value={r.ID}>{r.Name}</option>)}
+                </select>
+              </div>
+              {roles.length === 0 && !loadingRoles && (
+                 <p className="text-xs text-amber-500 flex items-center gap-1 mt-1">
+                   <ShieldAlert size={12} />
+                   No roles found. Please create a role first in the Roles page.
+                 </p>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <button 
+              type="submit" 
+              disabled={staffLoading || roles.length === 0}
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {staffLoading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />}
+              <span>Create Account</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
