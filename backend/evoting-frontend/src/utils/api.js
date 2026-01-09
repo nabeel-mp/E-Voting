@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000', // Your Go Backend URL
+  baseURL: "http://localhost:8080/api", // Your Go Backend URL
 });
 
 // Request Interceptor: Attach Token

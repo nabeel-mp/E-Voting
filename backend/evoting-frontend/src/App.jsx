@@ -1,3 +1,4 @@
+// nabeel-mp/e-voting/E-Voting-e827307a9ccaf9e84bf5d22239f0e8c4b0f5aa02/backend/evoting-frontend/src/App.jsx
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -6,13 +7,11 @@ import Dashboard from './pages/Dashboard';
 import Voters from './pages/Voters';
 import Results from './pages/Results';
 import SystemAdmins from './pages/SystemAdmins';
+import Candidates from './pages/Candidates';
+import Staff from './pages/Staff';
+import AuditLogs from './pages/AuditLogs';
+import Settings from './pages/Settings';
 import Layout from './components/layout';
-
-// Placeholder components for brevity (You can implement similarly to Voters/Admins)
-const Candidates = () => <div className="text-white">Candidates Page (Implement using /api/admin/candidates)</div>;
-const Staff = () => <div className="text-white">Staff Management (Implement using /api/auth/admin/roles)</div>;
-const AuditLogs = () => <div className="text-white">Audit Logs (Implement using /api/audit/logs)</div>;
-const Settings = () => <div className="text-white">Settings Page</div>;
 
 function App() {
   return (

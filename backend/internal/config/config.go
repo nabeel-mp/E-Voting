@@ -12,15 +12,13 @@ type AppConfig struct {
 	Port      string
 	Env       string
 	JWTSecret string
-
-	Postgres struct {
+	Postgres  struct {
 		Host     string
 		Port     string
 		User     string
 		Password string
 		DBName   string
 	}
-
 	Mongo struct {
 		URI string
 		DB  string
@@ -30,10 +28,8 @@ type AppConfig struct {
 var Config AppConfig
 
 func LoadConfig() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(" Failed to load .env file")
-	}
+	// It's okay if .env doesn't exist (e.g. in Docker or Prod), so we don't Fatal crash here immediately
+	_ = godotenv.Load()
 
 	Config = AppConfig{
 		AppName:   os.Getenv("APP_NAME"),
@@ -41,6 +37,16 @@ func LoadConfig() {
 		Env:       os.Getenv("APP_ENV"),
 		JWTSecret: os.Getenv("JWT_SECRET"),
 	}
+
+	// --- ADD THIS DEFAULT PORT CHECK ---
+	ifnD := func(val, def string) string {
+		if val == "" {
+			return def
+		}
+		return val
+	}
+	Config.Port = ifnD(Config.Port, "3000") // Default to 3000 if missing
+	// -----------------------------------
 
 	Config.Postgres.Host = os.Getenv("POSTGRES_HOST")
 	Config.Postgres.Port = os.Getenv("POSTGRES_PORT")
@@ -51,5 +57,5 @@ func LoadConfig() {
 	Config.Mongo.URI = os.Getenv("MONGO_URI")
 	Config.Mongo.DB = os.Getenv("MONGO_DB")
 
-	log.Println(" Config loaded")
+	log.Println("Config loaded")
 }
