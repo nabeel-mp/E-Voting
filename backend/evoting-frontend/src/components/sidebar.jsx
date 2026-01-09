@@ -12,7 +12,8 @@ import {
     Settings,
     LogOut,
     ChevronRight,
-    UserCircle2
+    UserCircle2,
+    Calendar
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -25,6 +26,7 @@ const Sidebar = () => {
     // Menu Configuration
     const menuItems = [
         { title: "Overview", path: "/", icon: <LayoutDashboard size={20} />, req: null },
+        { title: "Elections", path: "/elections", icon: <Calendar size={20} />, req: "SUPER_ADMIN" },
         { title: "Voters List", path: "/voters", icon: <Users size={20} />, req: "register_voter" },
         { title: "Candidates", path: "/candidates", icon: <UserCheck size={20} />, req: "SUPER_ADMIN" },
         { title: "Live Results", path: "/results", icon: <BarChart3 size={20} />, req: "view_results" },
@@ -46,6 +48,13 @@ const Sidebar = () => {
 
     // Helper to determine if a link is active
     const isActive = (path) => location.pathname === path;
+
+    // --- NEW: Handle Logout with Confirmation ---
+    const handleLogout = () => {
+        if (window.confirm("Are you sure you want to sign out?")) {
+            logout();
+        }
+    };
 
     return (
         <aside className="w-72 h-screen bg-slate-950 border-r border-slate-800 flex flex-col shadow-2xl relative z-50">
@@ -158,7 +167,7 @@ const Sidebar = () => {
                     </div>
 
                     <button
-                        onClick={logout}
+                        onClick={handleLogout}
                         title="Sign Out"
                         className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all duration-200"
                     >

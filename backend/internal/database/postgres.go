@@ -40,6 +40,7 @@ func ConnectPostgres() {
 		&models.Party{},
 		&models.Candidate{},
 		&models.Vote{},
+		&models.Election{},
 	)
 	log.Println(" PostgreSQL connected & Migrated")
 }

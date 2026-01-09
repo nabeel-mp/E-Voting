@@ -67,6 +67,11 @@ func RegisterRoutes(app *fiber.App) {
 	candidateAPI.Post("/candidates", CreateCandidate)
 	candidateAPI.Get("/candidates", ListCandidates)
 
+	electionAPI := app.Group("/api/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
+	electionAPI.Post("/elections", CreateElection)
+	electionAPI.Get("/elections", ListElections)
+	electionAPI.Post("/elections/status", ToggleElectionStatus)
+
 	// Staff & Role Management (Super Admin & 'manage_admins')
 	// Mapped to match existing frontend AJAX calls
 	staffMgmt := app.Group("/api/auth/admin", middleware.PermissionMiddleware("manage_admins"))

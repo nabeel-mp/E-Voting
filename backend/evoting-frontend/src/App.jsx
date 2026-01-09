@@ -13,6 +13,7 @@ import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 import Layout from './components/layout';
 import Roles from './pages/Role';
+import Elections from './pages/Election';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="voters" element={<Voters />} />
+            <Route path="elections" element={<Elections />} />
             <Route path="candidates" element={<Candidates />} />
             <Route path="results" element={<Results />} />
             <Route path="admins" element={<SystemAdmins />} />
