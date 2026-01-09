@@ -21,10 +21,10 @@ const Results = () => {
   }, []);
 
   const chartData = {
-    labels: data.map(d => d.candidate_name),
+    labels: data?.map(d => d.candidate_name) || [],
     datasets: [{
       label: 'Votes',
-      data: data.map(d => d.vote_count),
+      data: data?.map(d => d.vote_count) || [],
       backgroundColor: '#6366f1',
     }]
   };
@@ -50,7 +50,7 @@ const Results = () => {
                <tr><th className="p-3">Candidate</th><th className="p-3">Party</th><th className="p-3 text-right">Votes</th></tr>
              </thead>
              <tbody>
-               {data.map((r, i) => (
+               {data?.map((r, i) => (
                  <tr key={i} className="border-b border-slate-700/50">
                    <td className="p-3 text-white font-medium">{r.candidate_name}</td>
                    <td className="p-3">{r.party_name}</td>
