@@ -14,27 +14,27 @@ func RegisterRoutes(app *fiber.App) {
 		return utils.Success(c, service.HealthCheck())
 	})
 
-	// --- VIEW ROUTES (HTML) ---
-	app.Get("/admin/login", func(c *fiber.Ctx) error {
-		return c.Render("admin/login", nil)
-	})
+	// // --- VIEW ROUTES (HTML) ---
+	// app.Get("/admin/login", func(c *fiber.Ctx) error {
+	// 	return c.Render("admin/login", nil)
+	// })
 
-	// Protected Pages (Middleware verifies token presence/validity if applied,
-	// but usually rendered pages are protected by client-side JS redirection if API fails.
-	// We allow rendering, main.js will redirect if no token.)
-	app.Get("/admin/dashboard", func(c *fiber.Ctx) error { return c.Render("admin/Dashboard", nil) })
-	app.Get("/admin/settings", func(c *fiber.Ctx) error { return c.Render("admin/settings", nil) })
-	app.Get("/admin/voters", func(c *fiber.Ctx) error { return c.Render("admin/voters", nil) })
-	app.Get("/admin/results", func(c *fiber.Ctx) error { return c.Render("admin/results", nil) })
-	app.Get("/admin/system-admins", func(c *fiber.Ctx) error { return c.Render("admin/admin", nil) })
+	// // Protected Pages (Middleware verifies token presence/validity if applied,
+	// // but usually rendered pages are protected by client-side JS redirection if API fails.
+	// // We allow rendering, main.js will redirect if no token.)
+	// app.Get("/admin/dashboard", func(c *fiber.Ctx) error { return c.Render("admin/Dashboard", nil) })
+	// app.Get("/admin/settings", func(c *fiber.Ctx) error { return c.Render("admin/settings", nil) })
+	// app.Get("/admin/voters", func(c *fiber.Ctx) error { return c.Render("admin/voters", nil) })
+	// app.Get("/admin/results", func(c *fiber.Ctx) error { return c.Render("admin/results", nil) })
+	// app.Get("/admin/system-admins", func(c *fiber.Ctx) error { return c.Render("admin/admin", nil) })
 
-	// Super Admin Pages
-	// Ideally shielded by middleware, but client-side also handles it.
-	superAdminPages := app.Group("/admin")
-	superAdminPages.Get("/roles/create", func(c *fiber.Ctx) error { return c.Render("admin/create_role", nil) })
-	superAdminPages.Get("/staff/add", func(c *fiber.Ctx) error { return c.Render("admin/add_staffs", nil) })
-	superAdminPages.Get("/audit-logs", func(c *fiber.Ctx) error { return c.Render("admin/audit_logs", nil) })
-	superAdminPages.Get("/candidates", func(c *fiber.Ctx) error { return c.Render("admin/candidates", nil) })
+	// // Super Admin Pages
+	// // Ideally shielded by middleware, but client-side also handles it.
+	// superAdminPages := app.Group("/admin")
+	// superAdminPages.Get("/roles/create", func(c *fiber.Ctx) error { return c.Render("admin/create_role", nil) })
+	// superAdminPages.Get("/staff/add", func(c *fiber.Ctx) error { return c.Render("admin/add_staffs", nil) })
+	// superAdminPages.Get("/audit-logs", func(c *fiber.Ctx) error { return c.Render("admin/audit_logs", nil) })
+	// superAdminPages.Get("/candidates", func(c *fiber.Ctx) error { return c.Render("admin/candidates", nil) })
 
 	// --- API ROUTES ---
 

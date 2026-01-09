@@ -3,6 +3,7 @@ package api
 import (
 	"E-voting/internal/database"
 	"E-voting/internal/models"
+	"E-voting/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -27,5 +28,5 @@ func GetDashboardData(c *fiber.Ctx) error {
 	}
 
 	// If using Fiber's Render engine:
-	return c.Render("admin/Dashboard", data)
+	return utils.Success(c, data)
 }

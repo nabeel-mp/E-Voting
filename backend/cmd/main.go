@@ -7,24 +7,23 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/template/html/v2"
 )
 
 func main() {
 
 	config.LoadConfig()
 
-	engine := html.New("./templates", ".html")
-
 	database.ConnectPostgres()
 	database.ConnectMongo()
 
-	app := fiber.New(fiber.Config{Views: engine})
-	app.Static("/assets", "./templates/assets")
-
+	app := fiber.New()
 	api.RegisterRoutes(app)
 
-	// app.Get("/admin/dashboard", api.GetDashboardData)
+	app.Static("/", "./evoting-frontend/dist")
+
+	app.Get("*", func(c *fiber.Ctx) error {
+		return c.SendFile("./evoting-frontend/dist/index.html")
+	})
 
 	log.Printf(" %s running on port %s",
 		config.Config.AppName,
