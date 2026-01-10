@@ -4,10 +4,10 @@ import {
   ShieldAlert, 
   ShieldCheck, 
   Search, 
-  Filter, 
   Lock, 
   Unlock,
   Loader2,
+  ListFilter
 } from 'lucide-react';
 
 const SystemAdmins = () => {
@@ -15,10 +15,11 @@ const SystemAdmins = () => {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
   
-  // 1. New State for Filter
+  // --- FILTER STATES ---
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL', 'ACTIVE', 'BLOCKED'
 
-  // --- EXISTING FETCH LOGIC (UNCHANGED) ---
+  // --- EXISTING FETCH LOGIC ---
   const fetchAdmins = async () => {
     try {
       const res = await api.get('/auth/admin/list');
@@ -31,22 +32,17 @@ const SystemAdmins = () => {
   };
 
   useEffect(() => { fetchAdmins(); }, []);
-  // ----------------------------------------
 
-  // 2. Upgraded Block/Unblock Logic
+  // --- BLOCK/UNBLOCK LOGIC ---
   const toggleStatus = async (id, currentStatus) => {
-    // Prevent multiple clicks
     if (processingId) return;
 
-    // A. Safety Confirmation
     const action = currentStatus ? "BLOCK" : "UNBLOCK";
-    if(!window.confirm(`Are you sure you want to ${action} this administrator?\nThis will affect their ability to access the dashboard.`)) {
-        return;
-    }
+    if(!window.confirm(`Are you sure you want to ${action} this administrator?`)) return;
 
     setProcessingId(id);
     
-    // B. Optimistic Update (Update UI immediately)
+    // Optimistic Update
     const previousAdmins = [...admins];
     setAdmins(admins.map(admin => 
         admin.id === id ? { ...admin, is_active: !currentStatus } : admin
@@ -55,26 +51,29 @@ const SystemAdmins = () => {
     try {
       const endpoint = currentStatus ? "/auth/admin/block" : "/auth/admin/unblock";
       await api.post(endpoint, { admin_id: id });
-      // Success: State is already updated, just clear loader
     } catch (err) {
-      console.error("Status update failed", err);
-      alert(`Failed to ${action.toLowerCase()} admin. Please try again.`);
-      setAdmins(previousAdmins); // C. Revert on Failure
+      alert(`Failed to ${action.toLowerCase()} admin.`);
+      setAdmins(previousAdmins);
     } finally {
       setProcessingId(null);
     }
   };
 
-  // 3. Filter Logic
+  // --- COMBINED FILTER LOGIC ---
   const filteredAdmins = admins.filter(admin => {
-    if (!searchTerm) return true;
-    const lowerTerm = searchTerm.toLowerCase();
-    // Search by Email, Role, or specific keywords like "active" or "blocked"
-    return (
-        admin.email?.toLowerCase().includes(lowerTerm) ||
-        admin.role_name?.toLowerCase().includes(lowerTerm) ||
-        (admin.is_active ? "active" : "blocked").includes(lowerTerm)
+    // 1. Text Search Filter
+    const matchesSearch = !searchTerm || (
+        admin.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        admin.role_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        admin.id.toString().includes(searchTerm)
     );
+
+    // 2. Status Type Filter
+    let matchesStatus = true;
+    if (filterStatus === 'ACTIVE') matchesStatus = admin.is_active === true;
+    if (filterStatus === 'BLOCKED') matchesStatus = admin.is_active === false;
+
+    return matchesSearch && matchesStatus;
   });
 
   return (
@@ -90,18 +89,14 @@ const SystemAdmins = () => {
         {/* Stats Summary */}
         <div className="flex gap-4">
            <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl">
-              <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400">
-                <ShieldCheck size={18} />
-              </div>
+              <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400"><ShieldCheck size={18} /></div>
               <div>
                 <span className="block text-xs text-slate-500 uppercase font-bold">Active</span>
                 <span className="font-mono text-white font-bold">{admins.filter(a => a.is_active).length}</span>
               </div>
            </div>
            <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl">
-              <div className="p-1.5 bg-rose-500/10 rounded-lg text-rose-400">
-                <ShieldAlert size={18} />
-              </div>
+              <div className="p-1.5 bg-rose-500/10 rounded-lg text-rose-400"><ShieldAlert size={18} /></div>
               <div>
                 <span className="block text-xs text-slate-500 uppercase font-bold">Blocked</span>
                 <span className="font-mono text-white font-bold">{admins.filter(a => !a.is_active).length}</span>
@@ -113,23 +108,38 @@ const SystemAdmins = () => {
       {/* Main Table Card */}
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         
-        {/* Toolbar with Live Search */}
-        <div className="p-4 border-b border-slate-800 flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+        {/* Toolbar with Filter Buttons */}
+        <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row gap-4 justify-between items-center">
+            
+            {/* Search Input */}
+            <div className="relative w-full sm:max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
                   type="text" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by email, role, or status..." 
+                  placeholder="Search email, role, or ID..." 
                   className="w-full bg-slate-800/50 border border-slate-700 text-slate-200 pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
                 />
             </div>
-            <div className="flex items-center gap-2 px-3 py-2 text-slate-400 select-none">
-                <Filter size={18} />
-                <span className="text-sm">
-                    {searchTerm ? `Found ${filteredAdmins.length}` : 'All Users'}
-                </span>
+
+            {/* Filter Tabs */}
+            <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50">
+                {['ALL', 'ACTIVE', 'BLOCKED'].map((status) => (
+                    <button
+                        key={status}
+                        onClick={() => setFilterStatus(status)}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ${
+                            filterStatus === status 
+                            ? 'bg-indigo-500 text-white shadow-lg' 
+                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                        }`}
+                    >
+                        {status === 'ALL' && 'All Users'}
+                        {status === 'ACTIVE' && 'Active Only'}
+                        {status === 'BLOCKED' && 'Blocked'}
+                    </button>
+                ))}
             </div>
         </div>
 
@@ -157,7 +167,18 @@ const SystemAdmins = () => {
               ) : filteredAdmins.length === 0 ? (
                 <tr>
                     <td colSpan="4" className="px-6 py-12 text-center text-slate-500 italic">
-                       No administrators found matching "{searchTerm}"
+                       <div className="flex flex-col items-center gap-2">
+                          <ListFilter size={32} className="opacity-20" />
+                          <p>No administrators found matching current filters.</p>
+                          {(searchTerm || filterStatus !== 'ALL') && (
+                              <button 
+                                onClick={() => {setSearchTerm(''); setFilterStatus('ALL')}}
+                                className="text-indigo-400 hover:underline text-xs mt-1"
+                              >
+                                Clear all filters
+                              </button>
+                          )}
+                       </div>
                     </td>
                 </tr>
               ) : (
@@ -170,7 +191,7 @@ const SystemAdmins = () => {
                             ? 'bg-gradient-to-br from-amber-500 to-orange-600' 
                             : 'bg-gradient-to-br from-indigo-500 to-violet-600'
                         }`}>
-                           {admin.is_super ? <ShieldCheck size={18} /> : admin.email.charAt(0).toUpperCase()}
+                           {admin.is_super ? <ShieldCheck size={18} /> : admin.email?.charAt(0).toUpperCase()}
                         </div>
                         <div>
                            <span className={`block font-medium ${admin.is_active ? 'text-slate-200' : 'text-slate-400'}`}>

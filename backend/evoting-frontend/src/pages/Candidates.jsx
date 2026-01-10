@@ -3,7 +3,6 @@ import api from '../utils/api';
 import { 
   Plus, 
   Search, 
-  Filter, 
   Flag, 
   User, 
   FileText, 
@@ -11,9 +10,8 @@ import {
   MoreVertical, 
   Loader2, 
   X, 
-  Users,
-  Upload,    // New Import
-  Image      // New Import
+  Upload,
+  Filter
 } from 'lucide-react';
 
 const Candidates = () => {
@@ -27,10 +25,13 @@ const Candidates = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Forms
-  const [partyForm, setPartyForm] = useState({ name: '', logo: null }); // Changed logo to null
-  const [logoPreview, setLogoPreview] = useState(null); // New state for preview
-  
+  const [partyForm, setPartyForm] = useState({ name: '', logo: null });
+  const [logoPreview, setLogoPreview] = useState(null);
   const [candidateForm, setCandidateForm] = useState({ full_name: '', election_id: 1, party_id: '', bio: '' });
+
+  // --- NEW: Filter States ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterParty, setFilterParty] = useState('ALL'); // 'ALL' or specific Party ID
 
   const fetchData = async () => {
     try {
@@ -50,7 +51,23 @@ const Candidates = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // --- NEW: Handle Image Selection ---
+  // --- Filter Logic ---
+  const filteredCandidates = candidates.filter(candidate => {
+    // 1. Search Filter (Name or ID)
+    const matchesSearch = !searchTerm || (
+        candidate.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        candidate.ID.toString().includes(searchTerm)
+    );
+
+    // 2. Party Filter
+    const matchesParty = filterParty === 'ALL' || (
+        candidate.party && candidate.party.ID.toString() === filterParty.toString()
+    );
+
+    return matchesSearch && matchesParty;
+  });
+
+  // --- Existing Handlers ---
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -63,12 +80,9 @@ const Candidates = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // Create FormData to handle file upload
       const formData = new FormData();
       formData.append('name', partyForm.name);
-      if (partyForm.logo) {
-        formData.append('logo', partyForm.logo);
-      }
+      if (partyForm.logo) formData.append('logo', partyForm.logo);
 
       await api.post('/api/admin/parties', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -133,18 +147,17 @@ const Candidates = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {parties.length > 0 ? parties.map((p, i) => (
            <div key={p.ID || i} className="bg-slate-900/50 border border-slate-800 p-4 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-colors">
-              <div className="w-10 h-10 rounded-full bg-slate-800 overflow-hidden border border-slate-600 flex items-center justify-center shrink-0">
-                 {/* Logic to show uploaded logo or fallback initial */}
+             <div className="w-10 h-10 rounded-full bg-slate-800 overflow-hidden border border-slate-600 flex items-center justify-center shrink-0">
                  {p.logo_url ? (
                      <img src={p.logo_url} alt={p.name} className="w-full h-full object-cover" />
                  ) : (
                     <span className="text-white font-bold">{p.name.charAt(0)}</span>
                  )}
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-200">{p.name}</h3>
-                <p className="text-xs text-slate-500">Registered Party</p>
-              </div>
+             </div>
+             <div>
+               <h3 className="font-bold text-slate-200">{p.name}</h3>
+               <p className="text-xs text-slate-500">Registered Party</p>
+             </div>
            </div>
         )) : (
           <div className="col-span-4 p-4 text-center border border-dashed border-slate-800 rounded-xl text-slate-500 text-sm">
@@ -156,20 +169,35 @@ const Candidates = () => {
       {/* Candidates List */}
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         
-        {/* Toolbar */}
-        <div className="p-4 border-b border-slate-800 flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+        {/* Toolbar with Filter */}
+        <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row items-center gap-4">
+            
+            {/* Search Input */}
+            <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
                   type="text" 
-                  placeholder="Search candidates..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search candidates by name..." 
                   className="w-full bg-slate-800/50 border border-slate-700 text-slate-200 pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
                 />
             </div>
-            <button className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-white transition-colors">
-                <Filter size={18} />
-                <span className="text-sm">Filter</span>
-            </button>
+
+            {/* Party Filter Dropdown */}
+            <div className="relative w-full sm:w-auto min-w-[200px]">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                <select
+                    value={filterParty}
+                    onChange={(e) => setFilterParty(e.target.value)}
+                    className="w-full bg-slate-800/50 border border-slate-700 text-slate-200 pl-9 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer"
+                >
+                    <option value="ALL">All Parties</option>
+                    {parties.map(p => (
+                        <option key={p.ID} value={p.ID}>{p.name}</option>
+                    ))}
+                </select>
+            </div>
         </div>
 
         {/* Table */}
@@ -193,51 +221,60 @@ const Candidates = () => {
                        </div>
                      </td>
                    </tr>
-               ) : candidates.length === 0 ? (
+               ) : filteredCandidates.length === 0 ? (
                  <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
-                       No candidates found. Start by adding a party, then a candidate.
+                    <td colSpan="4" className="px-6 py-12 text-center text-slate-500 italic">
+                        {candidates.length === 0 
+                            ? "No candidates found. Start by adding a party, then a candidate."
+                            : `No candidates found matching your filters.`
+                        }
+                        {(searchTerm || filterParty !== 'ALL') && (
+                            <button 
+                                onClick={() => {setSearchTerm(''); setFilterParty('ALL')}}
+                                className="block mx-auto mt-2 text-indigo-400 hover:underline text-xs"
+                            >
+                                Clear filters
+                            </button>
+                        )}
                     </td>
                  </tr>
                ) : (
-                  candidates.map(c => (
-                    <tr key={c.ID} className="group hover:bg-slate-800/40 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold border border-indigo-500/20">
-                            {c.full_name.charAt(0)}
-                          </div>
-                          <div>
-                            <span className="block text-slate-200 font-medium">{c.full_name}</span>
-                            <span className="text-xs text-slate-500">ID: {c.ID}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${c.party ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20' : 'bg-slate-700/30 text-slate-400 border-slate-700'}`}>
-                          <Flag size={12} />
-                          {c.party?.name || 'Independent'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="truncate max-w-xs text-slate-500">{c.bio || 'No biography available.'}</p>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button className="text-slate-500 hover:text-white p-2 hover:bg-slate-700 rounded-lg transition-colors">
-                           <MoreVertical size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                 filteredCandidates.map(c => (
+                   <tr key={c.ID} className="group hover:bg-slate-800/40 transition-colors">
+                     <td className="px-6 py-4">
+                       <div className="flex items-center gap-3">
+                         <div className="w-9 h-9 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold border border-indigo-500/20">
+                           {c.full_name.charAt(0)}
+                         </div>
+                         <div>
+                           <span className="block text-slate-200 font-medium">{c.full_name}</span>
+                           <span className="text-xs text-slate-500">ID: {c.ID}</span>
+                         </div>
+                       </div>
+                     </td>
+                     <td className="px-6 py-4">
+                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${c.party ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20' : 'bg-slate-700/30 text-slate-400 border-slate-700'}`}>
+                         <Flag size={12} />
+                         {c.party?.name || 'Independent'}
+                       </span>
+                     </td>
+                     <td className="px-6 py-4">
+                       <p className="truncate max-w-xs text-slate-500">{c.bio || 'No biography available.'}</p>
+                     </td>
+                     <td className="px-6 py-4 text-right">
+                       <button className="text-slate-500 hover:text-white p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                          <MoreVertical size={18} />
+                       </button>
+                     </td>
+                   </tr>
+                 ))
                )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* --- MODALS --- */}
-
-      {/* 1. Add Party Modal - UPDATED WITH IMAGE UPLOAD */}
+      {/* --- MODALS (Unchanged logic, kept for context) --- */}
       {showPartyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowPartyModal(false)} />
@@ -247,8 +284,6 @@ const Candidates = () => {
                     <Flag className="text-indigo-500" /> Add New Party
                  </h2>
                  <form onSubmit={handleCreateParty} className="space-y-4">
-                    
-                    {/* Name Input */}
                     <div className="space-y-2">
                        <label className="text-xs font-semibold text-slate-400 uppercase">Party Name</label>
                        <input 
@@ -259,8 +294,6 @@ const Candidates = () => {
                           placeholder="e.g. Democratic Alliance"
                        />
                     </div>
-
-                    {/* Image Upload Input */}
                     <div className="space-y-2">
                        <label className="text-xs font-semibold text-slate-400 uppercase">Party Logo</label>
                        <div className="relative group">
@@ -289,7 +322,6 @@ const Candidates = () => {
                           </div>
                        </div>
                     </div>
-
                     <div className="flex gap-3 mt-6">
                        <button type="button" onClick={() => setShowPartyModal(false)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium border border-slate-700">Cancel</button>
                        <button type="submit" disabled={submitting} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium">
@@ -302,7 +334,7 @@ const Candidates = () => {
         </div>
       )}
 
-      {/* 2. Add Candidate Modal */}
+      {/* Add Candidate Modal - Same as before */}
       {showCandidateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowCandidateModal(false)} />
@@ -311,7 +343,6 @@ const Candidates = () => {
                  <h2 className="text-xl font-bold text-white">Add Candidate</h2>
                  <button onClick={() => setShowCandidateModal(false)}><X className="text-slate-500 hover:text-white" /></button>
               </div>
-              
               <form onSubmit={handleCreateCandidate} className="p-6 space-y-4">
                  <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-400 uppercase">Full Name</label>
@@ -326,7 +357,6 @@ const Candidates = () => {
                        />
                     </div>
                  </div>
-
                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                        <label className="text-xs font-semibold text-slate-400 uppercase">Party</label>
@@ -357,7 +387,6 @@ const Candidates = () => {
                        </div>
                     </div>
                  </div>
-
                  <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-400 uppercase">Biography</label>
                     <div className="relative">
@@ -371,7 +400,6 @@ const Candidates = () => {
                        />
                     </div>
                  </div>
-
                  <button type="submit" disabled={submitting} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 mt-2">
                     {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Register Candidate'}
                  </button>
@@ -379,7 +407,6 @@ const Candidates = () => {
            </div>
         </div>
       )}
-
     </div>
   );
 };

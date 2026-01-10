@@ -26,7 +26,7 @@ func CreateSubAdmin(admin *models.Admin) error {
 
 func GetAllAdmins() ([]models.Admin, error) {
 	var admins []models.Admin
-	err := database.PostgresDB.Scopes(ActiveAdmin).Preload("Role").Find(&admins).Error
+	err := database.PostgresDB.Preload("Role").Find(&admins).Error
 	return admins, err
 }
 
