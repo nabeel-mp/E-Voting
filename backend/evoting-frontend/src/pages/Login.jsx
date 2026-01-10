@@ -57,8 +57,11 @@ const Login = () => {
         navigate('/');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
-    } finally {
+if (!err.response) {
+   setError('Unable to reach server. Please check your connection.');
+} else {
+   setError(err.response?.data?.error || 'Login failed');
+}    } finally {
       setLoading(false);
     }
   };

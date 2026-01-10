@@ -15,13 +15,19 @@ func GetElectionResults(c *fiber.Ctx) error {
 	}
 
 	var results []Result
+	electionID := c.QueryInt("election_id") // Optional query param
 
-	// Join Votes with Candidates and Parties to get a formatted list
-	err := database.PostgresDB.Table("votes").
+	query := database.PostgresDB.Table("votes").
 		Select("candidates.full_name as candidate_name, parties.name as party_name, count(votes.id) as vote_count").
 		Joins("join candidates on candidates.id = votes.candidate_id").
-		Joins("join parties on parties.id = candidates.party_id").
-		Group("candidates.id, candidates.full_name, parties.name").
+		Joins("join parties on parties.id = candidates.party_id")
+
+	// Apply filter if provided
+	if electionID > 0 {
+		query = query.Where("votes.election_id = ?", electionID)
+	}
+
+	err := query.Group("candidates.id, candidates.full_name, parties.name").
 		Scan(&results).Error
 
 	if err != nil {

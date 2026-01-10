@@ -12,4 +12,5 @@ type Voter struct {
 	CurrentOTP   string
 	OTPExpiresAt time.Time
 	IsVerified   bool `gorm:"default:false"`
+	HasVoted     bool `gorm:"default:false"`
 }
