@@ -8,8 +8,9 @@ type Role struct {
 }
 type Admin struct {
 	BaseModel
+	Name     string `json:"name"`
 	Email    string `gorm:"uniqueIndex;not null"`
-	Password string `gorm:"not null"`
+	Password string `gorm:"not null" json:"-"`
 	RoleID   uint   `gorm:"not null"`
 	Role     Role   `gorm:"foreignKey:RoleID"`
 	IsActive bool   `gorm:"default:true"`

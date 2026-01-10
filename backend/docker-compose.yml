@@ -28,7 +28,7 @@ services:
   # Backend Go Application
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: evoting_backend
     restart: always

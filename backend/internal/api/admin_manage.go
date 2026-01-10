@@ -142,6 +142,7 @@ func UnblockSubAdmin(c *fiber.Ctx) error {
 func UpdateAdminProfile(c *fiber.Ctx) error {
 	type UpdateReq struct {
 		Email string `json:"email"`
+		Name  string `json:"name"`
 	}
 	var req UpdateReq
 	if err := c.BodyParser(&req); err != nil {
@@ -151,13 +152,64 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 	// Get ID from JWT middleware locals
 	userID := uint(c.Locals("user_id").(float64))
 
-	err := database.PostgresDB.Model(&models.Admin{}).Where("id = ?", userID).Updates(models.Admin{
-		Email: req.Email,
-	}).Error
+	var admin models.Admin
+	if err := database.PostgresDB.First(&admin, userID).Error; err != nil {
+		return utils.Error(c, 404, "Admin not found")
+	}
 
-	if err != nil {
+	admin.Name = req.Name
+	admin.Email = req.Email
+
+	if err := database.PostgresDB.Save(&admin).Error; err != nil {
 		return utils.Error(c, 500, "Failed to update profile")
 	}
 
-	return utils.Success(c, "Profile updated successfully")
+	database.PostgresDB.Preload("Role").First(&admin, userID)
+
+	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name, admin.Role.Permissions, admin.IsSuper, admin.Name)
+	if err != nil {
+		return utils.Error(c, 500, "Profile updated but failed to generate new token")
+	}
+
+	return utils.Success(c, fiber.Map{
+		"message": "Profile updated successfully",
+		"token":   token,
+	})
+}
+
+func ChangePassword(c *fiber.Ctx) error {
+	type PasswordReq struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	var req PasswordReq
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	userID := uint(c.Locals("user_id").(float64))
+	var admin models.Admin
+
+	// 1. Find Admin
+	if err := database.PostgresDB.First(&admin, userID).Error; err != nil {
+		return utils.Error(c, 404, "User not found")
+	}
+
+	// 2. Verify Old Password
+	if !utils.CheckPassword(req.CurrentPassword, admin.Password) {
+		return utils.Error(c, 401, "Incorrect current password")
+	}
+
+	// 3. Hash New Password
+	hashedPwd, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		return utils.Error(c, 500, "Failed to hash password")
+	}
+
+	// 4. Update Database
+	if err := database.PostgresDB.Model(&admin).Update("password", hashedPwd).Error; err != nil {
+		return utils.Error(c, 500, "Failed to update password")
+	}
+
+	return utils.Success(c, "Password changed successfully")
 }

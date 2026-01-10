@@ -7,10 +7,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func GenerateJWT(userID uint, role string, permissions string, isSuper bool) (string, error) {
+func GenerateJWT(userID uint, role string, permissions string, isSuper bool, name string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":     userID,
 		"role":        role,
+		"name":        name,
 		"permissions": permissions,
 		"is_super":    isSuper,
 		"exp":         time.Now().Add(time.Hour * 24).Unix(),

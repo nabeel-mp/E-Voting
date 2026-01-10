@@ -63,10 +63,14 @@ const Settings = () => {
       }
 
       // 2. Update text details
-      await api.put('/api/admin/update-profile', { 
+      const res = await api.put('/api/admin/update-profile', { 
         email: profile.email,
         name: profile.name 
       });
+
+      if (res.data.success && res.data.data.token) {
+        login(res.data.data.token); 
+      }
       
       alert("Profile updated successfully!");
     } catch (err) {
