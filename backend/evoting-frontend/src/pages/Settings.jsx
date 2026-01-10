@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -10,21 +10,34 @@ import {
   Lock, 
   ShieldCheck, 
   Bell, 
-  Smartphone,
-  UploadCloud,
-  CheckCircle2
+  UploadCloud, 
+  CheckCircle2 
 } from 'lucide-react';
 
 const Settings = () => {
-  const { user } = useAuth();
+  // 1. Get login from useAuth to update token without logging out
+  const { user, login } = useAuth(); 
   
   // State: Profile Information
   const [profile, setProfile] = useState({
-    name: user?.name || 'Admin User',
-    email: user?.email || '',
-    bio: 'System Administrator'
+    name: '',
+    email: '',
+    role: 'Administrator'
   });
-  
+
+  // 2. Sync state when user data loads (handles page refresh)
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        email: user.email || '',
+        role: user.role || 'Administrator'
+      });
+      // If user has an avatar url, set it here
+      if (user.avatar) setAvatarPreview(user.avatar);
+    }
+  }, [user]);
+
   // State: Avatar
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
@@ -54,27 +67,38 @@ const Settings = () => {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
-      // 1. If there is a file, upload it first (Mock logic here)
+      // A. Upload Avatar First (if selected)
       if (avatarFile) {
         const formData = new FormData();
         formData.append('avatar', avatarFile);
-        // await api.post('/api/admin/upload-avatar', formData);
+        
+        // Ensure this endpoint matches your route
+        await api.post('/api/auth/admin/upload-avatar', formData, { 
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+        
+        if (!avatarRes.data.success) throw new Error("Avatar upload failed");
       }
 
-      // 2. Update text details
-      const res = await api.put('/api/admin/update-profile', { 
+      // B. Update Text Details
+      const res = await api.put('/api/auth/admin/update-profile', { 
         email: profile.email,
         name: profile.name 
       });
 
+      // C. Update Local Session
       if (res.data.success && res.data.data.token) {
+        // This updates the JWT in localStorage and context
         login(res.data.data.token); 
       }
       
       alert("Profile updated successfully!");
     } catch (err) {
-      alert("Failed to update profile");
+      console.error(err);
+      const errorMessage = err.response?.data?.error || err.message || "Failed to update profile";
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -86,19 +110,30 @@ const Settings = () => {
       alert("New passwords do not match");
       return;
     }
+
     setSecurityLoading(true);
     try {
-      await api.put('/api/admin/change-password', { 
+      await api.put('/api/auth/admin/change-password', { 
         current_password: passwords.current,
         new_password: passwords.new 
       });
-      alert("Password changed!");
+      alert("Password changed successfully!");
       setPasswords({ current: '', new: '', confirm: '' });
     } catch (err) {
       alert(err.response?.data?.error || "Failed to change password");
     } finally {
       setSecurityLoading(false);
     }
+  };
+
+  // Mock handler for notifications
+  const toggleNotification = (key) => {
+    setNotificationSettings(prev => {
+        const newState = { ...prev, [key]: !prev[key] };
+        // Optional: Save to backend immediately
+        // api.put('/api/admin/preferences', newState).catch(console.error);
+        return newState;
+    });
   };
 
   return (
@@ -145,10 +180,10 @@ const Settings = () => {
                 </div>
               </div>
 
-              <h2 className="mt-4 text-xl font-bold text-white">{profile.name}</h2>
+              <h2 className="mt-4 text-xl font-bold text-white">{profile.name || 'Admin'}</h2>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mt-1">
                 <ShieldCheck size={12} />
-                {user?.role || "Administrator"}
+                {profile.role}
               </span>
             </div>
 
@@ -159,7 +194,7 @@ const Settings = () => {
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input 
-                    value={profile.name}
+                    value={profile.name} 
                     onChange={(e) => setProfile({...profile, name: e.target.value})}
                     className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                   />
@@ -172,7 +207,7 @@ const Settings = () => {
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input 
                     type="email"
-                    value={profile.email}
+                    value={profile.email} 
                     onChange={(e) => setProfile({...profile, email: e.target.value})}
                     className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                   />
@@ -182,7 +217,7 @@ const Settings = () => {
               <button 
                 type="submit" 
                 disabled={loading}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all mt-4"
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all mt-4 disabled:opacity-50"
               >
                 {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                 Save Profile
@@ -211,31 +246,31 @@ const Settings = () => {
                    <div className="space-y-2 md:col-span-2">
                       <label className="text-sm font-medium text-slate-300">Current Password</label>
                       <input 
-                         type="password"
-                         required
-                         value={passwords.current}
-                         onChange={e => setPasswords({...passwords, current: e.target.value})}
-                         className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                          type="password"
+                          required
+                          value={passwords.current}
+                          onChange={e => setPasswords({...passwords, current: e.target.value})}
+                          className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                       />
                    </div>
                    <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-300">New Password</label>
                       <input 
-                         type="password"
-                         required
-                         value={passwords.new}
-                         onChange={e => setPasswords({...passwords, new: e.target.value})}
-                         className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                          type="password"
+                          required
+                          value={passwords.new}
+                          onChange={e => setPasswords({...passwords, new: e.target.value})}
+                          className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                       />
                    </div>
                    <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-300">Confirm Password</label>
                       <input 
-                         type="password"
-                         required
-                         value={passwords.confirm}
-                         onChange={e => setPasswords({...passwords, confirm: e.target.value})}
-                         className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                          type="password"
+                          required
+                          value={passwords.confirm}
+                          onChange={e => setPasswords({...passwords, confirm: e.target.value})}
+                          className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                       />
                    </div>
                 </div>
@@ -243,7 +278,7 @@ const Settings = () => {
                    <button 
                       type="submit" 
                       disabled={securityLoading}
-                      className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium border border-slate-700 transition-colors flex items-center gap-2"
+                      className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium border border-slate-700 transition-colors flex items-center gap-2 disabled:opacity-50"
                    >
                       {securityLoading ? <Loader2 className="animate-spin" size={16} /> : 'Update Password'}
                    </button>
@@ -278,7 +313,7 @@ const Settings = () => {
                          </div>
                       </div>
                       <button 
-                         onClick={() => setNotificationSettings(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                         onClick={() => toggleNotification(item.id)}
                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationSettings[item.id] ? 'bg-indigo-600' : 'bg-slate-700'}`}
                       >
                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationSettings[item.id] ? 'translate-x-6' : 'translate-x-1'}`} />

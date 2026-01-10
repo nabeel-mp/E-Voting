@@ -6,6 +6,9 @@ import (
 	"E-voting/internal/repository"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
+	"fmt"
+	"path/filepath"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -157,15 +160,20 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Admin not found")
 	}
 
+	var count int64
+	database.PostgresDB.Model(&models.Admin{}).Where("email = ? AND id != ?", req.Email, userID).Count(&count)
+	if count > 0 {
+		return utils.Error(c, 400, "Email address is already in use")
+	}
+
 	admin.Name = req.Name
 	admin.Email = req.Email
 
 	if err := database.PostgresDB.Save(&admin).Error; err != nil {
-		return utils.Error(c, 500, "Failed to update profile")
+		return utils.Error(c, 500, "Database error: "+err.Error())
 	}
 
 	database.PostgresDB.Preload("Role").First(&admin, userID)
-
 	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name, admin.Role.Permissions, admin.IsSuper, admin.Name)
 	if err != nil {
 		return utils.Error(c, 500, "Profile updated but failed to generate new token")
@@ -174,6 +182,10 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 	return utils.Success(c, fiber.Map{
 		"message": "Profile updated successfully",
 		"token":   token,
+		"user": fiber.Map{
+			"name":  admin.Name,
+			"email": admin.Email,
+		},
 	})
 }
 
@@ -212,4 +224,53 @@ func ChangePassword(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, "Password changed successfully")
+}
+
+func UploadAvatar(c *fiber.Ctx) error {
+	userID := uint(c.Locals("user_id").(float64))
+
+	// Get file from form
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		return utils.Error(c, 400, "No image uploaded")
+	}
+
+	// Validate file type (basic check)
+	if file.Size > 2*1024*1024 { // 2MB limit
+		return utils.Error(c, 400, "Image too large (Max 2MB)")
+	}
+
+	// Save file (Ensure 'uploads/avatars' folder exists)
+	filename := fmt.Sprintf("admin_%d_%d%s", userID, time.Now().Unix(), filepath.Ext(file.Filename))
+	savePath := fmt.Sprintf("./uploads/avatars/%s", filename)
+
+	if err := c.SaveFile(file, savePath); err != nil {
+		return utils.Error(c, 500, "Failed to save image")
+	}
+
+	// Update DB
+	avatarURL := "/uploads/avatars/" + filename
+	if err := database.PostgresDB.Model(&models.Admin{}).Where("id = ?", userID).Update("avatar", avatarURL).Error; err != nil {
+		return utils.Error(c, 500, "Failed to update database record")
+	}
+
+	return utils.Success(c, fiber.Map{
+		"message": "Avatar uploaded",
+		"avatar":  avatarURL,
+	})
+}
+
+func UpdateNotifications(c *fiber.Ctx) error {
+	// Assuming you have a JSONB column 'preferences' or similar
+	var req map[string]interface{}
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid JSON")
+	}
+
+	userID := uint(c.Locals("user_id").(float64))
+
+	// Example update for a JSONB column named 'preferences'
+	database.PostgresDB.Model(&models.Admin{}).Where("id = ?", userID).Update("preferences", req)
+
+	return utils.Success(c, "Preferences updated")
 }
