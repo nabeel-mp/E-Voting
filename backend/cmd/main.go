@@ -24,7 +24,7 @@ func main() {
 
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "http://localhost:5173, http://localhost:3000", // Allow Vite frontend
+		AllowOrigins: "http://localhost:5173", // Allow Vite frontend
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 		AllowMethods: "GET, POST, HEAD, PUT, DELETE, PATCH",
 	}))
