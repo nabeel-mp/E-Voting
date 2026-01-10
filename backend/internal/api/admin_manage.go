@@ -154,8 +154,13 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 	}
 
 	// Get ID from JWT middleware locals
-	userID := uint(c.Locals("user_id").(float64))
-
+	userIDRaw := c.Locals("user_id")
+	var userID uint
+	if val, ok := userIDRaw.(uint); ok {
+		userID = val
+	} else if val, ok := userIDRaw.(float64); ok {
+		userID = uint(val)
+	}
 	var admin models.Admin
 	if err := database.PostgresDB.First(&admin, userID).Error; err != nil {
 		return utils.Error(c, 404, "Admin not found")

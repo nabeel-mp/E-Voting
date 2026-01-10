@@ -28,11 +28,26 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 		}
 
 		claims := token.Claims.(jwt.MapClaims)
-		c.Locals("user_id", claims["user_id"])
+
+		userIDFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			return utils.Error(c, 401, "Invalid token payload")
+		}
+
+		userID := uint(userIDFloat)
+
+		c.Locals("user_id", userID)
 		c.Locals("role", claims["role"])
 
 		role := claims["role"].(string)
-		// userID := uint(claims["user_id"].(float64))
+
+		if role == "SUPER_ADMIN" {
+			return c.Next()
+		}
+
+		if requiredPermission == "" {
+			return c.Next()
+		}
 
 		if role == "VOTER" {
 			if requiredPermission != "VOTER" {
@@ -46,10 +61,10 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 		}
 
 		var admin models.Admin
-		if err := database.PostgresDB.First(&admin, claims["user_id"]).Error; err != nil || !admin.IsActive {
+		if err := database.PostgresDB.Preload("Role").First(&admin, userID).Error; err != nil || !admin.IsActive {
 			return utils.Error(c, 401, "Account inactive or not found")
 		}
-		if !strings.Contains(admin.Role.Permissions, requiredPermission) {
+		if !strings.Contains(admin.Role.Permissions, requiredPermission) && admin.Role.Permissions != "all" {
 			return utils.Error(c, 403, "Permission denied: "+requiredPermission)
 		}
 
