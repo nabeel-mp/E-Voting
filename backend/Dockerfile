@@ -29,7 +29,7 @@ COPY --from=builder /app/main .
 COPY --from=builder /app/.env . 
 
 # Expose the app port (default 3000)
-EXPOSE 3000
+EXPOSE 8080
 
 # Run the application
 CMD ["./main"]

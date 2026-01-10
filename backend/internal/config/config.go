@@ -28,7 +28,6 @@ type AppConfig struct {
 var Config AppConfig
 
 func LoadConfig() {
-	// It's okay if .env doesn't exist (e.g. in Docker or Prod), so we don't Fatal crash here immediately
 	_ = godotenv.Load()
 
 	Config = AppConfig{
@@ -38,15 +37,13 @@ func LoadConfig() {
 		JWTSecret: os.Getenv("JWT_SECRET"),
 	}
 
-	// --- ADD THIS DEFAULT PORT CHECK ---
 	ifnD := func(val, def string) string {
 		if val == "" {
 			return def
 		}
 		return val
 	}
-	Config.Port = ifnD(Config.Port, "3000") // Default to 3000 if missing
-	// -----------------------------------
+	Config.Port = ifnD(Config.Port, "8080")
 
 	Config.Postgres.Host = os.Getenv("POSTGRES_HOST")
 	Config.Postgres.Port = os.Getenv("POSTGRES_PORT")

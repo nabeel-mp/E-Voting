@@ -63,7 +63,6 @@ const Settings = () => {
         });
       }
 
-      // 2. Update Profile Info (Corrected URL)
       const res = await api.put('/api/admin/update-profile', { 
         email: profile.email,
         name: profile.name 
