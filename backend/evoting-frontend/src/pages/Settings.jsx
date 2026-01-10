@@ -2,50 +2,22 @@ import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { 
-  Camera, 
-  Mail, 
-  User, 
-  Save, 
-  Loader2, 
-  Lock, 
-  ShieldCheck, 
-  Bell, 
-  UploadCloud, 
-  CheckCircle2 
+  Camera, Mail, User, Save, Loader2, Lock, ShieldCheck, Bell, UploadCloud, CheckCircle2 
 } from 'lucide-react';
 
 const Settings = () => {
-  // 1. Get login from useAuth to update token without logging out
   const { user, login } = useAuth(); 
   
-  // State: Profile Information
   const [profile, setProfile] = useState({
     name: '',
     email: '',
     role: 'Administrator'
   });
 
-  // 2. Sync state when user data loads (handles page refresh)
-  useEffect(() => {
-    if (user) {
-      setProfile({
-        name: user.name || '',
-        email: user.email || '',
-        role: user.role || 'Administrator'
-      });
-      // If user has an avatar url, set it here
-      if (user.avatar) setAvatarPreview(user.avatar);
-    }
-  }, [user]);
-
-  // State: Avatar
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
-
-  // State: Security (Password)
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
-
-  // State: Loading/UI
+  
   const [loading, setLoading] = useState(false);
   const [securityLoading, setSecurityLoading] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
@@ -54,7 +26,19 @@ const Settings = () => {
     weeklyDigest: false
   });
 
-  // --- Handlers ---
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        email: user.email || '',
+        role: user.role || 'Administrator'
+      });
+      if (user.avatar) {
+         // Handle absolute vs relative paths for the avatar image
+         setAvatarPreview(user.avatar.startsWith('http') ? user.avatar : `${api.defaults.baseURL}${user.avatar}`);
+      }
+    }
+  }, [user]);
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
@@ -69,28 +53,23 @@ const Settings = () => {
     setLoading(true);
     
     try {
-      // A. Upload Avatar First (if selected)
+      // 1. Upload Avatar (Corrected URL)
       if (avatarFile) {
         const formData = new FormData();
         formData.append('avatar', avatarFile);
         
-        // Ensure this endpoint matches your route
-        await api.post('/api/auth/admin/upload-avatar', formData, { 
-        headers: { 'Content-Type': 'multipart/form-data' }
-    });
-        
-        if (!avatarRes.data.success) throw new Error("Avatar upload failed");
+        await api.post('/api/admin/upload-avatar', formData, { 
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
 
-      // B. Update Text Details
-      const res = await api.put('/api/auth/admin/update-profile', { 
+      // 2. Update Profile Info (Corrected URL)
+      const res = await api.put('/api/admin/update-profile', { 
         email: profile.email,
         name: profile.name 
       });
 
-      // C. Update Local Session
       if (res.data.success && res.data.data.token) {
-        // This updates the JWT in localStorage and context
         login(res.data.data.token); 
       }
       
@@ -113,7 +92,8 @@ const Settings = () => {
 
     setSecurityLoading(true);
     try {
-      await api.put('/api/auth/admin/change-password', { 
+      // Corrected URL
+      await api.put('/api/admin/change-password', { 
         current_password: passwords.current,
         new_password: passwords.new 
       });
@@ -126,20 +106,19 @@ const Settings = () => {
     }
   };
 
-  // Mock handler for notifications
-  const toggleNotification = (key) => {
-    setNotificationSettings(prev => {
-        const newState = { ...prev, [key]: !prev[key] };
-        // Optional: Save to backend immediately
-        // api.put('/api/admin/preferences', newState).catch(console.error);
-        return newState;
-    });
+  const toggleNotification = async (key) => {
+    const newState = { ...notificationSettings, [key]: !notificationSettings[key] };
+    setNotificationSettings(newState);
+    try {
+        // Implemented save to backend
+        await api.put('/api/admin/notifications', newState);
+    } catch(err) {
+        console.error("Failed to save preferences", err);
+    }
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white tracking-tight">Account Settings</h1>
         <p className="text-slate-400 mt-1">Manage your profile, security preferences, and notifications.</p>
@@ -149,13 +128,10 @@ const Settings = () => {
         
         {/* --- LEFT COLUMN: Public Profile --- */}
         <div className="space-y-6">
-          
-          {/* Profile Card */}
           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-20" />
             
             <div className="relative flex flex-col items-center">
-              {/* Avatar Upload */}
               <div className="relative group">
                 <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-br from-indigo-500 to-purple-500 shadow-xl">
                   <div className="w-full h-full rounded-full bg-slate-900 overflow-hidden relative">
@@ -166,8 +142,6 @@ const Settings = () => {
                         <User size={40} />
                       </div>
                     )}
-                    
-                    {/* Hover Overlay */}
                     <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                       <Camera className="text-white mb-1" size={24} />
                       <span className="text-[10px] text-white font-medium">CHANGE</span>
@@ -187,7 +161,6 @@ const Settings = () => {
               </span>
             </div>
 
-            {/* Basic Info Form */}
             <form onSubmit={handleProfileUpdate} className="mt-8 space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-500 uppercase">Full Name</label>
@@ -228,7 +201,6 @@ const Settings = () => {
 
         {/* --- RIGHT COLUMN: Security & Preferences --- */}
         <div className="lg:col-span-2 space-y-6">
-          
           {/* Security Card */}
           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl">
              <div className="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">

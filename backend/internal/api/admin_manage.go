@@ -6,6 +6,7 @@ import (
 	"E-voting/internal/repository"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -183,8 +184,9 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 		"message": "Profile updated successfully",
 		"token":   token,
 		"user": fiber.Map{
-			"name":  admin.Name,
-			"email": admin.Email,
+			"name":   admin.Name,
+			"email":  admin.Email,
+			"avatar": admin.Avatar,
 		},
 	})
 }
@@ -240,7 +242,7 @@ func UploadAvatar(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Image too large (Max 2MB)")
 	}
 
-	// Save file (Ensure 'uploads/avatars' folder exists)
+	// Save file (Ensure 'uploads/avatars' folder exists via main.go or mkdir)
 	filename := fmt.Sprintf("admin_%d_%d%s", userID, time.Now().Unix(), filepath.Ext(file.Filename))
 	savePath := fmt.Sprintf("./uploads/avatars/%s", filename)
 
@@ -261,7 +263,6 @@ func UploadAvatar(c *fiber.Ctx) error {
 }
 
 func UpdateNotifications(c *fiber.Ctx) error {
-	// Assuming you have a JSONB column 'preferences' or similar
 	var req map[string]interface{}
 	if err := c.BodyParser(&req); err != nil {
 		return utils.Error(c, 400, "Invalid JSON")
@@ -269,8 +270,15 @@ func UpdateNotifications(c *fiber.Ctx) error {
 
 	userID := uint(c.Locals("user_id").(float64))
 
-	// Example update for a JSONB column named 'preferences'
-	database.PostgresDB.Model(&models.Admin{}).Where("id = ?", userID).Update("preferences", req)
+	// Marshal map to JSON string for storage
+	jsonBytes, err := json.Marshal(req)
+	if err != nil {
+		return utils.Error(c, 500, "Failed to process data")
+	}
+
+	if err := database.PostgresDB.Model(&models.Admin{}).Where("id = ?", userID).Update("preferences", string(jsonBytes)).Error; err != nil {
+		return utils.Error(c, 500, "Failed to update preferences")
+	}
 
 	return utils.Success(c, "Preferences updated")
 }
