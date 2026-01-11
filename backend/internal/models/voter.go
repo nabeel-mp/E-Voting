@@ -4,13 +4,14 @@ import "time"
 
 type Voter struct {
 	BaseModel
-	FullName    string `gorm:"not null"`
-	VoterID     string `gorm:"uniqueIndex;not null"`
-	AadhaarHash string `gorm:"uniqueIndex;not null"`
-	Mobile      string `gorm:"not null"`
+	FullName    string `gorm:"not null" json:"FullName"`
+	VoterID     string `gorm:"uniqueIndex;not null" json:"VoterID"`
+	AadhaarHash string `gorm:"uniqueIndex;not null" json:"-"`
+	Mobile      string `gorm:"not null" json:"Mobile"`
 
-	CurrentOTP   string
-	OTPExpiresAt time.Time
-	IsVerified   bool `gorm:"default:false"`
-	HasVoted     bool `gorm:"default:false"`
+	CurrentOTP   string    `json:"-"`
+	OTPExpiresAt time.Time `json:"-"`
+	IsVerified   bool      `gorm:"default:false" json:"IsVerified"`
+	HasVoted     bool      `gorm:"default:false" json:"HasVoted"`
+	IsBlocked    bool      `gorm:"default:false" json:"IsBlocked"`
 }

@@ -17,9 +17,12 @@ type RegisterVoterRequest struct {
 	Aadhaar  string `json:"aadhaar"`
 }
 
+type VoterStatusReq struct {
+	VoterID uint `json:"voter_id"`
+}
+
 func RegisterVoter(c *fiber.Ctx) error {
 	var req RegisterVoterRequest
-
 	if err := c.BodyParser(&req); err != nil {
 		return utils.Error(c, 400, "Invalid request body")
 	}
@@ -29,7 +32,6 @@ func RegisterVoter(c *fiber.Ctx) error {
 	}
 
 	hashedAadhaar := utils.HashAadhaar(req.Aadhaar)
-
 	generatedVoterID := fmt.Sprintf("VOTE-%d", utils.RandomNumber())
 
 	voter := &models.Voter{
@@ -39,22 +41,20 @@ func RegisterVoter(c *fiber.Ctx) error {
 		AadhaarHash: hashedAadhaar,
 	}
 
-	err := repository.CreateVoter(voter)
-	if err != nil {
-		return utils.Error(c, 500, "Could not register voter. Voter ID or Aadhaar may already exist.")
+	if err := repository.CreateVoter(voter); err != nil {
+		return utils.Error(c, 500, "Could not register voter. ID may exist.")
 	}
 
-	actorID := uint(c.Locals("user_id").(float64))
-	actorRole := c.Locals("role").(string)
+	// Safe type assertion
+	actorIDFloat, _ := c.Locals("user_id").(float64)
+	actorRole, _ := c.Locals("role").(string)
 
 	service.LogAdminAction(
-		actorID,
+		uint(actorIDFloat),
 		actorRole,
 		"REGISTER_VOTER",
 		voter.ID,
-		map[string]interface{}{
-			"voter_id": generatedVoterID,
-		},
+		map[string]interface{}{"voter_id": generatedVoterID},
 	)
 
 	return utils.Success(c, fiber.Map{
@@ -65,11 +65,33 @@ func RegisterVoter(c *fiber.Ctx) error {
 
 func ListVoters(c *fiber.Ctx) error {
 	var voters []models.Voter
-	// Fetch all voters from Postgres
-	err := database.PostgresDB.Find(&voters).Error
-	if err != nil {
+	// This query will fail if the DB table 'voters' doesn't have the 'is_blocked' column yet
+	if err := database.PostgresDB.Find(&voters).Error; err != nil {
+		// Log the actual error to your terminal so you can see it
+		fmt.Println("Error fetching voters:", err)
 		return utils.Error(c, 500, "Failed to fetch voters")
 	}
-
 	return utils.Success(c, voters)
+}
+
+func BlockVoter(c *fiber.Ctx) error {
+	var req VoterStatusReq
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+	if err := database.PostgresDB.Model(&models.Voter{}).Where("id = ?", req.VoterID).Update("is_blocked", true).Error; err != nil {
+		return utils.Error(c, 500, "Failed to block voter")
+	}
+	return utils.Success(c, "Voter blocked")
+}
+
+func UnblockVoter(c *fiber.Ctx) error {
+	var req VoterStatusReq
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+	if err := database.PostgresDB.Model(&models.Voter{}).Where("id = ?", req.VoterID).Update("is_blocked", false).Error; err != nil {
+		return utils.Error(c, 500, "Failed to unblock voter")
+	}
+	return utils.Success(c, "Voter unblocked")
 }
