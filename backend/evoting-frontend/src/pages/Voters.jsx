@@ -15,12 +15,14 @@ import {
   Pencil,
   Ban,
   Unlock,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle
 } from 'lucide-react';
 
 const Voters = () => {
   const [voters, setVoters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
   
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,11 +43,16 @@ const Voters = () => {
 
   // --- Fetch Data ---
   const fetchVoters = async () => {
+    setLoading(true);
+    setErrorMsg(null);
     try {
       const res = await api.get('/api/admin/voters');
-      if(res.data.success) setVoters(res.data.data);
+      if(res.data.success) {
+        setVoters(res.data.data || []);
+      }
     } catch (err) {
-      console.error("Failed to fetch voters");
+      console.error("Failed to fetch voters", err);
+      setErrorMsg("Failed to load voters. Please check if the backend is running.");
     } finally {
       setLoading(false);
     }
@@ -69,16 +76,24 @@ const Voters = () => {
 
   // --- Filter & Search Logic ---
   const filteredVoters = voters.filter(voter => {
+    if (!voter) return false;
+    
+    // Safe Accessors
+    const fullName = (voter.FullName || voter.full_name || '').toLowerCase();
+    const voterID = (voter.VoterID || voter.voter_id || '').toLowerCase();
+    const isVerified = voter.IsVerified !== undefined ? voter.IsVerified : (voter.is_verified || false);
+    const isBlocked = voter.IsBlocked !== undefined ? voter.IsBlocked : (voter.is_blocked || false);
+
     // 1. Search Filter
     const matchesSearch = 
-        voter.FullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        voter.VoterID.toLowerCase().includes(searchTerm.toLowerCase());
+        fullName.includes(searchTerm.toLowerCase()) || 
+        voterID.includes(searchTerm.toLowerCase());
 
     // 2. Status Filter
     let matchesStatus = true;
-    if (filterStatus === 'VERIFIED') matchesStatus = voter.IsVerified;
-    if (filterStatus === 'PENDING') matchesStatus = !voter.IsVerified;
-    if (filterStatus === 'BLOCKED') matchesStatus = voter.IsBlocked;
+    if (filterStatus === 'VERIFIED') matchesStatus = isVerified;
+    if (filterStatus === 'PENDING') matchesStatus = !isVerified;
+    if (filterStatus === 'BLOCKED') matchesStatus = isBlocked;
 
     return matchesSearch && matchesStatus;
   });
@@ -115,10 +130,10 @@ const Voters = () => {
 
   const openEditModal = (voter) => {
     setIsEditing(true);
-    setSelectedVoterId(voter.ID);
+    setSelectedVoterId(voter.ID || voter.id);
     setForm({ 
-        full_name: voter.FullName, 
-        mobile: voter.Mobile, 
+        full_name: voter.FullName || voter.full_name || '', 
+        mobile: voter.Mobile || voter.mobile || '', 
         aadhaar: voter.Aadhaar || '' 
     });
     setShowModal(true);
@@ -134,14 +149,19 @@ const Voters = () => {
   // --- Block / Unblock Logic ---
   const toggleBlockStatus = async (voter) => {
     setActiveDropdown(null);
-    const action = voter.IsBlocked ? "UNBLOCK" : "BLOCK";
-    if(!window.confirm(`Are you sure you want to ${action} voter ${voter.FullName}?`)) return;
+    const isBlocked = voter.IsBlocked !== undefined ? voter.IsBlocked : voter.is_blocked;
+    const action = isBlocked ? "UNBLOCK" : "BLOCK";
+    const name = voter.FullName || voter.full_name;
+    const id = voter.ID || voter.id;
 
-    setVoters(voters.map(v => v.ID === voter.ID ? { ...v, IsBlocked: !v.IsBlocked } : v));
+    if(!window.confirm(`Are you sure you want to ${action} voter ${name}?`)) return;
+
+    // Optimistic Update
+    setVoters(voters.map(v => (v.ID === id || v.id === id) ? { ...v, IsBlocked: !isBlocked } : v));
 
     try {
-        const endpoint = voter.IsBlocked ? "/api/admin/voter/unblock" : "/api/admin/voter/block";
-        await api.post(endpoint, { voter_id: voter.ID });
+        const endpoint = isBlocked ? "/api/admin/voter/unblock" : "/api/admin/voter/block";
+        await api.post(endpoint, { voter_id: id });
     } catch (err) {
         alert("Failed to update status");
         fetchVoters();
@@ -165,6 +185,14 @@ const Voters = () => {
           Register New Voter
         </button>
       </div>
+
+      {/* Error Banner */}
+      {errorMsg && (
+        <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
+          <AlertTriangle size={20} />
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       {/* Table Container */}
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl min-h-[500px] flex flex-col">
@@ -258,91 +286,101 @@ const Voters = () => {
                   </td>
                 </tr>
               ) : (
-                filteredVoters.map((v) => (
-                  <tr key={v.ID} className={`group transition-colors ${v.IsBlocked ? 'bg-rose-950/10 hover:bg-rose-900/20' : 'hover:bg-slate-800/40'}`}>
-                    <td className="px-6 py-4 font-mono text-indigo-300 font-medium opacity-80">
-                      {v.VoterID}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${
-                            v.IsBlocked 
-                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
-                            : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                        }`}>
-                          {v.FullName.charAt(0)}
-                        </div>
-                        <div className="flex flex-col">
-                            <span className={`font-medium ${v.IsBlocked ? 'text-rose-200' : 'text-slate-200'}`}>{v.FullName}</span>
-                            {v.IsBlocked && <span className="text-[10px] text-rose-400 uppercase font-bold tracking-wide">Blocked</span>}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-mono text-slate-400">
-                      {v.Mobile}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                        v.IsVerified 
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                      }`}>
-                        {v.IsVerified 
-                          ? <CheckCircle2 size={12} /> 
-                          : <AlertCircle size={12} />
-                        }
-                        {v.IsVerified ? 'Verified' : 'Pending'}
-                      </span>
-                    </td>
-                    
-                    {/* Actions Column */}
-                    <td className="px-6 py-4 text-right relative">
-                      <button 
-                        onClick={() => setActiveDropdown(activeDropdown === v.ID ? null : v.ID)}
-                        className={`p-2 rounded-lg transition-colors ${activeDropdown === v.ID ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:text-white hover:bg-slate-700'}`}
-                      >
-                        <MoreVertical size={18} />
-                      </button>
+                filteredVoters.map((v) => {
+                  // Safe Accessors
+                  const id = v.ID || v.id;
+                  const fullName = v.FullName || v.full_name || 'N/A';
+                  const voterID = v.VoterID || v.voter_id || 'N/A';
+                  const mobile = v.Mobile || v.mobile || 'N/A';
+                  const isVerified = v.IsVerified !== undefined ? v.IsVerified : (v.is_verified || false);
+                  const isBlocked = v.IsBlocked !== undefined ? v.IsBlocked : (v.is_blocked || false);
 
-                      {/* Dropdown Menu */}
-                      {activeDropdown === v.ID && (
-                        <div 
-                            ref={dropdownRef}
-                            className="absolute right-8 top-12 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-                        >
-                            <div className="p-1">
-                                <button 
-                                    onClick={() => openEditModal(v)}
-                                    className="w-full text-left px-3 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg flex items-center gap-2 transition-colors"
-                                >
-                                    <Pencil size={14} className="text-indigo-400" />
-                                    Update Details
-                                </button>
-                                <div className="h-px bg-slate-800 my-1 mx-2"></div>
-                                <button 
-                                    onClick={() => toggleBlockStatus(v)}
-                                    className={`w-full text-left px-3 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-colors ${
-                                        v.IsBlocked 
-                                        ? 'text-emerald-400 hover:bg-emerald-500/10' 
-                                        : 'text-rose-400 hover:bg-rose-500/10'
-                                    }`}
-                                >
-                                    {v.IsBlocked ? <Unlock size={14} /> : <Ban size={14} />}
-                                    {v.IsBlocked ? 'Unblock Access' : 'Block Access'}
-                                </button>
-                            </div>
+                  return (
+                    <tr key={id} className={`group transition-colors ${isBlocked ? 'bg-rose-950/10 hover:bg-rose-900/20' : 'hover:bg-slate-800/40'}`}>
+                      <td className="px-6 py-4 font-mono text-indigo-300 font-medium opacity-80">
+                        {voterID}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${
+                              isBlocked 
+                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                              : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                          }`}>
+                            {fullName.charAt(0)}
+                          </div>
+                          <div className="flex flex-col">
+                              <span className={`font-medium ${isBlocked ? 'text-rose-200' : 'text-slate-200'}`}>{fullName}</span>
+                              {isBlocked && <span className="text-[10px] text-rose-400 uppercase font-bold tracking-wide">Blocked</span>}
+                          </div>
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4 font-mono text-slate-400">
+                        {mobile}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                          isVerified 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        }`}>
+                          {isVerified 
+                            ? <CheckCircle2 size={12} /> 
+                            : <AlertCircle size={12} />
+                          }
+                          {isVerified ? 'Verified' : 'Pending'}
+                        </span>
+                      </td>
+                      
+                      {/* Actions Column */}
+                      <td className="px-6 py-4 text-right relative">
+                        <button 
+                          onClick={() => setActiveDropdown(activeDropdown === id ? null : id)}
+                          className={`p-2 rounded-lg transition-colors ${activeDropdown === id ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:text-white hover:bg-slate-700'}`}
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {activeDropdown === id && (
+                          <div 
+                              ref={dropdownRef}
+                              className="absolute right-8 top-12 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                          >
+                              <div className="p-1">
+                                  <button 
+                                      onClick={() => openEditModal(v)}
+                                      className="w-full text-left px-3 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg flex items-center gap-2 transition-colors"
+                                  >
+                                      <Pencil size={14} className="text-indigo-400" />
+                                      Update Details
+                                  </button>
+                                  <div className="h-px bg-slate-800 my-1 mx-2"></div>
+                                  <button 
+                                      onClick={() => toggleBlockStatus(v)}
+                                      className={`w-full text-left px-3 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-colors ${
+                                          isBlocked 
+                                          ? 'text-emerald-400 hover:bg-emerald-500/10' 
+                                          : 'text-rose-400 hover:bg-rose-500/10'
+                                      }`}
+                                  >
+                                      {isBlocked ? <Unlock size={14} /> : <Ban size={14} />}
+                                      {isBlocked ? 'Unblock Access' : 'Block Access'}
+                                  </button>
+                              </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal (Unchanged Layout) */}
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onClick={closeModal} />

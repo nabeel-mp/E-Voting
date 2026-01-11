@@ -65,11 +65,9 @@ func RegisterVoter(c *fiber.Ctx) error {
 
 func ListVoters(c *fiber.Ctx) error {
 	var voters []models.Voter
-	// This query will fail if the DB table 'voters' doesn't have the 'is_blocked' column yet
 	if err := database.PostgresDB.Find(&voters).Error; err != nil {
-		// Log the actual error to your terminal so you can see it
 		fmt.Println("Error fetching voters:", err)
-		return utils.Error(c, 500, "Failed to fetch voters")
+		return utils.Error(c, 500, "Failed to fetch voters. Check DB Migration.")
 	}
 	return utils.Success(c, voters)
 }
