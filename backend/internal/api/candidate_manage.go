@@ -41,3 +41,40 @@ func ListParties(c *fiber.Ctx) error {
 	database.PostgresDB.Find(&parties)
 	return utils.Success(c, parties)
 }
+
+func UpdateCandidate(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var candidate models.Candidate
+
+	// 1. Find existing candidate
+	if err := database.PostgresDB.First(&candidate, id).Error; err != nil {
+		return utils.Error(c, 404, "Candidate not found")
+	}
+
+	// 2. Parse updates
+	var req models.Candidate
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	// 3. Update fields
+	candidate.FullName = req.FullName
+	candidate.PartyID = req.PartyID
+	candidate.ElectionID = req.ElectionID
+	candidate.Bio = req.Bio
+
+	if err := database.PostgresDB.Save(&candidate).Error; err != nil {
+		return utils.Error(c, 500, "Failed to update candidate")
+	}
+
+	return utils.Success(c, "Candidate updated successfully")
+}
+
+func DeleteCandidate(c *fiber.Ctx) error {
+	id := c.Params("id")
+	// Delete candidate by ID
+	if err := database.PostgresDB.Delete(&models.Candidate{}, id).Error; err != nil {
+		return utils.Error(c, 500, "Failed to delete candidate")
+	}
+	return utils.Success(c, "Candidate deleted successfully")
+}

@@ -134,7 +134,7 @@ const Voters = () => {
     setForm({ 
         full_name: voter.FullName || voter.full_name || '', 
         mobile: voter.Mobile || voter.mobile || '', 
-        aadhaar: voter.Aadhaar || '' 
+        aadhaar: '' // Aadhaar is not needed for update
     });
     setShowModal(true);
     setActiveDropdown(null);
@@ -287,7 +287,6 @@ const Voters = () => {
                 </tr>
               ) : (
                 filteredVoters.map((v) => {
-                  // Safe Accessors
                   const id = v.ID || v.id;
                   const fullName = v.FullName || v.full_name || 'N/A';
                   const voterID = v.VoterID || v.voter_id || 'N/A';
@@ -332,7 +331,6 @@ const Voters = () => {
                         </span>
                       </td>
                       
-                      {/* Actions Column */}
                       <td className="px-6 py-4 text-right relative">
                         <button 
                           onClick={() => setActiveDropdown(activeDropdown === id ? null : id)}
@@ -341,7 +339,6 @@ const Voters = () => {
                           <MoreVertical size={18} />
                         </button>
 
-                        {/* Dropdown Menu */}
                         {activeDropdown === id && (
                           <div 
                               ref={dropdownRef}
@@ -425,19 +422,22 @@ const Voters = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Aadhaar / ID Number</label>
-                <div className="relative">
-                  <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <input 
-                    placeholder="e.g. 1234 5678 9012" 
-                    required 
-                    value={form.aadhaar} 
-                    onChange={e => setForm({...form, aadhaar: e.target.value})}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
-                  />
+              {/* Conditionally render Aadhaar input only when registering (not editing) */}
+              {!isEditing && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">Aadhaar / ID Number</label>
+                  <div className="relative">
+                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                    <input 
+                      placeholder="e.g. 1234 5678 9012" 
+                      required 
+                      value={form.aadhaar} 
+                      onChange={e => setForm({...form, aadhaar: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={closeModal} className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition-colors border border-slate-700">

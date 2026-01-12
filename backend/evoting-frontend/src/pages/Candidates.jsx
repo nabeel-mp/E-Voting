@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import api from '../utils/api';
 import { 
   Plus, 
@@ -11,7 +11,9 @@ import {
   Loader2, 
   X, 
   Upload,
-  Filter
+  Filter,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 
 const Candidates = () => {
@@ -19,19 +21,24 @@ const Candidates = () => {
   const [parties, setParties] = useState([]);
   const [loading, setLoading] = useState(true);
    
-  // Modals
+  // Modals & State
   const [showCandidateModal, setShowCandidateModal] = useState(false);
   const [showPartyModal, setShowPartyModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null); // Track editing state
+
+  // Dropdown State
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const dropdownRef = useRef(null);
 
   // Forms
   const [partyForm, setPartyForm] = useState({ name: '', logo: null });
   const [logoPreview, setLogoPreview] = useState(null);
   const [candidateForm, setCandidateForm] = useState({ full_name: '', election_id: 1, party_id: '', bio: '' });
 
-  // --- NEW: Filter States ---
+  // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterParty, setFilterParty] = useState('ALL'); // 'ALL' or specific Party ID
+  const [filterParty, setFilterParty] = useState('ALL');
 
   const fetchData = async () => {
     try {
@@ -51,23 +58,30 @@ const Candidates = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Click Outside Handler for Dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // --- Filter Logic ---
   const filteredCandidates = candidates.filter(candidate => {
-    // 1. Search Filter (Name or ID)
     const matchesSearch = !searchTerm || (
         candidate.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         candidate.ID.toString().includes(searchTerm)
     );
-
-    // 2. Party Filter
     const matchesParty = filterParty === 'ALL' || (
         candidate.party && candidate.party.ID.toString() === filterParty.toString()
     );
-
     return matchesSearch && matchesParty;
   });
 
-  // --- Existing Handlers ---
+  // --- Handlers ---
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -99,7 +113,30 @@ const Candidates = () => {
     }
   };
 
-  const handleCreateCandidate = async (e) => {
+  const openEditModal = (candidate) => {
+      setEditingId(candidate.ID);
+      setCandidateForm({
+          full_name: candidate.full_name,
+          election_id: candidate.election_id,
+          party_id: candidate.party_id,
+          bio: candidate.bio || ''
+      });
+      setShowCandidateModal(true);
+      setActiveDropdown(null);
+  };
+
+  const handleDelete = async (id) => {
+      if(!window.confirm("Are you sure you want to delete this candidate?")) return;
+      try {
+          await api.delete(`/api/admin/candidates/${id}`);
+          fetchData();
+          setActiveDropdown(null);
+      } catch (err) {
+          alert("Failed to delete candidate");
+      }
+  };
+
+  const handleCandidateSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -108,18 +145,33 @@ const Candidates = () => {
         election_id: parseInt(candidateForm.election_id),
         party_id: parseInt(candidateForm.party_id)
       };
-      await api.post('/api/admin/candidates', payload);
+
+      if (editingId) {
+          // Update
+          await api.put(`/api/admin/candidates/${editingId}`, payload);
+      } else {
+          // Create
+          await api.post('/api/admin/candidates', payload);
+      }
+
       setShowCandidateModal(false);
       setCandidateForm({ full_name: '', election_id: 1, party_id: '', bio: '' });
+      setEditingId(null);
       fetchData();
-    } catch (err) { alert("Failed to create candidate"); }
+    } catch (err) { alert(`Failed to ${editingId ? 'update' : 'create'} candidate`); }
     finally { setSubmitting(false); }
+  };
+
+  const closeCandidateModal = () => {
+      setShowCandidateModal(false);
+      setEditingId(null);
+      setCandidateForm({ full_name: '', election_id: 1, party_id: '', bio: '' });
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
        
-      {/* Header & Actions */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Candidate Management</h1>
@@ -134,7 +186,7 @@ const Candidates = () => {
             <span>Add Party</span>
           </button>
           <button 
-            onClick={() => setShowCandidateModal(true)} 
+            onClick={() => { setEditingId(null); setShowCandidateModal(true); }} 
             className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
           >
             <Plus size={18} />
@@ -143,7 +195,7 @@ const Candidates = () => {
         </div>
       </div>
 
-      {/* Parties Overview (Mini Cards) */}
+      {/* Parties List (Mini Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {parties.length > 0 ? parties.map((p, i) => (
            <div key={p.ID || i} className="bg-slate-900/50 border border-slate-800 p-4 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-colors">
@@ -167,12 +219,10 @@ const Candidates = () => {
       </div>
 
       {/* Candidates List */}
-      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl min-h-[500px] flex flex-col">
         
-        {/* Toolbar with Filter */}
+        {/* Toolbar */}
         <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row items-center gap-4">
-            
-            {/* Search Input */}
             <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
@@ -183,8 +233,6 @@ const Candidates = () => {
                   className="w-full bg-slate-800/50 border border-slate-700 text-slate-200 pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
                 />
             </div>
-
-            {/* Party Filter Dropdown */}
             <div className="relative w-full sm:w-auto min-w-[200px]">
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                 <select
@@ -193,15 +241,13 @@ const Candidates = () => {
                     className="w-full bg-slate-800/50 border border-slate-700 text-slate-200 pl-9 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer"
                 >
                     <option value="ALL">All Parties</option>
-                    {parties.map(p => (
-                        <option key={p.ID} value={p.ID}>{p.name}</option>
-                    ))}
+                    {parties.map(p => <option key={p.ID} value={p.ID}>{p.name}</option>)}
                 </select>
             </div>
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-visible flex-1">
           <table className="w-full text-left text-sm text-slate-400">
             <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800">
               <tr>
@@ -228,14 +274,6 @@ const Candidates = () => {
                             ? "No candidates found. Start by adding a party, then a candidate."
                             : `No candidates found matching your filters.`
                         }
-                        {(searchTerm || filterParty !== 'ALL') && (
-                            <button 
-                                onClick={() => {setSearchTerm(''); setFilterParty('ALL')}}
-                                className="block mx-auto mt-2 text-indigo-400 hover:underline text-xs"
-                            >
-                                Clear filters
-                            </button>
-                        )}
                     </td>
                  </tr>
                ) : (
@@ -261,10 +299,39 @@ const Candidates = () => {
                      <td className="px-6 py-4">
                        <p className="truncate max-w-xs text-slate-500">{c.bio || 'No biography available.'}</p>
                      </td>
-                     <td className="px-6 py-4 text-right">
-                       <button className="text-slate-500 hover:text-white p-2 hover:bg-slate-700 rounded-lg transition-colors">
-                          <MoreVertical size={18} />
+                     <td className="px-6 py-4 text-right relative">
+                       <button 
+                            onClick={() => setActiveDropdown(activeDropdown === c.ID ? null : c.ID)}
+                            className={`p-2 rounded-lg transition-colors ${activeDropdown === c.ID ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:text-white hover:bg-slate-700'}`}
+                        >
+                            <MoreVertical size={18} />
                        </button>
+
+                       {/* Action Menu */}
+                       {activeDropdown === c.ID && (
+                           <div 
+                                ref={dropdownRef}
+                                className="absolute right-8 top-12 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                           >
+                                <div className="p-1">
+                                    <button 
+                                        onClick={() => openEditModal(c)}
+                                        className="w-full text-left px-3 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg flex items-center gap-2 transition-colors"
+                                    >
+                                        <Pencil size={14} className="text-indigo-400" />
+                                        Update Details
+                                    </button>
+                                    <div className="h-px bg-slate-800 my-1 mx-2"></div>
+                                    <button 
+                                        onClick={() => handleDelete(c.ID)}
+                                        className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 rounded-lg flex items-center gap-2 transition-colors"
+                                    >
+                                        <Trash2 size={14} />
+                                        Delete Candidate
+                                    </button>
+                                </div>
+                           </div>
+                       )}
                      </td>
                    </tr>
                  ))
@@ -274,7 +341,7 @@ const Candidates = () => {
         </div>
       </div>
 
-      {/* --- MODALS (Unchanged logic, kept for context) --- */}
+      {/* Party Modal (Unchanged) */}
       {showPartyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowPartyModal(false)} />
@@ -334,16 +401,18 @@ const Candidates = () => {
         </div>
       )}
 
-      {/* Add Candidate Modal - Same as before */}
+      {/* Candidate Modal (Updated for Create & Update) */}
       {showCandidateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowCandidateModal(false)} />
+           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closeCandidateModal} />
            <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
               <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-                 <h2 className="text-xl font-bold text-white">Add Candidate</h2>
-                 <button onClick={() => setShowCandidateModal(false)}><X className="text-slate-500 hover:text-white" /></button>
+                 <h2 className="text-xl font-bold text-white">
+                    {editingId ? 'Update Candidate' : 'Add Candidate'}
+                 </h2>
+                 <button onClick={closeCandidateModal}><X className="text-slate-500 hover:text-white" /></button>
               </div>
-              <form onSubmit={handleCreateCandidate} className="p-6 space-y-4">
+              <form onSubmit={handleCandidateSubmit} className="p-6 space-y-4">
                  <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-400 uppercase">Full Name</label>
                     <div className="relative">
@@ -401,7 +470,7 @@ const Candidates = () => {
                     </div>
                  </div>
                  <button type="submit" disabled={submitting} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 mt-2">
-                    {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Register Candidate'}
+                    {submitting ? <Loader2 className="animate-spin mx-auto" /> : (editingId ? 'Update Candidate' : 'Register Candidate')}
                  </button>
               </form>
            </div>

@@ -58,3 +58,38 @@ func ToggleElectionStatus(c *fiber.Ctx) error {
 
 	return utils.Success(c, "Election status updated")
 }
+
+func UpdateElection(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var req models.Election
+
+	// Parse request body
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	var election models.Election
+	// Find existing election
+	if err := database.PostgresDB.First(&election, id).Error; err != nil {
+		return utils.Error(c, 404, "Election not found")
+	}
+
+	// Update fields
+	election.Title = req.Title
+	election.Description = req.Description
+	election.StartDate = req.StartDate
+	election.EndDate = req.EndDate
+
+	if err := database.PostgresDB.Save(&election).Error; err != nil {
+		return utils.Error(c, 500, "Failed to update election")
+	}
+
+	// Log the action
+	actorID := uint(c.Locals("user_id").(float64))
+	actorRole := c.Locals("role").(string)
+	service.LogAdminAction(actorID, actorRole, "UPDATE_ELECTION", election.ID, map[string]interface{}{
+		"title": election.Title,
+	})
+
+	return utils.Success(c, "Election updated successfully")
+}

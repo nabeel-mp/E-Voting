@@ -73,9 +73,12 @@ func RegisterRoutes(app *fiber.App) {
 	candidateAPI.Get("/parties", ListParties)
 	candidateAPI.Post("/candidates", CreateCandidate)
 	candidateAPI.Get("/candidates", ListCandidates)
+	candidateAPI.Put("/candidates/:id", UpdateCandidate)
+	candidateAPI.Delete("/candidates/:id", DeleteCandidate)
 
 	electionAPI := app.Group("/api/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
 	electionAPI.Post("/elections", CreateElection)
+	electionAPI.Put("/elections/:id", UpdateElection)
 	electionAPI.Get("/elections", ListElections)
 	electionAPI.Post("/elections/status", ToggleElectionStatus)
 

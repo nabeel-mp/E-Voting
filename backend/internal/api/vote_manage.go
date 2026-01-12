@@ -31,6 +31,9 @@ func CastVote(c *fiber.Ctx) error {
 	if !election.IsActive {
 		return utils.Error(c, 400, "This election is currently closed")
 	}
+	if time.Now().After(election.EndDate) {
+		return utils.Error(c, 400, "Election has ended")
+	}
 
 	// 2. Get Voter
 	voterID := uint(c.Locals("user_id").(float64))

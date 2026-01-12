@@ -5,18 +5,21 @@ import {
   Plus, 
   Loader2, 
   Clock, 
-  CheckCircle2, 
-  AlertCircle,
-  ToggleLeft,
-  ToggleRight,
-  Vote
+  ToggleLeft, 
+  ToggleRight, 
+  Vote, 
+  Lock,
+  Pencil,
+  X
 } from 'lucide-react';
 
 const Elections = () => {
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
+  
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   const [form, setForm] = useState({
     title: '',
@@ -38,22 +41,67 @@ const Elections = () => {
 
   useEffect(() => { fetchElections(); }, []);
 
-  const handleCreate = async (e) => {
+  // Helper: Format ISO to datetime-local string (YYYY-MM-DDThh:mm)
+  const formatDateTimeLocal = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  // Helper: Get Current Date Time for 'min' attribute
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  const handleEdit = (election) => {
+    setEditingId(election.ID);
+    setForm({
+        title: election.title,
+        description: election.description,
+        start_date: formatDateTimeLocal(election.start_date),
+        end_date: formatDateTimeLocal(election.end_date)
+    });
+    setShowModal(true);
+  };
+
+  const resetForm = () => {
+      setForm({ title: '', description: '', start_date: '', end_date: '' });
+      setEditingId(null);
+      setShowModal(false);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Logic: Prevent End Date from being before Start Date
+    if (new Date(form.end_date) <= new Date(form.start_date)) {
+        alert("End Date must be after Start Date");
+        return;
+    }
+
     setSubmitting(true);
     try {
-      // Convert dates to ISO strings for Go
       const payload = {
         ...form,
         start_date: new Date(form.start_date).toISOString(),
         end_date: new Date(form.end_date).toISOString()
       };
-      await api.post('/api/admin/elections', payload);
-      setShowModal(false);
-      setForm({ title: '', description: '', start_date: '', end_date: '' });
+
+      if (editingId) {
+          await api.put(`/api/admin/elections/${editingId}`, payload);
+          alert("Election updated successfully!");
+      } else {
+          await api.post('/api/admin/elections', payload);
+          alert("Election created successfully!");
+      }
+      
+      resetForm();
       fetchElections();
     } catch (err) {
-      alert("Failed to create election.");
+      alert(`Failed to ${editingId ? 'update' : 'create'} election.`);
     } finally {
       setSubmitting(false);
     }
@@ -65,7 +113,6 @@ const Elections = () => {
         election_id: id,
         is_active: !currentStatus
       });
-      // Optimistic update
       setElections(elections.map(e => e.ID === id ? { ...e, is_active: !currentStatus } : e));
     } catch (err) {
       alert("Failed to update status");
@@ -74,6 +121,7 @@ const Elections = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
@@ -81,7 +129,7 @@ const Elections = () => {
           <p className="text-slate-400 mt-1">Create and monitor election events.</p>
         </div>
         <button 
-          onClick={() => setShowModal(true)} 
+          onClick={() => { resetForm(); setShowModal(true); }} 
           className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
         >
           <Plus size={18} />
@@ -98,60 +146,96 @@ const Elections = () => {
              No elections found. Create your first one.
            </div>
         ) : (
-           elections.map((election) => (
-             <div key={election.ID} className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-start md:items-center justify-between hover:border-slate-700 transition-all shadow-md">
-                
-                <div className="flex items-start gap-4">
-                   <div className={`p-3 rounded-xl ${election.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
-                      <Vote size={24} />
-                   </div>
-                   <div>
-                      <h3 className="text-xl font-bold text-slate-200">{election.title}</h3>
-                      <p className="text-sm text-slate-500 mb-2">{election.description || "No description provided."}</p>
-                      
-                      <div className="flex flex-wrap gap-4 text-xs font-mono text-slate-400">
-                         <span className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded">
-                            <Calendar size={12} /> 
-                            Start: {new Date(election.start_date).toLocaleDateString()}
-                         </span>
-                         <span className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded">
-                            <Clock size={12} />
-                            End: {new Date(election.end_date).toLocaleDateString()}
-                         </span>
-                         <span className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded">
-                            ID: #{election.ID}
-                         </span>
-                      </div>
-                   </div>
-                </div>
+           elections.map((election) => {
+             const isEnded = new Date(election.end_date) < new Date();
 
-                <div className="flex items-center gap-4 w-full md:w-auto pl-16 md:pl-0">
-                   <div className={`text-sm font-bold px-3 py-1 rounded-full border ${election.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
-                      {election.is_active ? "Active" : "Closed"}
-                   </div>
-                   
-                   <button 
-                     onClick={() => toggleStatus(election.ID, election.is_active)}
-                     className={`p-2 rounded-lg transition-colors ${election.is_active ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
-                     title="Toggle Status"
-                   >
-                      {election.is_active ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                   </button>
-                </div>
-             </div>
-           ))
+             return (
+               <div key={election.ID} className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-start md:items-center justify-between hover:border-slate-700 transition-all shadow-md group">
+                  
+                  <div className="flex items-start gap-4">
+                     <div className={`p-3 rounded-xl ${election.is_active && !isEnded ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                        <Vote size={24} />
+                     </div>
+                     <div>
+                        <div className="flex items-center gap-3">
+                            <h3 className="text-xl font-bold text-slate-200">{election.title}</h3>
+                            
+                            {/* Hide Edit button if Election Ended */}
+                            {!isEnded && (
+                                <button 
+                                    onClick={() => handleEdit(election)}
+                                    className="p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Edit Details"
+                                >
+                                    <Pencil size={16} />
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-sm text-slate-500 mb-2">{election.description || "No description provided."}</p>
+                        
+                        <div className="flex flex-wrap gap-4 text-xs font-mono text-slate-400">
+                           <span className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded">
+                              <Calendar size={12} /> 
+                              Start: {new Date(election.start_date).toLocaleString()}
+                           </span>
+                           <span className={`flex items-center gap-1.5 px-2 py-1 rounded ${isEnded ? 'bg-rose-900/20 text-rose-400' : 'bg-slate-800'}`}>
+                              <Clock size={12} />
+                              End: {new Date(election.end_date).toLocaleString()}
+                           </span>
+                           <span className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded">
+                              ID: #{election.ID}
+                           </span>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 w-full md:w-auto pl-16 md:pl-0">
+                     <div className={`text-sm font-bold px-3 py-1 rounded-full border ${
+                        isEnded 
+                          ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' 
+                          : election.is_active 
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                     }`}>
+                        {isEnded ? "Ended" : (election.is_active ? "Active" : "Closed")}
+                     </div>
+                     
+                     {isEnded ? (
+                        <div className="p-2 text-slate-600 cursor-not-allowed" title="Election Time Over">
+                           <Lock size={24} />
+                        </div>
+                     ) : (
+                        <button 
+                          onClick={() => toggleStatus(election.ID, election.is_active)}
+                          className={`p-2 rounded-lg transition-colors ${election.is_active ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                          title="Toggle Status"
+                        >
+                           {election.is_active ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                        </button>
+                     )}
+                  </div>
+               </div>
+             );
+           })
         )}
       </div>
 
-      {/* Create Modal */}
+      {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={resetForm} />
            <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
               <div className="p-6">
-                 <h2 className="text-xl font-bold text-white mb-6">Create New Election</h2>
-                 <form onSubmit={handleCreate} className="space-y-4">
-                    
+                 <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-white">
+                        {editingId ? 'Update Election' : 'Create New Election'}
+                    </h2>
+                    <button onClick={resetForm} className="text-slate-500 hover:text-white transition-colors">
+                        <X size={20} />
+                    </button>
+                 </div>
+                 
+                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                        <label className="text-xs font-semibold text-slate-400 uppercase">Election Title</label>
                        <input 
@@ -162,7 +246,6 @@ const Elections = () => {
                           placeholder="e.g. Student Council 2026"
                        />
                     </div>
-
                     <div className="space-y-2">
                        <label className="text-xs font-semibold text-slate-400 uppercase">Description</label>
                        <textarea 
@@ -173,13 +256,13 @@ const Elections = () => {
                           placeholder="Brief details about this election..."
                        />
                     </div>
-
                     <div className="grid grid-cols-2 gap-4">
                        <div className="space-y-2">
                           <label className="text-xs font-semibold text-slate-400 uppercase">Start Date</label>
                           <input 
                              type="datetime-local"
                              required 
+                             min={getCurrentDateTime()} // RESTRICT PAST DATES
                              value={form.start_date} 
                              onChange={e => setForm({...form, start_date: e.target.value})}
                              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
@@ -190,17 +273,17 @@ const Elections = () => {
                           <input 
                              type="datetime-local"
                              required 
+                             min={form.start_date || getCurrentDateTime()} // END DATE MUST BE AFTER START
                              value={form.end_date} 
                              onChange={e => setForm({...form, end_date: e.target.value})}
                              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                           />
                        </div>
                     </div>
-
                     <div className="flex gap-3 mt-6 pt-4">
-                       <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium border border-slate-700">Cancel</button>
+                       <button type="button" onClick={resetForm} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium border border-slate-700">Cancel</button>
                        <button type="submit" disabled={submitting} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium shadow-lg">
-                          {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Create Election'}
+                          {submitting ? <Loader2 className="animate-spin mx-auto" /> : (editingId ? 'Update Election' : 'Create Election')}
                        </button>
                     </div>
                  </form>
