@@ -155,16 +155,16 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 
 	userID := uint(c.Locals("user_id").(float64))
 	var admin models.Admin
-	if err := database.PostgresDB.First(&admin, userID).Error; err != nil {
+	if err := database.PostgresDB.Preload("Role").First(&admin, userID).Error; err != nil {
 		return utils.Error(c, 404, "Admin not found")
 	}
 
-	// Logic Change: If user is Super Admin, they CANNOT change email
+	// Logic: Super Admin CANNOT change email
 	if admin.IsSuper && req.Email != admin.Email {
-		return utils.Error(c, 403, "Super Admin cannot change their own email address")
+		return utils.Error(c, 403, "Super Admin email is restricted and cannot be changed")
 	}
 
-	// Check if new email is taken (only if email is actually being changed by a sub-admin)
+	// Sub-admins can change email if not taken
 	if !admin.IsSuper && req.Email != admin.Email {
 		var count int64
 		database.PostgresDB.Model(&models.Admin{}).Where("email = ? AND id != ?", req.Email, userID).Count(&count)
@@ -174,25 +174,59 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 		admin.Email = req.Email
 	}
 
-	admin.Name = req.Name // Everyone can change name
-
+	admin.Name = req.Name
 	if err := database.PostgresDB.Save(&admin).Error; err != nil {
-		return utils.Error(c, 500, "Database error: "+err.Error())
+		return utils.Error(c, 500, "Failed to save profile")
 	}
 
-	// Regenerate JWT with preserved permissions and super status
-	database.PostgresDB.Preload("Role").First(&admin, userID)
+	// Regenerate JWT with original IsSuper and Permissions
 	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name, admin.Role.Permissions, admin.IsSuper, admin.Name)
 	if err != nil {
-		return utils.Error(c, 500, "Profile updated but failed to generate new token")
+		return utils.Error(c, 500, "Profile updated but token generation failed")
+	}
+
+	return utils.Success(c, fiber.Map{"token": token})
+}
+
+func UploadAvatar(c *fiber.Ctx) error {
+	// Get ID from locals as float64 (consistency with other handlers)
+	userIDFloat, ok := c.Locals("user_id").(float64)
+	if !ok {
+		return utils.Error(c, 401, "Invalid session")
+	}
+	userID := uint(userIDFloat)
+
+	// CRITICAL: The string "avatar" must match the FormData key in React
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		return utils.Error(c, 400, "No image uploaded")
+	}
+
+	// Validate file size (2MB limit)
+	if file.Size > 2*1024*1024 {
+		return utils.Error(c, 400, "Image too large (Max 2MB)")
+	}
+
+	// Ensure the directory exists (Main.go handles this, but we use consistent pathing here)
+	// We save with a timestamp to avoid browser caching issues
+	filename := fmt.Sprintf("admin_%d_%d%s", userID, time.Now().Unix(), filepath.Ext(file.Filename))
+	savePath := filepath.Join("./uploads/avatars", filename)
+
+	if err := c.SaveFile(file, savePath); err != nil {
+		return utils.Error(c, 500, "Failed to save image")
+	}
+
+	// Store the URL path for the frontend (accessible via Static route)
+	avatarURL := "/uploads/avatars/" + filename
+	if err := database.PostgresDB.Model(&models.Admin{}).Where("id = ?", userID).Update("avatar", avatarURL).Error; err != nil {
+		return utils.Error(c, 500, "Failed to update database record")
 	}
 
 	return utils.Success(c, fiber.Map{
-		"message": "Profile updated successfully",
-		"token":   token,
+		"message": "Avatar uploaded",
+		"avatar":  avatarURL,
 	})
 }
-
 func ChangePassword(c *fiber.Ctx) error {
 	type PasswordReq struct {
 		CurrentPassword string `json:"current_password"`
@@ -228,40 +262,6 @@ func ChangePassword(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, "Password changed successfully")
-}
-
-func UploadAvatar(c *fiber.Ctx) error {
-	userID := uint(c.Locals("user_id").(float64))
-
-	// Get file from form
-	file, err := c.FormFile("avatar")
-	if err != nil {
-		return utils.Error(c, 400, "No image uploaded")
-	}
-
-	// Validate file type (basic check)
-	if file.Size > 2*1024*1024 { // 2MB limit
-		return utils.Error(c, 400, "Image too large (Max 2MB)")
-	}
-
-	// Save file (Ensure 'uploads/avatars' folder exists via main.go or mkdir)
-	filename := fmt.Sprintf("admin_%d_%d%s", userID, time.Now().Unix(), filepath.Ext(file.Filename))
-	savePath := fmt.Sprintf("./uploads/avatars/%s", filename)
-
-	if err := c.SaveFile(file, savePath); err != nil {
-		return utils.Error(c, 500, "Failed to save image")
-	}
-
-	// Update DB
-	avatarURL := "/uploads/avatars/" + filename
-	if err := database.PostgresDB.Model(&models.Admin{}).Where("id = ?", userID).Update("avatar", avatarURL).Error; err != nil {
-		return utils.Error(c, 500, "Failed to update database record")
-	}
-
-	return utils.Success(c, fiber.Map{
-		"message": "Avatar uploaded",
-		"avatar":  avatarURL,
-	})
 }
 
 func UpdateNotifications(c *fiber.Ctx) error {
