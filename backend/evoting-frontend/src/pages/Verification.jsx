@@ -34,23 +34,34 @@ const Verification = () => {
 
   useEffect(() => { fetchPendingVoters(); }, []);
 
-  const handleVerify = async (voter) => {
-    if(!window.confirm(`Verify and approve ${voter.FullName}?`)) return;
+const handleVerify = async (voter) => {
+    // Determine the correct ID (check for both ID and id)
+    const targetId = voter.ID || voter.id;
+
+    if (!targetId) {
+        alert("Error: Voter Database ID missing.");
+        return;
+    }
+
+    if (!window.confirm(`Verify and approve ${voter.FullName}?`)) return;
     
-    setProcessingId(voter.ID);
+    setProcessingId(targetId);
     try {
-        await api.post('/api/admin/voter/verify', { voter_id: voter.ID });
-        // Remove from list immediately
-        setPendingVoters(prev => prev.filter(v => v.ID !== voter.ID));
+        // This POST must match the backend route exactly
+        await api.post('/api/admin/voter/verify', { 
+            voter_id: targetId // Ensure this key matches your Go struct tag
+        });
+        
+        setPendingVoters(prev => prev.filter(v => (v.ID !== targetId && v.id !== targetId)));
         alert("Voter verified successfully");
     } catch (err) {
-        console.error(err);
-        const msg = err.response?.data?.error || "Failed to connect to server.";
-        alert(`Error: ${msg}`);
+        console.error("Axios Error:", err.response);
+        const msg = err.response?.data?.error || "Method Not Allowed - Check Backend Routes";
+        alert(`Error ${err.response?.status}: ${msg}`);
     } finally {
         setProcessingId(null);
     }
-  };
+};
 
   const filteredList = pendingVoters.filter(v => 
     v.FullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
