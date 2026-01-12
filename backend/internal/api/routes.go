@@ -48,9 +48,9 @@ func RegisterRoutes(app *fiber.App) {
 
 	// General Admin Profile
 	adminAPI := app.Group("/api/admin", middleware.PermissionMiddleware(""))
+	adminAPI.Get("/dashboard", GetDashboardData)
 	adminAPI.Put("/update-profile", UpdateAdminProfile)
 	adminAPI.Put("/change-password", ChangePassword)
-	adminAPI.Get("/dashboard", GetDashboardData)
 	adminAPI.Post("/upload-avatar", UploadAvatar)
 	adminAPI.Put("/notifications", UpdateNotifications)
 
