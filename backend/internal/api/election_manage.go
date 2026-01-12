@@ -93,3 +93,24 @@ func UpdateElection(c *fiber.Ctx) error {
 
 	return utils.Success(c, "Election updated successfully")
 }
+
+func ToggleElectionPublish(c *fiber.Ctx) error {
+	type PublishReq struct {
+		ElectionID  uint `json:"election_id"`
+		IsPublished bool `json:"is_published"`
+	}
+	var req PublishReq
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	if err := database.PostgresDB.Model(&models.Election{}).Where("id = ?", req.ElectionID).Update("is_published", req.IsPublished).Error; err != nil {
+		return utils.Error(c, 500, "Failed to update publish status")
+	}
+
+	status := "unpublished"
+	if req.IsPublished {
+		status = "published"
+	}
+	return utils.Success(c, "Election results "+status)
+}

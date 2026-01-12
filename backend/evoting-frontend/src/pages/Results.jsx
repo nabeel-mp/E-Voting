@@ -1,238 +1,223 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend 
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend 
 } from 'chart.js';
 import api from '../utils/api';
 import { 
-  Trophy, 
-  TrendingUp, 
-  Activity, 
-  RefreshCw, 
-  Users,
-  Award
+  Trophy, TrendingUp, Activity, RefreshCw, Award, Lock, Share2 
 } from 'lucide-react';
 
-// Register ChartJS components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const Results = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [error, setError] = useState(null); // Track errors (e.g., "Not Published")
+  const [elections, setElections] = useState([]);
+  const [selectedElectionId, setSelectedElectionId] = useState('');
+  const [isPublished, setIsPublished] = useState(false); // Track publish status
+  
+  // Check Role
+  const role = localStorage.getItem("role"); // Assuming role is stored here
+  const isSuperAdmin = role === "SUPER_ADMIN";
 
-  const fetchData = async () => {
+  // 1. Fetch Election List (to get IDs and Status)
+  const fetchElections = async () => {
+      try {
+          const res = await api.get('/api/admin/elections');
+          if (res.data.success && res.data.data.length > 0) {
+              setElections(res.data.data);
+              // Default to first election if none selected
+              if (!selectedElectionId) {
+                  const latest = res.data.data[0];
+                  setSelectedElectionId(latest.ID);
+                  setIsPublished(latest.is_published);
+              }
+          }
+      } catch (err) { console.error("Failed to load elections"); }
+  };
+
+  // 2. Fetch Results
+  const fetchResults = async () => {
+    if (!selectedElectionId) return;
+    setLoading(true);
+    setError(null);
     try {
-      const res = await api.get('/api/admin/election-results');
+      const res = await api.get(`/api/admin/election-results?election_id=${selectedElectionId}`);
       if (res.data.success) {
         setData(res.data.data || []);
-        setLastUpdated(new Date());
       }
     } catch (e) {
-      console.error("Failed to fetch results", e);
+      // If backend returns 403 (Not Published), we catch it here
+      if (e.response && e.response.status === 403) {
+          setError("Results have not been published yet.");
+      } else {
+          console.error("Failed to fetch results", e);
+      }
+      setData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5000); // Poll every 5s
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => { fetchElections(); }, []);
+  
+  useEffect(() => { 
+      if(selectedElectionId) {
+          // Update local published state from election list
+          const election = elections.find(e => e.ID == selectedElectionId);
+          if (election) setIsPublished(election.is_published);
+          fetchResults(); 
+      }
+  }, [selectedElectionId, elections]);
+
+  // 3. Handle Publish Action
+  const handlePublishToggle = async () => {
+      if(!window.confirm(`Are you sure you want to ${isPublished ? 'unpublish' : 'publish'} these results?`)) return;
+      try {
+          await api.post('/api/admin/elections/publish', {
+              election_id: parseInt(selectedElectionId),
+              is_published: !isPublished
+          });
+          // Refresh data
+          fetchElections(); 
+          alert(`Results ${!isPublished ? 'Published' : 'Unpublished'} successfully!`);
+      } catch (err) {
+          alert("Failed to update publish status");
+      }
+  };
 
   // --- Derived Stats ---
-  const totalVotes = useMemo(() => {
-    return data.reduce((acc, curr) => acc + (curr.vote_count || 0), 0);
-  }, [data]);
-
+  const totalVotes = useMemo(() => data.reduce((acc, curr) => acc + (curr.vote_count || 0), 0), [data]);
   const leadingCandidate = useMemo(() => {
     if (!data.length) return null;
-    return data.reduce((prev, current) => 
-      (prev.vote_count > current.vote_count) ? prev : current
-    );
+    return data.reduce((prev, current) => (prev.vote_count > current.vote_count) ? prev : current);
   }, [data]);
 
-  // --- Chart Configuration ---
   const chartData = {
     labels: data.map(d => d.candidate_name),
     datasets: [{
       label: 'Votes Cast',
       data: data.map(d => d.vote_count),
-      backgroundColor: data.map(d => 
-        d.candidate_name === leadingCandidate?.candidate_name 
-          ? '#6366f1' // Indigo for winner
-          : '#334155' // Slate for others
-      ),
+      backgroundColor: data.map(d => d.candidate_name === leadingCandidate?.candidate_name ? '#6366f1' : '#334155'),
       borderRadius: 6,
-      barThickness: 40,
-      hoverBackgroundColor: '#818cf8',
     }]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: '#1e293b',
-        titleColor: '#fff',
-        bodyColor: '#cbd5e1',
-        padding: 12,
-        cornerRadius: 8,
-        displayColors: false,
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: { color: '#334155', drawBorder: false },
-        ticks: { color: '#94a3b8', font: { family: 'sans-serif', size: 11 } }
-      },
-      x: {
-        grid: { display: false },
-        ticks: { color: '#cbd5e1', font: { weight: 'bold' } }
-      }
-    }
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
       
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-3xl font-bold text-white tracking-tight">Election Results</h1>
-            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold uppercase tracking-wider animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-              Live
-            </span>
+          <h1 className="text-3xl font-bold text-white">Election Results</h1>
+          
+          {/* Election Selector */}
+          <div className="mt-2 flex items-center gap-2">
+              <select 
+                value={selectedElectionId} 
+                onChange={(e) => setSelectedElectionId(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
+              >
+                  {elections.map(e => (
+                      <option key={e.ID} value={e.ID}>{e.title}</option>
+                  ))}
+              </select>
+              
+              {/* Status Badge */}
+              <span className={`text-xs px-2 py-1 rounded-full border font-bold uppercase ${isPublished ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                  {isPublished ? 'Published' : 'Unpublished'}
+              </span>
           </div>
-          <p className="text-slate-400 text-sm flex items-center gap-2">
-            Last updated: {lastUpdated.toLocaleTimeString()}
-            <button onClick={fetchData} className="p-1 hover:bg-slate-800 rounded-full transition-colors" title="Force Refresh">
-               <RefreshCw size={12} />
-            </button>
-          </p>
         </div>
 
-        {/* Top Cards (Total Votes & Winner) */}
-        <div className="flex gap-4">
-            <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4 min-w-[180px]">
-                <div className="p-3 bg-indigo-500/10 rounded-lg text-indigo-400">
-                    <Activity size={24} />
-                </div>
-                <div>
-                    <p className="text-slate-400 text-xs uppercase font-bold">Total Votes</p>
-                    <p className="text-2xl font-bold text-white">{totalVotes.toLocaleString()}</p>
-                </div>
-            </div>
-            
-            {leadingCandidate && (
-                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-4 rounded-xl flex items-center gap-4 min-w-[200px] relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/20 blur-2xl rounded-full"></div>
-                    <div className="p-3 bg-amber-500/20 rounded-lg text-amber-400 z-10">
-                        <Trophy size={24} />
-                    </div>
-                    <div className="z-10">
-                        <p className="text-amber-500/80 text-xs uppercase font-bold">Current Leader</p>
-                        <p className="text-xl font-bold text-white truncate max-w-[120px]">{leadingCandidate.candidate_name}</p>
-                    </div>
-                </div>
+        {/* Admin Controls */}
+        <div className="flex gap-3 items-center">
+            {isSuperAdmin && (
+                <button 
+                    onClick={handlePublishToggle}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-lg ${
+                        isPublished 
+                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' 
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'
+                    }`}
+                >
+                    {isPublished ? <Lock size={18} /> : <Share2 size={18} />}
+                    {isPublished ? 'Unpublish Results' : 'Publish to Everyone'}
+                </button>
             )}
+            
+            {/* Simple Refresh */}
+            <button onClick={fetchResults} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 transition-colors">
+               <RefreshCw size={20} />
+            </button>
         </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-full">
-        
-        {/* Left: Main Chart (3 Columns) */}
-        <div className="lg:col-span-3 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
-          <div className="flex justify-between items-center mb-6">
-             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <TrendingUp className="text-indigo-400" size={20} />
-                Live Vote Distribution
-             </h2>
+      {/* Access Denied View (For Voters when not published) */}
+      {error ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-slate-900/50 border border-slate-800 rounded-2xl border-dashed">
+              <div className="p-4 bg-slate-800 rounded-full mb-4 text-slate-500">
+                  <Lock size={48} />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Results Not Yet Available</h2>
+              <p className="text-slate-400">The results for this election are currently being tabulated and verified.</p>
+              <p className="text-slate-500 text-sm mt-2">Please check back later.</p>
           </div>
-          <div className="flex-1 min-h-[300px] relative">
-             <Bar data={chartData} options={chartOptions} />
-          </div>
-        </div>
+      ) : (
+          /* Main Content (Charts & Tables) */
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Chart Section */}
+            <div className="lg:col-span-3 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col min-h-[400px]">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                        <TrendingUp className="text-indigo-400" size={20} />
+                        Vote Distribution
+                    </h2>
+                </div>
+                <div className="flex-1 relative">
+                    <Bar data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
+                </div>
+            </div>
 
-        {/* Right: Leaderboard Table (2 Columns) */}
-        <div className="lg:col-span-2 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-0 shadow-xl overflow-hidden flex flex-col">
-           <div className="p-6 border-b border-slate-800 bg-slate-900/50">
-             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Award className="text-emerald-400" size={20} />
-                Leaderboard
-             </h2>
-           </div>
-           
-           <div className="flex-1 overflow-y-auto max-h-[400px]">
-              <table className="w-full text-left">
-                 <thead className="bg-slate-950/30 text-xs uppercase text-slate-500 font-semibold sticky top-0 backdrop-blur-md">
-                    <tr>
-                       <th className="px-6 py-3">Candidate</th>
-                       <th className="px-6 py-3 text-right">Votes</th>
-                       <th className="px-6 py-3 text-right">% Share</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-800/50">
-                    {data
-                      .sort((a, b) => b.vote_count - a.vote_count) // Sort by votes desc
-                      .map((r, i) => {
-                        const percentage = totalVotes > 0 ? ((r.vote_count / totalVotes) * 100).toFixed(1) : 0;
-                        const isWinner = i === 0;
-
-                        return (
-                           <tr key={i} className={`group transition-colors ${isWinner ? 'bg-indigo-900/10 hover:bg-indigo-900/20' : 'hover:bg-slate-800/30'}`}>
+            {/* Leaderboard Section */}
+            <div className="lg:col-span-2 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col">
+               <div className="p-6 border-b border-slate-800 bg-slate-900/50">
+                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Award className="text-emerald-400" size={20} />
+                    Leaderboard
+                 </h2>
+               </div>
+               <div className="flex-1 overflow-y-auto max-h-[400px]">
+                  <table className="w-full text-left">
+                     <thead className="bg-slate-950/30 text-xs uppercase text-slate-500 font-semibold sticky top-0 backdrop-blur-md">
+                        <tr>
+                           <th className="px-6 py-3">Candidate</th>
+                           <th className="px-6 py-3 text-right">Votes</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-800/50">
+                        {data.sort((a, b) => b.vote_count - a.vote_count).map((r, i) => (
+                           <tr key={i} className="hover:bg-slate-800/30 transition-colors">
                               <td className="px-6 py-4">
                                  <div className="flex items-center gap-3">
-                                    <span className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold ${isWinner ? 'bg-amber-500 text-black' : 'bg-slate-800 text-slate-500'}`}>
-                                       #{i + 1}
-                                    </span>
+                                    <span className="w-6 h-6 flex items-center justify-center bg-slate-800 rounded text-xs font-bold text-slate-500">#{i + 1}</span>
                                     <div>
-                                       <p className={`font-bold ${isWinner ? 'text-white' : 'text-slate-300'}`}>{r.candidate_name}</p>
+                                       <p className="font-bold text-slate-300">{r.candidate_name}</p>
                                        <p className="text-xs text-slate-500">{r.party_name}</p>
                                     </div>
                                  </div>
                               </td>
-                              <td className="px-6 py-4 text-right">
-                                 <span className="font-mono font-bold text-white text-lg">{r.vote_count}</span>
-                              </td>
-                              <td className="px-6 py-4 w-32">
-                                 <div className="text-right mb-1 text-xs text-slate-400 font-mono">{percentage}%</div>
-                                 <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                                    <div 
-                                       className={`h-full rounded-full ${isWinner ? 'bg-indigo-500' : 'bg-slate-600'}`} 
-                                       style={{ width: `${percentage}%` }}
-                                    ></div>
-                                 </div>
-                              </td>
+                              <td className="px-6 py-4 text-right font-mono font-bold text-white">{r.vote_count}</td>
                            </tr>
-                        );
-                    })}
-                    {data.length === 0 && (
-                        <tr>
-                            <td colSpan="3" className="px-6 py-8 text-center text-slate-500">
-                                Waiting for data...
-                            </td>
-                        </tr>
-                    )}
-                 </tbody>
-              </table>
-           </div>
-        </div>
-
-      </div>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+          </div>
+      )}
     </div>
   );
 };

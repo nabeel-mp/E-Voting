@@ -3,6 +3,7 @@ package api
 import (
 	"E-voting/internal/database"
 	"E-voting/internal/models"
+	"E-voting/internal/service"
 	"E-voting/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -58,6 +59,7 @@ func UpdateCandidate(c *fiber.Ctx) error {
 	}
 
 	// 3. Update fields
+	oldName := candidate.FullName
 	candidate.FullName = req.FullName
 	candidate.PartyID = req.PartyID
 	candidate.ElectionID = req.ElectionID
@@ -67,14 +69,47 @@ func UpdateCandidate(c *fiber.Ctx) error {
 		return utils.Error(c, 500, "Failed to update candidate")
 	}
 
+	actorID := uint(c.Locals("user_id").(float64))
+	actorRole := c.Locals("role").(string)
+
+	service.LogAdminAction(actorID, actorRole, "UPDATE_CANDIDATE", candidate.ID, map[string]interface{}{
+		"old_name":    oldName,
+		"new_name":    candidate.FullName,
+		"election_id": candidate.ElectionID,
+	})
+
 	return utils.Success(c, "Candidate updated successfully")
 }
 
 func DeleteCandidate(c *fiber.Ctx) error {
 	id := c.Params("id")
-	// Delete candidate by ID
-	if err := database.PostgresDB.Delete(&models.Candidate{}, id).Error; err != nil {
+	var candidate models.Candidate
+
+	if err := database.PostgresDB.First(&candidate, id).Error; err != nil {
+		return utils.Error(c, 404, "Candidate not found")
+	}
+
+	// --- FEATURE 2: SAFETY CHECK ---
+	// Prevent deletion if the candidate has already received votes
+	var voteCount int64
+	database.PostgresDB.Model(&models.Vote{}).Where("candidate_id = ?", id).Count(&voteCount)
+	if voteCount > 0 {
+		return utils.Error(c, 400, "Cannot delete candidate: Votes have already been cast for them.")
+	}
+
+	// Delete candidate
+	if err := database.PostgresDB.Delete(&candidate).Error; err != nil {
 		return utils.Error(c, 500, "Failed to delete candidate")
 	}
+
+	// --- FEATURE 1: AUDIT LOGGING ---
+	actorID := uint(c.Locals("user_id").(float64))
+	actorRole := c.Locals("role").(string)
+
+	service.LogAdminAction(actorID, actorRole, "DELETE_CANDIDATE", candidate.ID, map[string]interface{}{
+		"candidate_name": candidate.FullName,
+		"party_id":       candidate.PartyID,
+	})
+
 	return utils.Success(c, "Candidate deleted successfully")
 }

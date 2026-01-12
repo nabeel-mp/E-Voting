@@ -81,6 +81,7 @@ func RegisterRoutes(app *fiber.App) {
 	electionAPI.Put("/elections/:id", UpdateElection)
 	electionAPI.Get("/elections", ListElections)
 	electionAPI.Post("/elections/status", ToggleElectionStatus)
+	electionAPI.Post("/elections/publish", ToggleElectionPublish)
 
 	// Staff & Role Management (Super Admin & 'manage_admins')
 	// Mapped to match existing frontend AJAX calls
