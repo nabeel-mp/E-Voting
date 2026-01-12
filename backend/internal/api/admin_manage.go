@@ -153,36 +153,34 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request body")
 	}
 
-	// Get ID from JWT middleware locals
-	userIDRaw := c.Locals("user_id")
-	var userID uint
-
-	if val, ok := userIDRaw.(float64); ok {
-		userID = uint(val)
-	} else if val, ok := userIDRaw.(uint); ok {
-		userID = val
-	} else {
-		return utils.Error(c, 401, "Unauthorized: session invalid")
-	}
-
+	userID := uint(c.Locals("user_id").(float64))
 	var admin models.Admin
 	if err := database.PostgresDB.First(&admin, userID).Error; err != nil {
 		return utils.Error(c, 404, "Admin not found")
 	}
 
-	var count int64
-	database.PostgresDB.Model(&models.Admin{}).Where("email = ? AND id != ?", req.Email, userID).Count(&count)
-	if count > 0 {
-		return utils.Error(c, 400, "Email address is already in use")
+	// Logic Change: If user is Super Admin, they CANNOT change email
+	if admin.IsSuper && req.Email != admin.Email {
+		return utils.Error(c, 403, "Super Admin cannot change their own email address")
 	}
 
-	admin.Name = req.Name
-	admin.Email = req.Email
+	// Check if new email is taken (only if email is actually being changed by a sub-admin)
+	if !admin.IsSuper && req.Email != admin.Email {
+		var count int64
+		database.PostgresDB.Model(&models.Admin{}).Where("email = ? AND id != ?", req.Email, userID).Count(&count)
+		if count > 0 {
+			return utils.Error(c, 400, "Email address is already in use")
+		}
+		admin.Email = req.Email
+	}
+
+	admin.Name = req.Name // Everyone can change name
 
 	if err := database.PostgresDB.Save(&admin).Error; err != nil {
 		return utils.Error(c, 500, "Database error: "+err.Error())
 	}
 
+	// Regenerate JWT with preserved permissions and super status
 	database.PostgresDB.Preload("Role").First(&admin, userID)
 	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name, admin.Role.Permissions, admin.IsSuper, admin.Name)
 	if err != nil {
@@ -192,11 +190,6 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 	return utils.Success(c, fiber.Map{
 		"message": "Profile updated successfully",
 		"token":   token,
-		"user": fiber.Map{
-			"name":   admin.Name,
-			"email":  admin.Email,
-			"avatar": admin.Avatar,
-		},
 	})
 }
 
