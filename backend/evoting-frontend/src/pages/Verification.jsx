@@ -1,0 +1,150 @@
+
+import React, { useEffect, useState } from 'react';
+import api from '../utils/api';
+import { 
+  UserCheck, 
+  Check, 
+  X, 
+  Loader2, 
+  ShieldAlert, 
+  Clock,
+  Search
+} from 'lucide-react';
+
+const Verification = () => {
+  const [pendingVoters, setPendingVoters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const fetchPendingVoters = async () => {
+    try {
+      const res = await api.get('/api/admin/voters');
+      if(res.data.success) {
+        // Filter only unverified voters
+        const pending = (res.data.data || []).filter(v => !v.IsVerified && !v.is_verified);
+        setPendingVoters(pending);
+      }
+    } catch (err) {
+      console.error("Failed to fetch voters");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchPendingVoters(); }, []);
+
+  const handleVerify = async (voter) => {
+    if(!window.confirm(`Verify and approve ${voter.FullName}?`)) return;
+    
+    setProcessingId(voter.ID);
+    try {
+        await api.post('/api/admin/voter/verify', { voter_id: voter.ID });
+        // Remove from list immediately
+        setPendingVoters(prev => prev.filter(v => v.ID !== voter.ID));
+        alert("Voter verified successfully");
+    } catch (err) {
+        console.error(err);
+        const msg = err.response?.data?.error || "Failed to connect to server.";
+        alert(`Error: ${msg}`);
+    } finally {
+        setProcessingId(null);
+    }
+  };
+
+  const filteredList = pendingVoters.filter(v => 
+    v.FullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    v.VoterID.includes(searchTerm)
+  );
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Voter Verification</h1>
+          <p className="text-slate-400 mt-1">Review and approve pending voter registrations.</p>
+        </div>
+        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl text-amber-400">
+            <Clock size={20} />
+            <span className="font-bold">{pendingVoters.length} Pending</span>
+        </div>
+      </div>
+
+      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl min-h-[400px]">
+        
+        {/* Toolbar */}
+        <div className="p-4 border-b border-slate-800">
+            <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                <input 
+                  type="text" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search pending requests..." 
+                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
+                />
+            </div>
+        </div>
+
+        {/* Table */}
+        <table className="w-full text-left text-sm text-slate-400">
+            <thead className="bg-slate-950/50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800">
+                <tr>
+                    <th className="px-6 py-4">Voter Details</th>
+                    <th className="px-6 py-4">Government ID</th>
+                    <th className="px-6 py-4">Registered Date</th>
+                    <th className="px-6 py-4 text-right">Decision</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+                {loading ? (
+                    <tr><td colSpan="4" className="px-6 py-12 text-center"><Loader2 className="animate-spin inline mr-2" /> Loading...</td></tr>
+                ) : filteredList.length === 0 ? (
+                    <tr>
+                        <td colSpan="4" className="px-6 py-16 text-center text-slate-500">
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="p-3 bg-slate-800 rounded-full"><UserCheck size={24} /></div>
+                                <p>No pending verifications found.</p>
+                            </div>
+                        </td>
+                    </tr>
+                ) : (
+                    filteredList.map(v => (
+                        <tr key={v.ID} className="group hover:bg-slate-800/30 transition-colors">
+                            <td className="px-6 py-4">
+                                <div>
+                                    <p className="text-white font-bold text-base">{v.FullName}</p>
+                                    <p className="text-slate-500 text-xs mt-0.5">Mobile: {v.Mobile}</p>
+                                    <p className="text-indigo-400 text-xs font-mono mt-1">{v.VoterID}</p>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 font-mono">
+                                <span className="bg-slate-800 px-2 py-1 rounded text-slate-300 border border-slate-700">
+                                    {v.AadhaarHash ? "HASHED-SECURE" : "Aadhaar"}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4">
+                                {new Date(v.CreatedAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                                <button 
+                                    onClick={() => handleVerify(v)}
+                                    disabled={processingId === v.ID}
+                                    className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {processingId === v.ID ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                    Approve
+                                </button>
+                            </td>
+                        </tr>
+                    ))
+                )}
+            </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default Verification;

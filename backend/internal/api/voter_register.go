@@ -93,3 +93,21 @@ func UnblockVoter(c *fiber.Ctx) error {
 	}
 	return utils.Success(c, "Voter unblocked")
 }
+
+func VerifyVoter(c *fiber.Ctx) error {
+	var req VoterStatusReq
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	if err := database.PostgresDB.Model(&models.Voter{}).Where("id = ?", req.VoterID).Update("is_verified", true).Error; err != nil {
+		return utils.Error(c, 500, "Failed to verify voter")
+	}
+
+	// Log Action
+	actorIDFloat, _ := c.Locals("user_id").(float64)
+	actorRole, _ := c.Locals("role").(string)
+	service.LogAdminAction(uint(actorIDFloat), actorRole, "VERIFY_VOTER", req.VoterID, nil)
+
+	return utils.Success(c, "Voter verified successfully")
+}

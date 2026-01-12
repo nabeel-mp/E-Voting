@@ -61,6 +61,8 @@ func RegisterRoutes(app *fiber.App) {
 	voterMgmt.Post("/voter/block", BlockVoter)
 	voterMgmt.Post("/voter/unblock", UnblockVoter)
 
+	voterMgmt.Post("/voter/verify", VerifyVoter)
+
 	// Results (Requires 'view_results' permission)
 	resultsAPI := app.Group("/api/admin", middleware.PermissionMiddleware("view_results"))
 	resultsAPI.Get("/election-results", GetElectionResults)

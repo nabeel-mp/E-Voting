@@ -14,6 +14,7 @@ import Settings from './pages/Settings';
 import Layout from './components/layout';
 import Roles from './pages/Role';
 import Elections from './pages/Election';
+import Verification from './pages/Verification';
 
 function App() {
   return (
@@ -24,6 +25,8 @@ function App() {
           
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
+            <Route path="voters" element={<Voters />} />
+            <Route path="verification" element={<Verification />} />
             <Route path="voters" element={<Voters />} />
             <Route path="elections" element={<Elections />} />
             <Route path="candidates" element={<Candidates />} />
