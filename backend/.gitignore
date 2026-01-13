@@ -1,3 +1,9 @@
 .env
 *.env
 .env*
+
+uploads/*
+uploads/avatars/*
+
+!uploads/.gitkeep
+!uploads/avatars/.gitkeep
