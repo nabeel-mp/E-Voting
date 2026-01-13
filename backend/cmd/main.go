@@ -18,8 +18,6 @@ func main() {
 	database.ConnectPostgres()
 	database.ConnectMongo()
 
-	database.SeedSuperAdmin()
-
 	if err := os.MkdirAll("./uploads/avatars", 0755); err != nil {
 		log.Fatal("Failed to create upload directory:", err)
 	}
