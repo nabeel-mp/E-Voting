@@ -7,9 +7,9 @@ import {
   Loader2, 
   Check, 
   LayoutGrid,
-  Trash2,      // New Import
-  Pencil,      // New Import
-  X            // New Import
+  Trash2,
+  Pencil,
+  X
 } from 'lucide-react';
 
 const Roles = () => {
@@ -22,15 +22,18 @@ const Roles = () => {
   const [name, setName] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState([]);
 
-  // Predefined System Permissions
+  // Predefined System Permissions - Expanded to cover all pages
   const AVAILABLE_PERMISSIONS = [
     { id: 'view_dashboard', label: 'View Dashboard' },
+    { id: 'manage_elections', label: 'Manage Elections' },
     { id: 'manage_voters', label: 'Manage Voters' },
     { id: 'register_voter', label: 'Register Voter' },
     { id: 'manage_candidates', label: 'Manage Candidates' },
     { id: 'manage_parties', label: 'Manage Parties' },
     { id: 'view_results', label: 'View Results' },
+    { id: 'manage_roles', label: 'Manage Roles' },
     { id: 'manage_admins', label: 'Manage Staff' },
+    { id: 'manage_system_admins', label: 'System Admins' },
     { id: 'view_audit_logs', label: 'View Audit Logs' },
     { id: 'manage_settings', label: 'System Settings' }
   ];
@@ -62,7 +65,7 @@ const Roles = () => {
       setEditingId(null);
   };
 
-  // --- NEW: Populate form for editing ---
+  // --- Populate form for editing ---
   const handleEdit = (role) => {
       setEditingId(role.ID);
       setName(role.Name);
@@ -77,7 +80,7 @@ const Roles = () => {
       setSelectedPermissions(perms);
   };
 
-  // --- NEW: Handle Delete ---
+  // --- Handle Delete ---
   const handleDelete = async (id) => {
       if(!window.confirm("Are you sure you want to delete this role? This might affect users assigned to it.")) return;
 
