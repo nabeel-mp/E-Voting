@@ -9,7 +9,8 @@ import {
   LayoutGrid,
   Trash2,
   Pencil,
-  X
+  X,
+  Lock
 } from 'lucide-react';
 
 const Roles = () => {
@@ -18,11 +19,11 @@ const Roles = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Form State
-  const [editingId, setEditingId] = useState(null); // Tracks if we are editing
+  const [editingId, setEditingId] = useState(null); 
   const [name, setName] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState([]);
 
-  // Predefined System Permissions - Expanded to cover all pages
+  // Predefined System Permissions
   const AVAILABLE_PERMISSIONS = [
     { id: 'view_dashboard', label: 'View Dashboard' },
     { id: 'manage_elections', label: 'Manage Elections' },
@@ -70,7 +71,6 @@ const Roles = () => {
       setEditingId(role.ID);
       setName(role.Name);
       
-      // Handle permission parsing (array vs string)
       let perms = [];
       if (Array.isArray(role.Permissions)) {
           perms = role.Permissions;
@@ -78,6 +78,9 @@ const Roles = () => {
           perms = role.Permissions.split(',').map(p => p.trim());
       }
       setSelectedPermissions(perms);
+      
+      // Scroll to top for mobile/small screens
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // --- Handle Delete ---
@@ -87,9 +90,9 @@ const Roles = () => {
       try {
           await api.delete(`/api/auth/admin/roles/${id}`);
           setRoles(roles.filter(r => r.ID !== id));
-          if(editingId === id) resetForm(); // Reset form if we deleted the currently editing role
+          if(editingId === id) resetForm();
       } catch (err) {
-          alert("Failed to delete role.");
+          alert("Failed to delete role. It might be in use.");
       }
   };
 
@@ -166,12 +169,12 @@ const Roles = () => {
                    <div className="relative">
                       <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                       <input 
-                         type="text"
-                         required 
-                         value={name} 
-                         onChange={(e) => setName(e.target.value)}
-                         className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all placeholder:text-slate-600"
-                         placeholder="e.g. MODERATOR"
+                          type="text"
+                          required 
+                          value={name} 
+                          onChange={(e) => setName(e.target.value)}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all placeholder:text-slate-600"
+                          placeholder="e.g. MODERATOR"
                       />
                    </div>
                 </div>
@@ -183,7 +186,7 @@ const Roles = () => {
                       Access Permissions
                    </label>
                    
-                   <div className="grid grid-cols-1 gap-2 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50 max-h-[300px] overflow-y-auto custom-scrollbar">
+                   <div className="grid grid-cols-1 gap-2 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50 max-h-[400px] overflow-y-auto custom-scrollbar">
                       {AVAILABLE_PERMISSIONS.map((perm) => (
                         <label 
                           key={perm.id} 
@@ -235,71 +238,102 @@ const Roles = () => {
 
         {/* --- RIGHT: Existing Roles List --- */}
         <div className="lg:col-span-2">
-           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
-                <Check size={16} className="text-emerald-500" />
-                Active Roles
-              </h3>
+           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl h-full">
+             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+               <Check size={16} className="text-emerald-500" />
+               Active Roles
+             </h3>
 
-              {loading ? (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-                   <Loader2 className="animate-spin mb-2 text-emerald-500" size={32} />
-                   <p>Loading configuration...</p>
-                </div>
-              ) : roles.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 border border-dashed border-slate-800 rounded-xl">
-                  No roles found. Create your first one on the left.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {roles.map((r) => (
-                      <div key={r.ID} className={`group bg-slate-800/40 p-5 rounded-xl border transition-all duration-300 relative overflow-hidden ${editingId === r.ID ? 'border-amber-500 ring-1 ring-amber-500/50 bg-slate-800' : 'border-slate-700/50 hover:border-emerald-500/30 hover:bg-slate-800'}`}>
+             {loading ? (
+               <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                  <Loader2 className="animate-spin mb-2 text-emerald-500" size={32} />
+                  <p>Loading configuration...</p>
+               </div>
+             ) : roles.length === 0 ? (
+               <div className="text-center py-12 text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                 No roles found. Create your first one on the left.
+               </div>
+             ) : (
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                 {roles.map((r) => {
+                     // Check if it's super admin to possibly disable deletion (optional visual cue)
+                     const isSuper = r.Name.toUpperCase() === 'SUPER_ADMIN';
+                     
+                     return (
+                      <div key={r.ID} className={`group bg-slate-800/40 rounded-xl border transition-all duration-300 flex flex-col hover:shadow-lg hover:shadow-black/20 ${editingId === r.ID ? 'border-amber-500 ring-1 ring-amber-500/50 bg-slate-800' : 'border-slate-700/50 hover:border-emerald-500/30 hover:bg-slate-800'}`}>
                         
-                        {/* Header */}
-                        <div className="flex justify-between items-start mb-3">
-                           <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded bg-slate-900 border border-slate-700 flex items-center justify-center text-emerald-400 font-bold text-xs">
-                                 {r.ID}
-                              </div>
-                              <h4 className="font-bold text-white">{r.Name}</h4>
-                           </div>
-                           
-                           {/* Actions Toolbar */}
-                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                               <button 
-                                 onClick={() => handleEdit(r)}
-                                 className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-400/10 rounded-lg transition-colors"
-                                 title="Edit Role"
-                               >
-                                   <Pencil size={16} />
-                               </button>
-                               <button 
-                                 onClick={() => handleDelete(r.ID)}
-                                 className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-lg transition-colors"
-                                 title="Delete Role"
-                               >
-                                   <Trash2 size={16} />
-                               </button>
-                           </div>
+                        {/* Card Content (Grows to fill space) */}
+                        <div className="p-5 flex-1">
+                            {/* Card Header */}
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-emerald-400 font-bold text-sm shadow-inner font-mono">
+                                        {r.ID}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-white text-lg leading-tight tracking-tight">{r.Name}</h4>
+                                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                            <Lock size={10} />
+                                            <span>
+                                                {Array.isArray(r.Permissions) ? r.Permissions.length : r.Permissions.split(',').length} Permissions
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Permissions Grid */}
+                            <div className="flex flex-wrap gap-2 content-start">
+                                {r.Permissions ? (
+                                    (Array.isArray(r.Permissions) ? r.Permissions : r.Permissions.split(','))
+                                    .slice(0, 8) // Limit visible tags to keep card neat
+                                    .map((perm, idx) => (
+                                    <span key={idx} className="text-[10px] font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-1 rounded select-none">
+                                        {perm.trim().replace(/_/g, ' ')}
+                                    </span>
+                                    ))
+                                ) : (
+                                    <span className="text-xs text-slate-600 italic">No specific permissions</span>
+                                )}
+                                {/* Show count if truncated */}
+                                {((Array.isArray(r.Permissions) ? r.Permissions.length : r.Permissions.split(',').length) > 8) && (
+                                    <span className="text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 px-2 py-1 rounded">
+                                        +{(Array.isArray(r.Permissions) ? r.Permissions.length : r.Permissions.split(',').length) - 8} more
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Permissions Tags */}
-                        <div className="flex flex-wrap gap-2">
-                           {r.Permissions ? (
-                             (Array.isArray(r.Permissions) ? r.Permissions : r.Permissions.split(','))
-                             .map((perm, idx) => (
-                               <span key={idx} className="text-[11px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-1 rounded">
-                                  {perm.trim().replace(/_/g, ' ')}
-                               </span>
-                             ))
-                           ) : (
-                             <span className="text-xs text-slate-600 italic">No specific permissions</span>
-                           )}
+                        {/* Card Footer - Actions */}
+                        <div className="px-4 py-3 border-t border-slate-700/50 bg-slate-900/30 rounded-b-xl flex items-center gap-3">
+                            <button 
+                                onClick={() => handleEdit(r)}
+                                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-slate-700/80 transition-all border border-transparent hover:border-slate-600"
+                            >
+                                <Pencil size={14} /> Edit
+                            </button>
+                            
+                            {/* Vertical Separator */}
+                            <div className="w-px h-6 bg-slate-700/50"></div>
+                            
+                            <button 
+                                onClick={() => handleDelete(r.ID)}
+                                disabled={isSuper} // Prevent deleting super admin if needed via logic
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border border-transparent ${
+                                    isSuper 
+                                    ? 'text-slate-600 cursor-not-allowed' 
+                                    : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 hover:border-rose-500/20'
+                                }`}
+                            >
+                                <Trash2 size={14} /> Delete
+                            </button>
                         </div>
+
                       </div>
-                  ))}
-                </div>
-              )}
+                     );
+                 })}
+               </div>
+             )}
            </div>
         </div>
 

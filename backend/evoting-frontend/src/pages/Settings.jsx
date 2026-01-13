@@ -1,185 +1,301 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import { User, Mail, Lock, Camera, Save, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { 
+  User, 
+  Mail, 
+  Lock, 
+  Camera, 
+  Loader2, 
+  Save, 
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
 
 const Settings = () => {
   const { user, login } = useAuth();
-  const isSuperAdmin = user?.is_super === true || user?.role === "SUPER_ADMIN";
-
-  const [profileForm, setProfileForm] = useState({ name: '', email: '' });
-  const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [loading, setLoading] = useState({ profile: false, password: false, avatar: false });
   const [message, setMessage] = useState({ type: '', text: '' });
 
+  // Determine role for UI logic
+  const isSuperAdmin = user?.is_super === true || user?.role === "SUPER_ADMIN";
+
+  // 1. Profile State
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    email: ''
+  });
+
+  // 2. Password State
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+
+  // Sync form with user context when it changes
   useEffect(() => {
-    if (user) setProfileForm({ name: user.name, email: user.email });
+    if (user) {
+      setProfileForm({
+        name: user.name || '',
+        email: user.email || ''
+      });
+    }
   }, [user]);
 
-  // FIX: Added explicit FormData key "avatar" to match backend c.FormFile("avatar")
-  const handleAvatarUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) return alert("Image too large (Max 2MB)");
-
-    const formData = new FormData();
-    formData.append('avatar', file); // Matches backend 'avatar' key
-
-    setLoading(prev => ({ ...prev, avatar: true }));
-    try {
-      const res = await api.post('/api/admin/upload-avatar', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (res.data.success) {
-        // Force a page reload to update the image in the Sidebar and Context
-        // because the browser often caches the old image URL path
-        window.location.reload(); 
-      }
-    } catch (err) {
-      alert(err.response?.data?.error || "Avatar upload failed. Check backend console.");
-    } finally {
-      setLoading(prev => ({ ...prev, avatar: false }));
-    }
+  const showAlert = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
-  const handleUpdateProfile = async (e) => {
+  const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setLoading(prev => ({ ...prev, profile: true }));
+    
     try {
-      // Super admin is restricted: send current email to ensure backend logic passes
-      const payload = { 
-        name: profileForm.name, 
-        email: isSuperAdmin ? user.email : profileForm.email 
+      // For Super Admin, ensure we send the existing email to satisfy backend checks
+      // even if the UI input is disabled.
+      const payload = {
+        name: profileForm.name,
+        email: isSuperAdmin ? user.email : profileForm.email
       };
-      
+
       const res = await api.put('/api/admin/update-profile', payload);
+      
       if (res.data.success) {
-        login(res.data.data.token); 
-        setMessage({ type: 'success', text: 'Profile updated successfully!' });
+        // CRITICAL: Update local context with the new token from backend
+        // This ensures the displayed name/email updates immediately
+        if (res.data.data.token) {
+            login(res.data.data.token);
+        }
+        showAlert('success', 'Profile updated successfully');
       }
     } catch (err) {
-      setMessage({ type: 'error', text: err.response?.data?.error || 'Update failed' });
+      showAlert('error', err.response?.data?.error || 'Failed to update profile');
     } finally {
       setLoading(prev => ({ ...prev, profile: false }));
     }
   };
 
-  // Password handler logic...
-  const handleChangePassword = async (e) => {
+  const handlePasswordChange = async (e) => {
     e.preventDefault();
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      return setMessage({ type: 'error', text: 'New passwords do not match' });
+      return showAlert('error', 'New passwords do not match');
     }
     setLoading(prev => ({ ...prev, password: true }));
+    
     try {
       const res = await api.put('/api/admin/change-password', {
         current_password: passwordForm.current_password,
         new_password: passwordForm.new_password
       });
       if (res.data.success) {
-        setMessage({ type: 'success', text: 'Password updated successfully!' });
+        showAlert('success', 'Password changed successfully');
         setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
       }
     } catch (err) {
-      setMessage({ type: 'error', text: err.response?.data?.error || 'Password update failed' });
+      showAlert('error', err.response?.data?.error || 'Password change failed');
     } finally {
       setLoading(prev => ({ ...prev, password: false }));
     }
   };
 
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Client-side validation
+    if (file.size > 2 * 1024 * 1024) {
+        return showAlert('error', 'Image too large (Max 2MB)');
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    setLoading(prev => ({ ...prev, avatar: true }));
+    
+    try {
+      const res = await api.post('/api/admin/upload-avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      if (res.data.success) {
+        // CRITICAL: Update context with the new token containing the new avatar URL
+        // This fixes the issue of the avatar not showing up without a reload
+        if (res.data.data.token) {
+            login(res.data.data.token);
+        }
+        showAlert('success', 'Avatar updated successfully');
+      }
+    } catch (err) {
+      showAlert('error', err.response?.data?.error || 'Failed to upload image');
+    } finally {
+      setLoading(prev => ({ ...prev, avatar: false }));
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Account Settings</h1>
-          <p className="text-slate-400 mt-1">Manage your administrator profile and security credentials.</p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-white tracking-tight">Account Settings</h1>
+        <p className="text-slate-400 mt-1">Manage your administrator profile and security preferences.</p>
       </div>
 
+      {/* Global Alert */}
       {message.text && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 border ${
+        <div className={`p-4 rounded-xl flex items-center gap-3 border animate-in slide-in-from-top-2 ${
           message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
         }`}>
-          {message.type === 'success' ? <ShieldCheck size={20} /> : <AlertCircle size={20} />}
-          <span>{message.text}</span>
+          {message.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="text-sm font-medium">{message.text}</span>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-1 space-y-6">
+        
+        {/* Left Column: Avatar & Quick Info */}
+        <div className="space-y-6">
           <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 text-center shadow-xl">
-            <div className="relative inline-block">
-              <div className="w-28 h-28 rounded-full bg-indigo-600 mx-auto flex items-center justify-center text-4xl font-bold border-4 border-slate-800 overflow-hidden shadow-2xl">
+            <div className="relative inline-block group">
+              <div className="w-32 h-32 rounded-full bg-slate-800 border-4 border-slate-700 overflow-hidden mx-auto flex items-center justify-center shadow-2xl">
                 {user?.avatar ? (
-                  <img src={`http://localhost:8080${user.avatar}`} alt="Avatar" className="w-full h-full object-cover" />
+                  <img 
+                    src={`http://localhost:8080${user.avatar}`} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => { e.target.src = ''; }} // Fallback on error
+                  />
                 ) : (
-                  user?.name?.charAt(0).toUpperCase()
+                  <span className="text-4xl font-bold text-slate-500">
+                    {(user?.name || 'A').charAt(0).toUpperCase()}
+                  </span>
                 )}
               </div>
-              <label className="absolute bottom-0 right-0 p-2.5 bg-indigo-500 rounded-full cursor-pointer hover:bg-indigo-400 transition-all shadow-lg border-2 border-slate-900 group">
-                {loading.avatar ? <Loader2 size={16} className="animate-spin text-white" /> : <Camera size={16} className="text-white" />}
-                <input type="file" hidden accept="image/*" onChange={handleAvatarUpload} disabled={loading.avatar} />
+              <label className="absolute bottom-0 right-0 p-2.5 bg-indigo-600 rounded-full text-white cursor-pointer hover:bg-indigo-500 transition-all shadow-lg border-2 border-slate-900">
+                {loading.avatar ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={loading.avatar} />
               </label>
             </div>
-            <h2 className="mt-4 font-bold text-white text-xl">{user?.name}</h2>
-            <div className="mt-1 inline-flex px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
-              {isSuperAdmin ? 'Super Admin' : 'Staff'}
+            <h2 className="mt-4 text-xl font-bold text-white">{user?.name}</h2>
+            <div className="mt-2 inline-flex px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+              {isSuperAdmin ? 'Super Admin' : 'Staff Member'}
             </div>
           </div>
         </div>
 
+        {/* Right Column: Forms */}
         <div className="md:col-span-2 space-y-6">
-          <section className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
-            <h3 className="text-white font-bold mb-6 flex items-center gap-2">
-              <User size={18} className="text-indigo-400" /> Identity Details
-            </h3>
-            <form onSubmit={handleUpdateProfile} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Display Name</label>
-                <input type="text" required value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Address</label>
-                {isSuperAdmin ? (
-                  <div className="flex items-center justify-between w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-slate-500 cursor-not-allowed">
-                    <div className="flex items-center gap-3"><Mail size={16} /><span>{user?.email}</span></div>
-                    <span className="text-[9px] font-bold bg-slate-800 px-1.5 py-0.5 rounded uppercase border border-slate-700">Protected</span>
+          
+          {/* Profile Form */}
+          <section className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+               <ShieldCheck className="text-indigo-400" size={20} />
+               <h3 className="font-bold text-white">General Information</h3>
+            </div>
+            <form onSubmit={handleProfileUpdate} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase">Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input 
+                        type="text"
+                        required
+                        value={profileForm.name}
+                        onChange={e => setProfileForm({...profileForm, name: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all"
+                    />
                   </div>
-                ) : (
-                  <input type="email" required value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all" />
-                )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    {isSuperAdmin ? (
+                        <input 
+                            type="email"
+                            value={user?.email || ''}
+                            disabled
+                            className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-slate-500 cursor-not-allowed"
+                            title="Super Admin email cannot be changed"
+                        />
+                    ) : (
+                        <input 
+                            type="email"
+                            required
+                            value={profileForm.email}
+                            onChange={e => setProfileForm({...profileForm, email: e.target.value})}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all"
+                        />
+                    )}
+                  </div>
+                </div>
               </div>
-              <button type="submit" disabled={loading.profile} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50">
-                {loading.profile ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Update Details
-              </button>
+              <div className="flex justify-end pt-2">
+                <button 
+                    type="submit"
+                    disabled={loading.profile} 
+                    className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {loading.profile ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                    Save Profile
+                </button>
+              </div>
             </form>
           </section>
 
-          <section className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
-            <h3 className="text-white font-bold mb-6 flex items-center gap-2">
-              <Lock size={18} className="text-rose-400" /> Account Security
-            </h3>
-            <form onSubmit={handleChangePassword} className="space-y-5">
+          {/* Security Form */}
+          <section className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+               <Lock className="text-rose-400" size={20} />
+               <h3 className="font-bold text-white">Security & Password</h3>
+            </div>
+            <form onSubmit={handlePasswordChange} className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Current Password</label>
-                <input type="password" required value={passwordForm.current_password} onChange={(e) => setPasswordForm({...passwordForm, current_password: e.target.value})} className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-rose-500/30" />
+                <label className="text-xs font-semibold text-slate-500 uppercase">Current Password</label>
+                <input 
+                  type="password"
+                  required
+                  value={passwordForm.current_password}
+                  onChange={e => setPasswordForm({...passwordForm, current_password: e.target.value})}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:ring-2 focus:ring-rose-500/50 outline-none transition-all"
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">New Password</label>
-                  <input type="password" required value={passwordForm.new_password} onChange={(e) => setPasswordForm({...passwordForm, new_password: e.target.value})} className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                  <label className="text-xs font-semibold text-slate-500 uppercase">New Password</label>
+                  <input 
+                    type="password"
+                    required
+                    value={passwordForm.new_password}
+                    onChange={e => setPasswordForm({...passwordForm, new_password: e.target.value})}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:ring-2 focus:ring-rose-500/50 outline-none transition-all"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Confirm New Password</label>
-                  <input type="password" required value={passwordForm.confirm_password} onChange={(e) => setPasswordForm({...passwordForm, confirm_password: e.target.value})} className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                  <label className="text-xs font-semibold text-slate-500 uppercase">Confirm New Password</label>
+                  <input 
+                    type="password"
+                    required
+                    value={passwordForm.confirm_password}
+                    onChange={e => setPasswordForm({...passwordForm, confirm_password: e.target.value})}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:ring-2 focus:ring-rose-500/50 outline-none transition-all"
+                  />
                 </div>
               </div>
-              <button type="submit" disabled={loading.password} className="w-full sm:w-auto px-8 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold shadow-lg active:scale-95 disabled:opacity-50">
-                {loading.password ? "Verifying..." : "Update Credentials"}
-              </button>
+              <div className="flex justify-end pt-2">
+                <button 
+                    type="submit" 
+                    disabled={loading.password} 
+                    className="flex items-center gap-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-rose-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {loading.password ? <Loader2 className="animate-spin" size={18} /> : "Update Password"}
+                </button>
+              </div>
             </form>
           </section>
+
         </div>
       </div>
     </div>

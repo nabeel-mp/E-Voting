@@ -180,7 +180,7 @@ func UpdateAdminProfile(c *fiber.Ctx) error {
 	}
 
 	// Regenerate JWT with original IsSuper and Permissions
-	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name, admin.Role.Permissions, admin.IsSuper, admin.Name)
+	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name, admin.Role.Permissions, admin.IsSuper, admin.Name, admin.Email, admin.Avatar)
 	if err != nil {
 		return utils.Error(c, 500, "Profile updated but token generation failed")
 	}
@@ -222,9 +222,20 @@ func UploadAvatar(c *fiber.Ctx) error {
 		return utils.Error(c, 500, "Failed to update database record")
 	}
 
+	var admin models.Admin
+	if err := database.PostgresDB.Preload("Role").First(&admin, userID).Error; err != nil {
+		return utils.Error(c, 500, "Avatar saved but failed to fetch user for token refresh")
+	}
+
+	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name, admin.Role.Permissions, admin.IsSuper, admin.Name, admin.Email, admin.Avatar)
+	if err != nil {
+		return utils.Error(c, 500, "Failed to generate new token")
+	}
+
 	return utils.Success(c, fiber.Map{
 		"message": "Avatar uploaded",
 		"avatar":  avatarURL,
+		"token":   token,
 	})
 }
 func ChangePassword(c *fiber.Ctx) error {
@@ -283,4 +294,57 @@ func UpdateNotifications(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, "Preferences updated")
+}
+
+func UpdateRoleHandler(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.Error(c, 400, "Invalid Role ID")
+	}
+
+	type Req struct {
+		Name        string   `json:"name"`
+		Permissions []string `json:"permissions"`
+	}
+	var req Req
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request body")
+	}
+
+	if err := service.UpdateRole(uint(id), req.Name, req.Permissions); err != nil {
+		return utils.Error(c, 500, err.Error())
+	}
+	return utils.Success(c, "Role updated successfully")
+}
+
+func DeleteRoleHandler(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.Error(c, 400, "Invalid Role ID")
+	}
+
+	if err := service.DeleteRole(uint(id)); err != nil {
+		return utils.Error(c, 400, err.Error())
+	}
+	return utils.Success(c, "Role deleted successfully")
+}
+
+func UpdateAdminRoleHandler(c *fiber.Ctx) error {
+	type Req struct {
+		AdminID uint `json:"admin_id"`
+		RoleID  uint `json:"role_id"`
+	}
+	var req Req
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	actorID := uint(c.Locals("user_id").(float64))
+	actorRole := c.Locals("role").(string)
+
+	if err := service.UpdateAdminRole(req.AdminID, req.RoleID, actorID, actorRole); err != nil {
+		return utils.Error(c, 400, err.Error())
+	}
+
+	return utils.Success(c, "Admin role updated successfully")
 }

@@ -16,7 +16,9 @@ import {
   Ban,
   Unlock,
   ChevronDown,
-  AlertTriangle
+  AlertTriangle,
+  Download,
+  Upload
 } from 'lucide-react';
 
 const Voters = () => {
@@ -40,6 +42,9 @@ const Voters = () => {
   // Dropdown State
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
+
+  // File Input Ref for Import
+  const fileInputRef = useRef(null);
 
   // --- Fetch Data ---
   const fetchVoters = async () => {
@@ -121,6 +126,59 @@ const Voters = () => {
     }
   };
 
+  // --- Export Handler ---
+  const handleExport = async () => {
+    try {
+      const response = await api.get('/api/admin/voters/export', {
+        responseType: 'blob', // Important for file download
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `voters_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      alert("Failed to export voters.");
+    }
+  };
+
+  // --- Import Handlers ---
+  const handleImportClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+        alert("Please upload a valid CSV file.");
+        return;
+    }
+
+    if (!window.confirm("Importing voters from CSV. Ensure columns are: Full Name, Mobile, Aadhaar Number. Continue?")) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setLoading(true);
+    try {
+        const res = await api.post('/api/admin/voters/import', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        alert(res.data.data.message);
+        fetchVoters(); // Refresh list
+    } catch (err) {
+        alert("Import failed. Check file format.");
+    } finally {
+        setLoading(false);
+        e.target.value = null; // Reset input
+    }
+  };
+
   // --- Modal Helpers ---
   const openCreateModal = () => {
     setIsEditing(false);
@@ -171,19 +229,52 @@ const Voters = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
+      {/* Hidden File Input for Import */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        accept=".csv" 
+        className="hidden" 
+      />
+
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Voters List</h1>
           <p className="text-slate-400 mt-1">Manage registered voters and their verification status.</p>
         </div>
-        <button 
-          onClick={openCreateModal} 
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
-        >
-          <Plus size={20} />
-          Register New Voter
-        </button>
+        
+        <div className="flex gap-2">
+            {/* Export Button */}
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-xl font-medium border border-slate-700 transition-all"
+              title="Download CSV"
+            >
+              <Download size={18} />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+
+            {/* Import Button */}
+            <button 
+              onClick={handleImportClick}
+              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-xl font-medium border border-slate-700 transition-all"
+              title="Upload CSV"
+            >
+              <Upload size={18} />
+              <span className="hidden sm:inline">Import</span>
+            </button>
+
+            {/* Register Button */}
+            <button 
+              onClick={openCreateModal} 
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95 ml-2"
+            >
+              <Plus size={20} />
+              Register New
+            </button>
+        </div>
       </div>
 
       {/* Error Banner */}

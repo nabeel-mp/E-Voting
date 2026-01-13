@@ -60,8 +60,10 @@ func RegisterRoutes(app *fiber.App) {
 	voterMgmt.Post("/voter/register", RegisterVoter)
 	voterMgmt.Post("/voter/block", BlockVoter)
 	voterMgmt.Post("/voter/unblock", UnblockVoter)
+	voterMgmt.Get("/voters/export", ExportVotersCSV)
+	voterMgmt.Post("/voters/import", ImportVotersCSV)
 
-	voterMgmt.Post("/voter/verify", middleware.PermissionMiddleware("verify_voter"), VerifyVoter)
+	voterMgmt.Post("/voter/verify", middleware.PermissionMiddleware("SUPER_ADMIN"), VerifyVoter)
 
 	// Results (Requires 'view_results' permission)
 	resultsAPI := app.Group("/api/admin", middleware.PermissionMiddleware("view_results"))
@@ -89,6 +91,8 @@ func RegisterRoutes(app *fiber.App) {
 	staffMgmt.Post("/create-sub-admin", CreateSubAdmin)
 	staffMgmt.Get("/roles", ListRolesHandler)
 	staffMgmt.Post("/roles", CreateRoleHandler)
+	staffMgmt.Put("/roles/:id", UpdateRoleHandler)
+	staffMgmt.Delete("/roles/:id", DeleteRoleHandler)
 
 	// Admin List & Block (Matching admin.html legacy route)
 	// admin.html calls /auth/admin/list.
@@ -96,6 +100,7 @@ func RegisterRoutes(app *fiber.App) {
 	superAdminLegacy.Get("/list", ListAdmins)
 	superAdminLegacy.Post("/block", BlockSubAdmin)
 	superAdminLegacy.Post("/unblock", UnblockSubAdmin)
+	superAdminLegacy.Post("/update-role", UpdateAdminRoleHandler)
 
 	// Audit Logs
 	app.Get("/api/audit/logs", middleware.PermissionMiddleware("SUPER_ADMIN"), GetAuditLogs)

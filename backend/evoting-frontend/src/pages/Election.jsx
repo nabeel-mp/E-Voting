@@ -73,12 +73,36 @@ const Elections = () => {
       setShowModal(false);
   };
 
+  // --- Strict Date/Time Change Handlers ---
+
+  const handleStartDateChange = (e) => {
+      const newStart = e.target.value;
+      setForm(prev => ({
+          ...prev, 
+          start_date: newStart,
+          // If the existing end_date is now earlier than the new start_date, clear it
+          end_date: (prev.end_date && prev.end_date < newStart) ? '' : prev.end_date
+      }));
+  };
+
+  const handleEndDateChange = (e) => {
+      const newEnd = e.target.value;
+      
+      // Strict Check: Prevent selecting a time earlier than start
+      if (form.start_date && newEnd < form.start_date) {
+          alert("End time cannot be earlier than Start time.");
+          return; // Do not update state
+      }
+      
+      setForm(prev => ({ ...prev, end_date: newEnd }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Logic: Prevent End Date from being before Start Date
+    // Final Validation before Submit
     if (new Date(form.end_date) <= new Date(form.start_date)) {
-        alert("End Date must be after Start Date");
+        alert("End Date & Time must be strictly after Start Date & Time");
         return;
     }
 
@@ -160,7 +184,6 @@ const Elections = () => {
                         <div className="flex items-center gap-3">
                             <h3 className="text-xl font-bold text-slate-200">{election.title}</h3>
                             
-                            {/* Hide Edit button if Election Ended */}
                             {!isEnded && (
                                 <button 
                                     onClick={() => handleEdit(election)}
@@ -262,9 +285,9 @@ const Elections = () => {
                           <input 
                              type="datetime-local"
                              required 
-                             min={getCurrentDateTime()} // RESTRICT PAST DATES
+                             min={getCurrentDateTime()} 
                              value={form.start_date} 
-                             onChange={e => setForm({...form, start_date: e.target.value})}
+                             onChange={handleStartDateChange}
                              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                           />
                        </div>
@@ -273,10 +296,11 @@ const Elections = () => {
                           <input 
                              type="datetime-local"
                              required 
-                             min={form.start_date || getCurrentDateTime()} // END DATE MUST BE AFTER START
+                             disabled={!form.start_date} // 1. DISABLED UNTIL START SELECTED
+                             min={form.start_date}       // 2. MINIMUM IS START TIME (Browser Enforcement)
                              value={form.end_date} 
-                             onChange={e => setForm({...form, end_date: e.target.value})}
-                             className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                             onChange={handleEndDateChange} // 3. MANUAL CHECK VIA HANDLER
+                             className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                        </div>
                     </div>

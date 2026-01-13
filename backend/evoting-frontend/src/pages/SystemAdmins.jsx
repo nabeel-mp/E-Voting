@@ -7,31 +7,63 @@ import {
   Lock, 
   Unlock,
   Loader2,
-  ListFilter
+  ListFilter,
+  ChevronDown
 } from 'lucide-react';
 
 const SystemAdmins = () => {
   const [admins, setAdmins] = useState([]);
+  const [roles, setRoles] = useState([]); // Store available roles
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
   
   // --- FILTER STATES ---
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL', 'ACTIVE', 'BLOCKED'
+  const [filterStatus, setFilterStatus] = useState('ALL'); 
 
-  // --- EXISTING FETCH LOGIC ---
-  const fetchAdmins = async () => {
+  // --- FETCH DATA ---
+  const fetchData = async () => {
     try {
-      const res = await api.get('/auth/admin/list');
-      if(res.data.success) setAdmins(res.data.data);
+      const [adminsRes, rolesRes] = await Promise.all([
+          api.get('/auth/admin/list'),
+          api.get('/api/auth/admin/roles')
+      ]);
+
+      if(adminsRes.data.success) setAdmins(adminsRes.data.data);
+      if(rolesRes.data.success) setRoles(rolesRes.data.data);
+
     } catch (err) {
-      console.error("Failed to fetch admins");
+      console.error("Failed to fetch data", err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchAdmins(); }, []);
+  useEffect(() => { fetchData(); }, []);
+
+  // --- UPDATE ROLE LOGIC ---
+  const handleRoleChange = async (adminId, newRoleId) => {
+      if(!window.confirm("Are you sure you want to change this user's role?")) return;
+      
+      setProcessingId(adminId);
+      try {
+          const res = await api.post('/auth/admin/update-role', {
+              admin_id: adminId,
+              role_id: parseInt(newRoleId)
+          });
+          
+          if(res.data.success) {
+              // Optimistic Update
+              const roleName = roles.find(r => r.ID === parseInt(newRoleId))?.Name || 'Unknown';
+              setAdmins(admins.map(a => a.id === adminId ? { ...a, role_name: roleName } : a));
+              alert("Role updated successfully");
+          }
+      } catch (err) {
+          alert(err.response?.data?.error || "Failed to update role");
+      } finally {
+          setProcessingId(null);
+      }
+  };
 
   // --- BLOCK/UNBLOCK LOGIC ---
   const toggleStatus = async (id, currentStatus) => {
@@ -59,20 +91,16 @@ const SystemAdmins = () => {
     }
   };
 
-  // --- COMBINED FILTER LOGIC ---
+  // --- FILTER LOGIC ---
   const filteredAdmins = admins.filter(admin => {
-    // 1. Text Search Filter
     const matchesSearch = !searchTerm || (
         admin.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         admin.role_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         admin.id.toString().includes(searchTerm)
     );
-
-    // 2. Status Type Filter
     let matchesStatus = true;
     if (filterStatus === 'ACTIVE') matchesStatus = admin.is_active === true;
     if (filterStatus === 'BLOCKED') matchesStatus = admin.is_active === false;
-
     return matchesSearch && matchesStatus;
   });
 
@@ -108,10 +136,8 @@ const SystemAdmins = () => {
       {/* Main Table Card */}
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         
-        {/* Toolbar with Filter Buttons */}
+        {/* Toolbar */}
         <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row gap-4 justify-between items-center">
-            
-            {/* Search Input */}
             <div className="relative w-full sm:max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
@@ -122,8 +148,6 @@ const SystemAdmins = () => {
                   className="w-full bg-slate-800/50 border border-slate-700 text-slate-200 pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
                 />
             </div>
-
-            {/* Filter Tabs */}
             <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50">
                 {['ALL', 'ACTIVE', 'BLOCKED'].map((status) => (
                     <button
@@ -170,14 +194,6 @@ const SystemAdmins = () => {
                        <div className="flex flex-col items-center gap-2">
                           <ListFilter size={32} className="opacity-20" />
                           <p>No administrators found matching current filters.</p>
-                          {(searchTerm || filterStatus !== 'ALL') && (
-                              <button 
-                                onClick={() => {setSearchTerm(''); setFilterStatus('ALL')}}
-                                className="text-indigo-400 hover:underline text-xs mt-1"
-                              >
-                                Clear all filters
-                              </button>
-                          )}
                        </div>
                     </td>
                 </tr>
@@ -202,13 +218,28 @@ const SystemAdmins = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
-                        admin.is_super 
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
-                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                      }`}>
-                        {admin.is_super ? 'Super Admin' : (admin.role_name || 'Staff')}
-                      </span>
+                      {admin.is_super ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border bg-amber-500/10 text-amber-400 border-amber-500/20">
+                            Super Admin
+                          </span>
+                      ) : (
+                          // ROLE DROPDOWN
+                          <div className="relative group/role">
+                              <select 
+                                  className="appearance-none bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 pr-6 rounded-full text-xs font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer hover:bg-indigo-500/20 transition-colors"
+                                  value={roles.find(r => r.Name === admin.role_name)?.ID || ''}
+                                  onChange={(e) => handleRoleChange(admin.id, e.target.value)}
+                                  disabled={processingId === admin.id}
+                              >
+                                  {roles.map(role => (
+                                      <option key={role.ID} value={role.ID} className="bg-slate-800 text-slate-200">
+                                          {role.Name}
+                                      </option>
+                                  ))}
+                              </select>
+                              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none group-hover/role:text-white" />
+                          </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-2">

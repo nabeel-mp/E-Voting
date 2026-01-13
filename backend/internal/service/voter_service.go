@@ -46,6 +46,6 @@ func VerifyVoterOTP(voterID, otp string) (string, error) {
 	voter.CurrentOTP = ""
 	repository.UpdateVoterOTP(voter)
 
-	token, err := utils.GenerateJWT(voter.ID, "VOTER", "", false, voter.FullName)
+	token, err := utils.GenerateJWT(voter.ID, "VOTER", "", false, voter.FullName, voter.VoterID, "")
 	return token, err
 }
