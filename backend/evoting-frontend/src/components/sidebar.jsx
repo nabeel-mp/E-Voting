@@ -154,9 +154,31 @@ const Sidebar = () => {
             <div className="p-4 border-t border-slate-800/60 bg-slate-900/30">
                 <div className="bg-slate-900 rounded-xl p-3 border border-slate-800 flex items-center justify-between group hover:border-slate-700 transition-colors">
                     <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg">
-                            <UserCircle2 size={20} />
+                        {/* Avatar Container */}
+                        <div className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+                            {user?.avatar ? (
+                                <img 
+                                    /* Ensure this URL matches your backend configuration */
+                                    src={`http://localhost:8080${user.avatar}`} 
+                                    alt={user.name}
+                                     className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        // Fallback logic: hide image and show icon if load fails
+                                        e.target.style.display = 'none';
+                                        e.target.nextElementSibling.style.display = 'flex';
+                                    }}
+                                />
+                            ) : null}
+                            
+                            {/* Fallback Icon (shown if no avatar or on error) */}
+                            <div 
+                                className={`w-full h-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white ${user?.avatar ? 'hidden' : 'flex'}`}
+                            >
+                                <UserCircle2 size={20} />
+                            </div>
                         </div>
+
+                        {/* User Details */}
                         <div className="flex flex-col">
                             <span className="text-sm font-bold text-slate-200 truncate max-w-[100px]">
                                 {user?.name || "Admin"}

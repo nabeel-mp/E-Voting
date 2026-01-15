@@ -10,13 +10,18 @@ import {
   Trash2,
   Pencil,
   X,
-  Lock
+  Search,
+  Save
 } from 'lucide-react';
 
 const Roles = () => {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Form State
   const [editingId, setEditingId] = useState(null); 
@@ -52,6 +57,17 @@ const Roles = () => {
 
   useEffect(() => { fetchRoles(); }, []);
 
+  // Filter Roles
+  const filteredRoles = roles.filter(role => {
+    const searchLower = searchTerm.toLowerCase();
+    const roleName = role.Name.toLowerCase();
+    const perms = Array.isArray(role.Permissions) 
+      ? role.Permissions.join(' ') 
+      : (role.Permissions || '');
+
+    return roleName.includes(searchLower) || perms.toLowerCase().includes(searchLower);
+  });
+
   const togglePermission = (permId) => {
     setSelectedPermissions(prev => 
       prev.includes(permId)
@@ -60,17 +76,11 @@ const Roles = () => {
     );
   };
 
-  const resetForm = () => {
-      setName('');
-      setSelectedPermissions([]);
-      setEditingId(null);
-  };
-
-  // --- Populate form for editing ---
-  const handleEdit = (role) => {
+  const openModal = (role = null) => {
+    if (role) {
+      // Edit Mode
       setEditingId(role.ID);
       setName(role.Name);
-      
       let perms = [];
       if (Array.isArray(role.Permissions)) {
           perms = role.Permissions;
@@ -78,19 +88,27 @@ const Roles = () => {
           perms = role.Permissions.split(',').map(p => p.trim());
       }
       setSelectedPermissions(perms);
-      
-      // Scroll to top for mobile/small screens
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // Create Mode
+      setEditingId(null);
+      setName('');
+      setSelectedPermissions([]);
+    }
+    setIsModalOpen(true);
   };
 
-  // --- Handle Delete ---
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+    setName('');
+    setSelectedPermissions([]);
+  };
+
   const handleDelete = async (id) => {
       if(!window.confirm("Are you sure you want to delete this role? This might affect users assigned to it.")) return;
-
       try {
           await api.delete(`/api/auth/admin/roles/${id}`);
           setRoles(roles.filter(r => r.ID !== id));
-          if(editingId === id) resetForm();
       } catch (err) {
           alert("Failed to delete role. It might be in use.");
       }
@@ -102,22 +120,15 @@ const Roles = () => {
 
     setSubmitting(true);
     try {
-      const payload = {
-        name: name,
-        permissions: selectedPermissions 
-      };
-
+      const payload = { name: name, permissions: selectedPermissions };
       if (editingId) {
-          // Update Existing
           await api.put(`/api/auth/admin/roles/${editingId}`, payload);
           alert("Role updated successfully!");
       } else {
-          // Create New
           await api.post('/api/auth/admin/roles', payload);
           alert("Role created successfully!");
       }
-
-      resetForm();
+      closeModal();
       fetchRoles();
     } catch (err) { 
       alert(`Failed to ${editingId ? 'update' : 'create'} role.`); 
@@ -127,43 +138,191 @@ const Roles = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 h-[calc(100vh-100px)] flex flex-col">
       
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Role Definitions</h1>
-        <p className="text-slate-400 mt-1">Configure access levels and permissions for the system.</p>
+      {/* --- Page Header --- */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Role Definitions</h1>
+          <p className="text-slate-400 mt-1">Configure access levels and permissions for the system.</p>
+        </div>
+        
+        {/* Create Button */}
+        <button 
+          onClick={() => openModal(null)}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+        >
+          <Plus size={20} />
+          Create New Role
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* --- LEFT: Create/Edit Role Form --- */}
-        <div className="lg:col-span-1">
-          <div className={`bg-slate-900/50 backdrop-blur-xl border rounded-2xl p-6 shadow-xl sticky top-6 transition-colors duration-300 ${editingId ? 'border-amber-500/30' : 'border-slate-800'}`}>
-             <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
-                <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${editingId ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
-                       {editingId ? <Pencil size={24} /> : <ShieldCheck size={24} />}
-                    </div>
-                    <div>
-                       <h2 className="text-lg font-bold text-white">
-                           {editingId ? 'Edit Role' : 'Create Role'}
-                       </h2>
-                       <p className="text-xs text-slate-500">
-                           {editingId ? `Updating Role ID: ${editingId}` : 'Define new access group'}
-                       </p>
-                    </div>
-                </div>
-                {editingId && (
-                    <button onClick={resetForm} className="text-slate-500 hover:text-white" title="Cancel Edit">
-                        <X size={20} />
-                    </button>
-                )}
-             </div>
+      {/* --- Active Roles Table --- */}
+      <div className="flex-1 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl flex flex-col shadow-xl overflow-hidden">
+         
+         {/* Toolbar */}
+         <div className="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/50">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <Check size={16} className="text-emerald-500" />
+              Active Roles List
+            </h3>
+            
+            <div className="relative w-full sm:w-72">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+               <input 
+                  type="text" 
+                  placeholder="Search roles..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 pr-4 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-colors placeholder:text-slate-600"
+               />
+            </div>
+         </div>
 
-             <form onSubmit={handleSubmit} className="space-y-6">
-                
-                {/* Role Name Input */}
+         {/* Table Area */}
+         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+         {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+               <Loader2 className="animate-spin mb-2 text-emerald-500" size={32} />
+               <p>Loading configuration...</p>
+            </div>
+         ) : roles.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+               <div className="p-4 rounded-full bg-slate-800/50 mb-3">
+                 <ShieldCheck size={32} className="opacity-50" />
+               </div>
+               <p>No roles found.</p>
+               <button onClick={() => openModal(null)} className="text-emerald-400 font-bold hover:underline mt-2">Create your first role</button>
+            </div>
+         ) : filteredRoles.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+               <p>No roles match your search.</p>
+            </div>
+         ) : (
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-900 border-b border-slate-700 shadow-md">
+                  <tr className="text-xs text-slate-400 uppercase tracking-wider">
+                    <th className="px-6 py-4 font-semibold w-20 text-center bg-slate-900">ID</th>
+                    <th className="px-6 py-4 font-semibold bg-slate-900 w-1/4">Role Name</th>
+                    <th className="px-6 py-4 font-semibold bg-slate-900">Permissions</th>
+                    <th className="px-6 py-4 font-semibold text-right bg-slate-900 w-32">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {filteredRoles.map((r) => {
+                     const isSuper = r.Name.toUpperCase() === 'SUPER_ADMIN';
+                     const permsArray = Array.isArray(r.Permissions) ? r.Permissions : r.Permissions.split(',');
+
+                     return (
+                       <tr key={r.ID} className="group hover:bg-slate-800/50 transition-colors">
+                         <td className="px-6 py-4 text-center">
+                           <span className="font-mono text-xs text-slate-500">#{r.ID}</span>
+                         </td>
+                         <td className="px-6 py-4">
+                           <div className="flex items-center gap-2">
+                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSuper ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700/50 text-slate-300'}`}>
+                                <Shield size={16} />
+                             </div>
+                             <div>
+                                <span className="font-bold text-sm text-white block">{r.Name}</span>
+                                {isSuper && <span className="text-[10px] text-emerald-400 font-medium">System Protected</span>}
+                             </div>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4">
+                           <div className="flex flex-wrap gap-1.5">
+                             {permsArray.slice(0, 5).map((perm, idx) => (
+                                <span key={idx} className="text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700 px-2 py-1 rounded whitespace-nowrap">
+                                  {perm.trim().replace(/_/g, ' ')}
+                                </span>
+                             ))}
+                             {permsArray.length > 5 && (
+                                <span className="text-[10px] font-medium bg-slate-800 text-slate-500 border border-slate-700 px-2 py-1 rounded">
+                                  +{permsArray.length - 5} more
+                                </span>
+                             )}
+                             {permsArray.length === 0 && <span className="text-xs text-slate-600 italic">No permissions</span>}
+                           </div>
+                         </td>
+                         <td className="px-6 py-4 text-right">
+                           <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => openModal(r)}
+                                disabled={isSuper}
+                                className={`p-2 rounded-lg border border-transparent transition-all ${
+                                    isSuper
+                                    ? 'text-slate-700 cursor-not-allowed opacity-50'
+                                    : 'text-slate-400 hover:text-white hover:bg-blue-500/20 hover:border-blue-500/30'
+                                }`}
+                                title={isSuper ? "Cannot edit System Admin" : "Edit Role"}
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(r.ID)}
+                                disabled={isSuper}
+                                className={`p-2 rounded-lg border border-transparent transition-all ${
+                                  isSuper 
+                                  ? 'text-slate-700 cursor-not-allowed opacity-50' 
+                                  : 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20'
+                                }`}
+                                title={isSuper ? "Cannot delete System Admin" : "Delete Role"}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                           </div>
+                         </td>
+                       </tr>
+                     );
+                  })}
+                </tbody>
+              </table>
+         )}
+         </div>
+         
+         {/* Footer */}
+         <div className="px-6 py-4 border-t border-slate-800 text-xs text-slate-500 flex justify-between items-center bg-slate-900/30 shrink-0">
+            <span>Showing {filteredRoles.length} roles</span>
+            {searchTerm && filteredRoles.length !== roles.length && (
+               <span className="text-emerald-500/70">Filtered from {roles.length} total</span>
+            )}
+         </div>
+      </div>
+
+      {/* --- MODAL --- */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={closeModal}
+          ></div>
+
+          {/* Modal Content */}
+          <div className="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+               <div className="flex items-center gap-3">
+                   <div className={`p-2 rounded-lg ${editingId ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                      {editingId ? <Pencil size={20} /> : <Plus size={20} />}
+                   </div>
+                   <div>
+                      <h2 className="text-lg font-bold text-white">
+                          {editingId ? 'Edit Role' : 'Create New Role'}
+                      </h2>
+                      <p className="text-xs text-slate-400">
+                          {editingId ? `Editing permissions for role #${editingId}` : 'Define a new access level'}
+                      </p>
+                   </div>
+               </div>
+               <button onClick={closeModal} className="text-slate-400 hover:text-white transition-colors">
+                 <X size={24} />
+               </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 <div className="space-y-2">
                    <label className="text-xs font-semibold text-slate-500 uppercase">Role Name</label>
                    <div className="relative">
@@ -179,24 +338,22 @@ const Roles = () => {
                    </div>
                 </div>
 
-                {/* Permission Checkboxes */}
                 <div className="space-y-3">
                    <label className="text-xs font-semibold text-slate-500 uppercase flex items-center gap-2">
                       <LayoutGrid size={14} />
-                      Access Permissions
+                      Assign Permissions
                    </label>
-                   
-                   <div className="grid grid-cols-1 gap-2 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50 max-h-[400px] overflow-y-auto custom-scrollbar">
+                   <div className="grid grid-cols-1 gap-2 bg-slate-950/50 p-3 rounded-xl border border-slate-800 max-h-[300px] overflow-y-auto custom-scrollbar">
                       {AVAILABLE_PERMISSIONS.map((perm) => (
                         <label 
                           key={perm.id} 
-                          className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border transition-all duration-200 ${
+                          className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all duration-200 ${
                             selectedPermissions.includes(perm.id) 
-                              ? 'bg-emerald-500/10 border-emerald-500/30' 
-                              : 'hover:bg-slate-800 border-transparent'
+                            ? 'bg-emerald-500/10 border-emerald-500/30' 
+                            : 'hover:bg-slate-800 border-transparent'
                           }`}
                         >
-                          <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 ${
                              selectedPermissions.includes(perm.id)
                                ? 'bg-emerald-500 border-emerald-500'
                                : 'border-slate-600 bg-slate-900'
@@ -220,124 +377,25 @@ const Roles = () => {
                    </p>
                 </div>
 
-                <button 
-                   type="submit" 
-                   disabled={submitting || !name || selectedPermissions.length === 0}
-                   className={`w-full py-3 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
-                       editingId 
-                       ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/20' 
-                       : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
-                   }`}
-                >
-                   {submitting ? <Loader2 className="animate-spin" size={18} /> : (editingId ? <Pencil size={18} /> : <Plus size={18} />)}
-                   <span>{editingId ? 'Update Role' : 'Save Role'}</span>
-                </button>
-             </form>
+                <div className="pt-2">
+                  <button 
+                     type="submit" 
+                     disabled={submitting || !name || selectedPermissions.length === 0}
+                     className={`w-full py-3.5 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                         editingId 
+                         ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/20' 
+                         : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
+                     }`}
+                  >
+                     {submitting ? <Loader2 className="animate-spin" size={18} /> : (editingId ? <Save size={18} /> : <Plus size={18} />)}
+                     <span>{editingId ? 'Update Role' : 'Create Role'}</span>
+                  </button>
+                </div>
+            </form>
           </div>
         </div>
+      )}
 
-        {/* --- RIGHT: Existing Roles List --- */}
-        <div className="lg:col-span-2">
-           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl h-full">
-             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
-               <Check size={16} className="text-emerald-500" />
-               Active Roles
-             </h3>
-
-             {loading ? (
-               <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-                  <Loader2 className="animate-spin mb-2 text-emerald-500" size={32} />
-                  <p>Loading configuration...</p>
-               </div>
-             ) : roles.length === 0 ? (
-               <div className="text-center py-12 text-slate-500 border border-dashed border-slate-800 rounded-xl">
-                 No roles found. Create your first one on the left.
-               </div>
-             ) : (
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                 {roles.map((r) => {
-                     // Check if it's super admin to possibly disable deletion (optional visual cue)
-                     const isSuper = r.Name.toUpperCase() === 'SUPER_ADMIN';
-                     
-                     return (
-                      <div key={r.ID} className={`group bg-slate-800/40 rounded-xl border transition-all duration-300 flex flex-col hover:shadow-lg hover:shadow-black/20 ${editingId === r.ID ? 'border-amber-500 ring-1 ring-amber-500/50 bg-slate-800' : 'border-slate-700/50 hover:border-emerald-500/30 hover:bg-slate-800'}`}>
-                        
-                        {/* Card Content (Grows to fill space) */}
-                        <div className="p-5 flex-1">
-                            {/* Card Header */}
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-emerald-400 font-bold text-sm shadow-inner font-mono">
-                                        {r.ID}
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-white text-lg leading-tight tracking-tight">{r.Name}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                            <Lock size={10} />
-                                            <span>
-                                                {Array.isArray(r.Permissions) ? r.Permissions.length : r.Permissions.split(',').length} Permissions
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Permissions Grid */}
-                            <div className="flex flex-wrap gap-2 content-start">
-                                {r.Permissions ? (
-                                    (Array.isArray(r.Permissions) ? r.Permissions : r.Permissions.split(','))
-                                    .slice(0, 8) // Limit visible tags to keep card neat
-                                    .map((perm, idx) => (
-                                    <span key={idx} className="text-[10px] font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-1 rounded select-none">
-                                        {perm.trim().replace(/_/g, ' ')}
-                                    </span>
-                                    ))
-                                ) : (
-                                    <span className="text-xs text-slate-600 italic">No specific permissions</span>
-                                )}
-                                {/* Show count if truncated */}
-                                {((Array.isArray(r.Permissions) ? r.Permissions.length : r.Permissions.split(',').length) > 8) && (
-                                    <span className="text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 px-2 py-1 rounded">
-                                        +{(Array.isArray(r.Permissions) ? r.Permissions.length : r.Permissions.split(',').length) - 8} more
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Card Footer - Actions */}
-                        <div className="px-4 py-3 border-t border-slate-700/50 bg-slate-900/30 rounded-b-xl flex items-center gap-3">
-                            <button 
-                                onClick={() => handleEdit(r)}
-                                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-slate-700/80 transition-all border border-transparent hover:border-slate-600"
-                            >
-                                <Pencil size={14} /> Edit
-                            </button>
-                            
-                            {/* Vertical Separator */}
-                            <div className="w-px h-6 bg-slate-700/50"></div>
-                            
-                            <button 
-                                onClick={() => handleDelete(r.ID)}
-                                disabled={isSuper} // Prevent deleting super admin if needed via logic
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border border-transparent ${
-                                    isSuper 
-                                    ? 'text-slate-600 cursor-not-allowed' 
-                                    : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 hover:border-rose-500/20'
-                                }`}
-                            >
-                                <Trash2 size={14} /> Delete
-                            </button>
-                        </div>
-
-                      </div>
-                     );
-                 })}
-               </div>
-             )}
-           </div>
-        </div>
-
-      </div>
     </div>
   );
 };

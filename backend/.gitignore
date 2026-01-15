@@ -5,3 +5,6 @@
 uploads/*
 uploads/avatars/*
 
+# BUT keep the .gitkeep files (so the folders are tracked)
+!uploads/.gitkeep
+!uploads/avatars/.gitkeep
