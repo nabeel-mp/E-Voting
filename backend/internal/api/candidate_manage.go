@@ -120,9 +120,31 @@ func ListParties(c *fiber.Ctx) error {
 // --- CANDIDATE MANAGEMENT ---
 
 func CreateCandidate(c *fiber.Ctx) error {
-	var candidate models.Candidate
-	if err := c.BodyParser(&candidate); err != nil {
-		return utils.Error(c, 400, "Invalid request")
+	// Parse fields manually since we expect multipart form data
+	fullName := c.FormValue("full_name")
+	electionID, _ := utils.StringToUint(c.FormValue("election_id"))
+	partyID, _ := utils.StringToUint(c.FormValue("party_id"))
+	bio := c.FormValue("bio")
+
+	if fullName == "" || electionID == 0 || partyID == 0 {
+		return utils.Error(c, 400, "Name, Election, and Party are required")
+	}
+
+	candidate := models.Candidate{
+		FullName:   fullName,
+		ElectionID: electionID,
+		PartyID:    partyID,
+		Bio:        bio,
+	}
+
+	// Handle Photo Upload
+	file, err := c.FormFile("photo")
+	if err == nil {
+		filename := fmt.Sprintf("candidate_%d_%d%s", electionID, time.Now().UnixNano(), filepath.Ext(file.Filename))
+		savePath := filepath.Join("./uploads", filename)
+		if err := c.SaveFile(file, savePath); err == nil {
+			candidate.Photo = "/uploads/" + filename
+		}
 	}
 
 	// Verify Election exists
@@ -161,7 +183,6 @@ func UpdateCandidate(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Candidate not found")
 	}
 
-	// SAFETY CHECK: Election Active?
 	var election models.Election
 	if err := database.PostgresDB.First(&election, candidate.ElectionID).Error; err == nil {
 		if election.IsActive {
@@ -169,16 +190,33 @@ func UpdateCandidate(c *fiber.Ctx) error {
 		}
 	}
 
-	var req models.Candidate
-	if err := c.BodyParser(&req); err != nil {
-		return utils.Error(c, 400, "Invalid request")
+	// Update fields
+	if val := c.FormValue("full_name"); val != "" {
+		candidate.FullName = val
+	}
+	if val := c.FormValue("bio"); val != "" {
+		candidate.Bio = val
+	}
+	if val := c.FormValue("election_id"); val != "" {
+		if id, err := utils.StringToUint(val); err == nil {
+			candidate.ElectionID = id
+		}
+	}
+	if val := c.FormValue("party_id"); val != "" {
+		if id, err := utils.StringToUint(val); err == nil {
+			candidate.PartyID = id
+		}
 	}
 
-	// Update fields
-	candidate.FullName = req.FullName
-	candidate.PartyID = req.PartyID
-	candidate.ElectionID = req.ElectionID
-	candidate.Bio = req.Bio
+	// Handle Photo Update
+	file, err := c.FormFile("photo")
+	if err == nil {
+		filename := fmt.Sprintf("candidate_%d_%d%s", candidate.ElectionID, time.Now().UnixNano(), filepath.Ext(file.Filename))
+		savePath := filepath.Join("./uploads", filename)
+		if err := c.SaveFile(file, savePath); err == nil {
+			candidate.Photo = "/uploads/" + filename
+		}
+	}
 
 	if err := database.PostgresDB.Save(&candidate).Error; err != nil {
 		return utils.Error(c, 500, "Failed to update candidate")

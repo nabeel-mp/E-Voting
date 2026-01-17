@@ -25,7 +25,7 @@ func GetRoles() ([]models.Role, error) {
 
 func CreateSubAdmin(
 	email, password string,
-	roleID uint,
+	roleIDs []uint,
 	actorID uint,
 	actorRole string,
 ) error {
@@ -35,16 +35,22 @@ func CreateSubAdmin(
 		return err
 	}
 
+	var roles []models.Role
+	if len(roleIDs) > 0 {
+		if err := database.PostgresDB.Where("id IN ?", roleIDs).Find(&roles).Error; err != nil {
+			return errors.New("roles not found")
+		}
+	}
+
 	admin := &models.Admin{
 		Email:    email,
 		Password: hashedPwd,
-		RoleID:   roleID,
+		Roles:    roles,
 		IsActive: true,
 		IsSuper:  false,
 	}
 
-	err = repository.CreateSubAdmin(admin)
-	if err != nil {
+	if err := database.PostgresDB.Create(admin).Error; err != nil {
 		return errors.New("admin already exists")
 	}
 
@@ -55,7 +61,7 @@ func CreateSubAdmin(
 		admin.ID,
 		map[string]interface{}{
 			"email":   email,
-			"role_id": roleID,
+			"role_id": roleIDs,
 		},
 	)
 
@@ -63,8 +69,8 @@ func CreateSubAdmin(
 }
 
 func AdminLogin(email, password string) (string, error) {
-	admin, err := repository.FindAdminByEmail(email)
-	if err != nil {
+	var admin models.Admin
+	if err := database.PostgresDB.Preload("Roles").Where("email = ?", email).First(&admin).Error; err != nil {
 		return "", errors.New("invalid credentials")
 	}
 
@@ -72,7 +78,28 @@ func AdminLogin(email, password string) (string, error) {
 		return "", errors.New("invalid credentials")
 	}
 
-	token, err := utils.GenerateJWT(admin.ID, admin.Role.Name, admin.Role.Permissions, admin.IsSuper, admin.Name, admin.Email, admin.Avatar)
+	var roleNames []string
+	permSet := make(map[string]bool)
+
+	for _, r := range admin.Roles {
+		roleNames = append(roleNames, r.Name)
+		perms := strings.Split(r.Permissions, ",")
+		for _, p := range perms {
+			if strings.TrimSpace(p) != "" {
+				permSet[strings.TrimSpace(p)] = true
+			}
+		}
+	}
+
+	var aggregatedPerms []string
+	for p := range permSet {
+		aggregatedPerms = append(aggregatedPerms, p)
+	}
+
+	roleNameStr := strings.Join(roleNames, ",")
+	permStr := strings.Join(aggregatedPerms, ",")
+
+	token, err := utils.GenerateJWT(admin.ID, roleNameStr, permStr, admin.IsSuper, admin.Name, admin.Email, admin.Avatar)
 	if err != nil {
 		return "", err
 	}

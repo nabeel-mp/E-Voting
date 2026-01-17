@@ -44,6 +44,10 @@ func UpdateElection(c *fiber.Ctx) error {
 		return utils.Error(c, 403, "Cannot update an ACTIVE election. Stop it first.")
 	}
 
+	if time.Now().After(election.EndDate) {
+		return utils.Error(c, 403, "Cannot updated an Ended Election")
+	}
+
 	var req models.Election
 	if err := c.BodyParser(&req); err != nil {
 		return utils.Error(c, 400, "Invalid request")

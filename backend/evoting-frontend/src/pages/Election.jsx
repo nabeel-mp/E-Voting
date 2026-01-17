@@ -192,11 +192,11 @@ const Elections = () => {
            elections.map((election) => {
              const isEnded = new Date(election.end_date) < new Date();
              
-             // --- UPDATED RULES ---
-             // 1. Update: Only disabled if currently Active (Allows editing if Ended)
-             const canUpdate = !election.is_active;
+             // --- RULES ---
+             // 1. Update: Disabled if Active OR Ended
+             const canUpdate = !election.is_active && !isEnded;
              
-             // 2. Delete: Allowed if Inactive OR Ended
+             // 2. Delete: Disabled if Active (Allowed if Ended or Inactive)
              const canDelete = !election.is_active || isEnded;
 
              return (
@@ -233,7 +233,7 @@ const Elections = () => {
                                                     ? 'text-slate-300 hover:text-white hover:bg-slate-800' 
                                                     : 'text-slate-600 cursor-not-allowed'
                                                 }`}
-                                                title={!canUpdate ? "Cannot update Active election" : "Edit Election"}
+                                                title={!canUpdate ? "Cannot update: Active or Ended" : "Edit Election"}
                                             >
                                                 <Pencil size={14} /> 
                                                 Update
@@ -291,7 +291,7 @@ const Elections = () => {
                         {isEnded ? "Ended" : (election.is_active ? "Active" : "Closed")}
                      </div>
                      
-                     {/* FIXED: Toggle button is now ALWAYS visible so you can re-activate */}
+                     {/* Toggle Button: Always visible to allow re-activation */}
                      <button 
                           onClick={() => toggleStatus(election.ID, election.is_active)}
                           className={`p-2 rounded-lg transition-colors ${election.is_active ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}

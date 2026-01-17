@@ -11,21 +11,17 @@ import (
 func GetElectionResults(c *fiber.Ctx) error {
 	electionID := c.QueryInt("election_id")
 
-	// 1. Check Publication Status (Security Check)
-	// We assume 'role' is set in middleware (e.g., c.Locals("role"))
 	userRole, _ := c.Locals("role").(string)
 
 	if electionID > 0 {
 		var election models.Election
 		if err := database.PostgresDB.First(&election, electionID).Error; err == nil {
-			// If NOT Super Admin AND Result is NOT published -> Deny Access
 			if userRole != "SUPER_ADMIN" && !election.IsPublished {
 				return utils.Error(c, 403, "Results have not been published yet.")
 			}
 		}
 	}
 
-	// 2. Fetch Results (Existing Logic)
 	type Result struct {
 		CandidateName string `json:"candidate_name"`
 		PartyName     string `json:"party_name"`

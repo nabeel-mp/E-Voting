@@ -32,7 +32,6 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 			return utils.Error(c, 401, "Invalid token claims")
 		}
 
-		// Robustly handle number types from JSON (float64 default)
 		var userID uint
 		if idFloat, ok := claims["user_id"].(float64); ok {
 			userID = uint(idFloat)
@@ -42,7 +41,7 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 
 		role, _ := claims["role"].(string)
 
-		c.Locals("user_id", float64(userID)) // Store as float64 for consistency with handlers
+		c.Locals("user_id", float64(userID))
 		c.Locals("role", role)
 
 		// 1. Super Admin bypass
@@ -60,7 +59,8 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 
 		// 3. Admin Logic
 		var admin models.Admin
-		if err := database.PostgresDB.Preload("Role").First(&admin, userID).Error; err != nil {
+		// UPDATED: Preload "Roles" (Plural) to match the new Many-to-Many model
+		if err := database.PostgresDB.Preload("Roles").First(&admin, userID).Error; err != nil {
 			return utils.Error(c, 401, "Admin account not found")
 		}
 
@@ -68,11 +68,24 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 			return utils.Error(c, 403, "Account has been deactivated")
 		}
 
+		if admin.IsSuper {
+			return c.Next()
+		}
+
 		// Check specific permission if required
 		if requiredPermission != "" {
-			// Check if permission exists in comma-separated list OR if role has 'all'
-			perms := admin.Role.Permissions
-			if perms != "all" && !strings.Contains(","+perms+",", ","+requiredPermission+",") {
+			hasPermission := false
+
+			// Iterate over all assigned roles
+			for _, r := range admin.Roles {
+				// Check if permission exists in this role OR if role has 'all'
+				if r.Permissions == "all" || strings.Contains(","+r.Permissions+",", ","+requiredPermission+",") {
+					hasPermission = true
+					break
+				}
+			}
+
+			if !hasPermission {
 				return utils.Error(c, 403, "Permission denied: "+requiredPermission)
 			}
 		}

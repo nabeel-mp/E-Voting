@@ -33,6 +33,7 @@ const Sidebar = () => {
         { title: "Live Results", path: "/results", icon: <BarChart3 size={20} />, req: "view_results" },
         { title: "Manage Roles", path: "/roles", icon: <UserCog size={20} />, req: "manage_roles" },
         { title: "Manage Staff", path: "/staff", icon: <UserCog size={20} />, req: "manage_admins" },
+        { title: "Assign Roles", path: "/assign-roles", icon: <UserCog size={20} />, req: "manage_admins" },
         { title: "System Admins", path: "/admins", icon: <Shield size={20} />, req: "SUPER_ADMIN" },
         { title: "Audit Logs", path: "/audit", icon: <ScrollText size={20} />, req: "SUPER_ADMIN" },
     ];

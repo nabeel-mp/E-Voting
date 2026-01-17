@@ -8,7 +8,7 @@ import {
 const Candidates = () => {
   const [candidates, setCandidates] = useState([]);
   const [parties, setParties] = useState([]);
-  const [elections, setElections] = useState([]); // Store elections for selector
+  const [elections, setElections] = useState([]); 
   const [loading, setLoading] = useState(true);
    
   // Modals & State
@@ -27,11 +27,24 @@ const Candidates = () => {
   // Forms
   const [partyForm, setPartyForm] = useState({ name: '', logo: null });
   const [logoPreview, setLogoPreview] = useState(null);
-  const [candidateForm, setCandidateForm] = useState({ full_name: '', election_id: '', party_id: '', bio: '' });
+  
+  const [candidateForm, setCandidateForm] = useState({ full_name: '', election_id: '', party_id: '', bio: '', photo: null });
+  const [candidatePhotoPreview, setCandidatePhotoPreview] = useState(null);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterParty, setFilterParty] = useState('ALL');
+
+  // --- HELPER: Get Full Image URL ---
+  const getLogoUrl = (path) => {
+      if (!path) return null;
+      if (path.startsWith('http')) return path;
+      const baseURL = "http://localhost:8080"; 
+      return `${baseURL}${path}`;
+  };
+
+  // --- HELPER: Get ID Safely (Handle id vs ID) ---
+  const getId = (item) => item.id || item.ID;
 
   const fetchData = async () => {
     try {
@@ -39,7 +52,7 @@ const Candidates = () => {
       const [cRes, pRes, eRes] = await Promise.all([
         api.get('/api/admin/candidates'),
         api.get('/api/admin/parties'),
-        api.get('/api/admin/elections') // Fetch elections for selector
+        api.get('/api/admin/elections') 
       ]);
       if (cRes.data.success) setCandidates(cRes.data.data);
       if (pRes.data.success) setParties(pRes.data.data);
@@ -69,8 +82,10 @@ const Candidates = () => {
     const matchesSearch = !searchTerm || (
         candidate.full_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    // Use getId helper
+    const candidatePartyId = candidate.party ? getId(candidate.party) : null;
     const matchesParty = filterParty === 'ALL' || (
-        candidate.party && candidate.party.ID.toString() === filterParty.toString()
+        candidatePartyId && candidatePartyId.toString() === filterParty.toString()
     );
     return matchesSearch && matchesParty;
   });
@@ -114,9 +129,9 @@ const Candidates = () => {
   };
 
   const handleEditParty = (party) => {
-      setEditingPartyId(party.ID);
+      setEditingPartyId(getId(party));
       setPartyForm({ name: party.name, logo: null });
-      setLogoPreview(party.logo || party.Logo); // Assuming backend sends full URL
+      setLogoPreview(party.logo || party.Logo ? getLogoUrl(party.logo || party.Logo) : null);
       setShowPartyModal(true);
   };
 
@@ -138,21 +153,34 @@ const Candidates = () => {
   };
 
   // --- CANDIDATE HANDLERS ---
+  const handleCandidatePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCandidateForm({ ...candidateForm, photo: file });
+      setCandidatePhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleCandidateSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const payload = {
-        ...candidateForm,
-        election_id: parseInt(candidateForm.election_id),
-        party_id: parseInt(candidateForm.party_id)
-      };
+      const formData = new FormData();
+      formData.append('full_name', candidateForm.full_name);
+      formData.append('election_id', candidateForm.election_id);
+      formData.append('party_id', candidateForm.party_id);
+      formData.append('bio', candidateForm.bio);
+      if (candidateForm.photo) formData.append('photo', candidateForm.photo);
 
       if (editingCandidateId) {
-          await api.put(`/api/admin/candidates/${editingCandidateId}`, payload);
+          await api.put(`/api/admin/candidates/${editingCandidateId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
           alert("Candidate updated successfully!");
       } else {
-          await api.post('/api/admin/candidates', payload);
+          await api.post('/api/admin/candidates', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
           alert("Candidate registered successfully!");
       }
 
@@ -164,13 +192,15 @@ const Candidates = () => {
   };
 
   const handleEditCandidate = (c) => {
-      setEditingCandidateId(c.ID);
+      setEditingCandidateId(getId(c));
       setCandidateForm({
           full_name: c.full_name,
-          election_id: c.election_id || c.ElectionID, // Ensure backend JSON mapping
+          election_id: c.election_id || c.ElectionID, 
           party_id: c.party_id || c.PartyID,
-          bio: c.bio || ''
+          bio: c.bio || '',
+          photo: null
       });
+      setCandidatePhotoPreview(c.photo || c.Photo ? getLogoUrl(c.photo || c.Photo) : null);
       setShowCandidateModal(true);
       setActiveDropdown(null);
   };
@@ -189,7 +219,8 @@ const Candidates = () => {
   const closeCandidateModal = () => {
       setShowCandidateModal(false);
       setEditingCandidateId(null);
-      setCandidateForm({ full_name: '', election_id: '', party_id: '', bio: '' });
+      setCandidateForm({ full_name: '', election_id: '', party_id: '', bio: '', photo: null });
+      setCandidatePhotoPreview(null);
   };
 
   return (
@@ -219,29 +250,30 @@ const Candidates = () => {
         </div>
       </div>
 
-      {/* Parties List (With Edit/Delete) */}
+      {/* Parties List */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {parties.map((p) => (
-           <div key={p.ID} className="group relative bg-slate-900/50 border border-slate-800 p-4 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-colors">
+        {parties.map((p) => {
+           const partyId = getId(p);
+           return (
+           <div key={partyId} className="group relative bg-slate-900/50 border border-slate-800 p-4 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-colors">
              <div className="w-10 h-10 rounded-full bg-slate-800 overflow-hidden border border-slate-600 flex items-center justify-center shrink-0">
-                 {p.logo || p.Logo ? (
-                     <img src={p.logo || p.Logo} alt={p.name} className="w-full h-full object-cover" />
+                 {(p.logo || p.Logo) ? (
+                     <img src={getLogoUrl(p.logo || p.Logo)} alt={p.name} className="w-full h-full object-cover" />
                  ) : (
                     <span className="text-white font-bold">{p.name.charAt(0)}</span>
                  )}
              </div>
              <div className="flex-1 min-w-0">
                <h3 className="font-bold text-slate-200 truncate">{p.name}</h3>
-               <p className="text-xs text-slate-500">Party ID: {p.ID}</p>
+               <p className="text-xs text-slate-500">Party ID: {partyId}</p>
              </div>
              
-             {/* Party Actions (Hover) */}
              <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 rounded-lg p-1 border border-slate-700">
                 <button onClick={() => handleEditParty(p)} className="p-1 text-slate-400 hover:text-indigo-400"><Pencil size={12} /></button>
-                <button onClick={() => handleDeleteParty(p.ID)} className="p-1 text-slate-400 hover:text-rose-400"><Trash2 size={12} /></button>
+                <button onClick={() => handleDeleteParty(partyId)} className="p-1 text-slate-400 hover:text-rose-400"><Trash2 size={12} /></button>
              </div>
            </div>
-        ))}
+        )})}
       </div>
 
       {/* Candidates List */}
@@ -266,7 +298,7 @@ const Candidates = () => {
                     className="w-full bg-slate-800/50 border border-slate-700 text-slate-200 pl-9 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer"
                 >
                     <option value="ALL">All Parties</option>
-                    {parties.map(p => <option key={p.ID} value={p.ID}>{p.name}</option>)}
+                    {parties.map(p => <option key={getId(p)} value={getId(p)}>{p.name}</option>)}
                 </select>
             </div>
         </div>
@@ -286,14 +318,18 @@ const Candidates = () => {
                {loading ? (
                    <tr><td colSpan="4" className="px-6 py-12 text-center"><Loader2 className="animate-spin inline" /></td></tr>
                ) : filteredCandidates.map(c => {
-                   // Find election name
-                   const elec = elections.find(e => e.ID === c.election_id || e.ID === c.ElectionID);
+                   const cId = getId(c);
+                   const elec = elections.find(e => getId(e) === c.election_id || getId(e) === c.ElectionID);
                    return (
-                   <tr key={c.ID} className="group hover:bg-slate-800/40 transition-colors">
+                   <tr key={cId} className="group hover:bg-slate-800/40 transition-colors">
                      <td className="px-6 py-4">
                        <div className="flex items-center gap-3">
-                         <div className="w-9 h-9 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold border border-indigo-500/20">
-                           {c.full_name.charAt(0)}
+                         <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 overflow-hidden flex items-center justify-center shrink-0">
+                            {(c.photo || c.Photo) ? (
+                                <img src={getLogoUrl(c.photo || c.Photo)} className="w-full h-full object-cover" alt={c.full_name} />
+                            ) : (
+                                <span className="text-indigo-400 font-bold">{c.full_name.charAt(0)}</span>
+                            )}
                          </div>
                          <span className="text-slate-200 font-medium">{c.full_name}</span>
                        </div>
@@ -312,16 +348,16 @@ const Candidates = () => {
                      </td>
                      <td className="px-6 py-4 text-right relative">
                        <button 
-                            onClick={() => setActiveDropdown(activeDropdown === c.ID ? null : c.ID)}
-                            className={`p-2 rounded-lg transition-colors ${activeDropdown === c.ID ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:text-white hover:bg-slate-700'}`}
+                            onClick={() => setActiveDropdown(activeDropdown === cId ? null : cId)}
+                            className={`p-2 rounded-lg transition-colors ${activeDropdown === cId ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:text-white hover:bg-slate-700'}`}
                         >
                             <MoreVertical size={18} />
                        </button>
-                       {activeDropdown === c.ID && (
+                       {activeDropdown === cId && (
                            <div ref={dropdownRef} className="absolute right-8 top-12 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                                 <button onClick={() => handleEditCandidate(c)} className="w-full text-left px-3 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"><Pencil size={14} /> Update</button>
                                 <div className="h-px bg-slate-800 my-1 mx-2"></div>
-                                <button onClick={() => handleDeleteCandidate(c.ID)} className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 flex items-center gap-2"><Trash2 size={14} /> Delete</button>
+                                <button onClick={() => handleDeleteCandidate(cId)} className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 flex items-center gap-2"><Trash2 size={14} /> Delete</button>
                            </div>
                        )}
                      </td>
@@ -347,7 +383,6 @@ const Candidates = () => {
                        <label className="text-xs font-semibold text-slate-400 uppercase">Party Name</label>
                        <input required value={partyForm.name} onChange={e => setPartyForm({...partyForm, name: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
                     </div>
-                    {/* Logo Input (Simplified) */}
                     <div className="space-y-2">
                        <label className="text-xs font-semibold text-slate-400 uppercase">Logo</label>
                        <div className="relative group">
@@ -366,22 +401,38 @@ const Candidates = () => {
         </div>
       )}
 
-      {/* Candidate Modal (Updated with Selector) */}
+      {/* Candidate Modal (SAFE ID Handling) */}
       {showCandidateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closeCandidateModal} />
-           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
+           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
               <div className="p-6 border-b border-slate-800 flex justify-between items-center">
                  <h2 className="text-xl font-bold text-white">{editingCandidateId ? 'Update Candidate' : 'Add Candidate'}</h2>
                  <button onClick={closeCandidateModal}><X className="text-slate-500 hover:text-white" /></button>
               </div>
+              
               <form onSubmit={handleCandidateSubmit} className="p-6 space-y-4">
+                 <div className="flex justify-center mb-2">
+                    <div className="relative w-24 h-24 group">
+                        <div className={`w-full h-full rounded-full overflow-hidden border-2 flex items-center justify-center bg-slate-800 ${candidatePhotoPreview ? 'border-indigo-500' : 'border-slate-600 border-dashed'}`}>
+                            {candidatePhotoPreview ? (
+                                <img src={candidatePhotoPreview} className="w-full h-full object-cover" />
+                            ) : (
+                                <User className="text-slate-500" size={32} />
+                            )}
+                        </div>
+                        <input type="file" accept="image/*" onChange={handleCandidatePhotoChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                        <div className="absolute bottom-0 right-0 bg-indigo-600 p-1.5 rounded-full text-white shadow-lg pointer-events-none">
+                            <Upload size={12} />
+                        </div>
+                    </div>
+                 </div>
+
                  <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-400 uppercase">Full Name</label>
                     <input required value={candidateForm.full_name} onChange={e => setCandidateForm({...candidateForm, full_name: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
                  </div>
                  
-                 {/* ELECTION SELECTOR (REPLACES ID INPUT) */}
                  <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-400 uppercase">Election Event</label>
                     <div className="relative">
@@ -393,8 +444,9 @@ const Candidates = () => {
                           className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none"
                        >
                           <option value="">Select Election...</option>
+                          {/* USE getId TO HANDLE id vs ID */}
                           {elections.map(e => (
-                              <option key={e.ID} value={e.ID}>
+                              <option key={getId(e)} value={getId(e)}>
                                   {e.title} {e.is_active ? '(Active)' : '(Closed)'}
                               </option>
                           ))}
@@ -406,7 +458,7 @@ const Candidates = () => {
                     <label className="text-xs font-semibold text-slate-400 uppercase">Party</label>
                     <select required value={candidateForm.party_id} onChange={e => setCandidateForm({...candidateForm, party_id: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none">
                         <option value="">Select Party...</option>
-                        {parties.map(p => <option key={p.ID} value={p.ID}>{p.name}</option>)}
+                        {parties.map(p => <option key={getId(p)} value={getId(p)}>{p.name}</option>)}
                     </select>
                  </div>
 

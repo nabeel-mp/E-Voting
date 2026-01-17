@@ -12,7 +12,7 @@ type Admin struct {
 	Email       string `gorm:"uniqueIndex;not null"`
 	Password    string `gorm:"not null" json:"-"`
 	RoleID      uint   `gorm:"not null"`
-	Role        Role   `gorm:"foreignKey:RoleID"`
+	Roles       []Role `gorm:"many2many:admin_roles;"`
 	IsActive    bool   `gorm:"default:true"`
 	IsSuper     bool   `gorm:"default:false"`
 	Avatar      string `json:"avatar"`

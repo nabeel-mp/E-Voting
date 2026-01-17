@@ -97,6 +97,8 @@ func RegisterRoutes(app *fiber.App) {
 	staffMgmt.Put("/roles/:id", UpdateRoleHandler)
 	staffMgmt.Delete("/roles/:id", DeleteRoleHandler)
 
+	staffMgmt.Post("/assign-roles", AssignRolesHandler)
+
 	// Admin List & Block (Matching admin.html legacy route)
 	// admin.html calls /auth/admin/list.
 	superAdminLegacy := app.Group("/auth/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))

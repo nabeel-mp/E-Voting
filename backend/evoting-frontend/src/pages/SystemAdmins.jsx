@@ -7,13 +7,11 @@ import {
   Lock, 
   Unlock,
   Loader2,
-  ListFilter,
-  ChevronDown
+  ListFilter
 } from 'lucide-react';
 
 const SystemAdmins = () => {
   const [admins, setAdmins] = useState([]);
-  const [roles, setRoles] = useState([]); // Store available roles
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
   
@@ -24,14 +22,9 @@ const SystemAdmins = () => {
   // --- FETCH DATA ---
   const fetchData = async () => {
     try {
-      const [adminsRes, rolesRes] = await Promise.all([
-          api.get('/auth/admin/list'),
-          api.get('/api/auth/admin/roles')
-      ]);
-
-      if(adminsRes.data.success) setAdmins(adminsRes.data.data);
-      if(rolesRes.data.success) setRoles(rolesRes.data.data);
-
+      // Only fetch admins list, roles list not needed for display anymore
+      const res = await api.get('/auth/admin/list');
+      if(res.data.success) setAdmins(res.data.data);
     } catch (err) {
       console.error("Failed to fetch data", err);
     } finally {
@@ -40,30 +33,6 @@ const SystemAdmins = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
-
-  // --- UPDATE ROLE LOGIC ---
-  const handleRoleChange = async (adminId, newRoleId) => {
-      if(!window.confirm("Are you sure you want to change this user's role?")) return;
-      
-      setProcessingId(adminId);
-      try {
-          const res = await api.post('/auth/admin/update-role', {
-              admin_id: adminId,
-              role_id: parseInt(newRoleId)
-          });
-          
-          if(res.data.success) {
-              // Optimistic Update
-              const roleName = roles.find(r => r.ID === parseInt(newRoleId))?.Name || 'Unknown';
-              setAdmins(admins.map(a => a.id === adminId ? { ...a, role_name: roleName } : a));
-              alert("Role updated successfully");
-          }
-      } catch (err) {
-          alert(err.response?.data?.error || "Failed to update role");
-      } finally {
-          setProcessingId(null);
-      }
-  };
 
   // --- BLOCK/UNBLOCK LOGIC ---
   const toggleStatus = async (id, currentStatus) => {
@@ -93,9 +62,12 @@ const SystemAdmins = () => {
 
   // --- FILTER LOGIC ---
   const filteredAdmins = admins.filter(admin => {
+    // Check roles array for search term
+    const rolesString = Array.isArray(admin.roles) ? admin.roles.join(' ') : (admin.role_name || '');
+    
     const matchesSearch = !searchTerm || (
         admin.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        admin.role_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rolesString.toLowerCase().includes(searchTerm.toLowerCase()) ||
         admin.id.toString().includes(searchTerm)
     );
     let matchesStatus = true;
@@ -173,7 +145,7 @@ const SystemAdmins = () => {
             <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800">
               <tr>
                 <th className="px-6 py-4">Administrator</th>
-                <th className="px-6 py-4">Access Role</th>
+                <th className="px-6 py-4">Access Roles</th>
                 <th className="px-6 py-4">Account Status</th>
                 <th className="px-6 py-4 text-right">Security Action</th>
               </tr>
@@ -191,10 +163,10 @@ const SystemAdmins = () => {
               ) : filteredAdmins.length === 0 ? (
                 <tr>
                     <td colSpan="4" className="px-6 py-12 text-center text-slate-500 italic">
-                       <div className="flex flex-col items-center gap-2">
+                        <div className="flex flex-col items-center gap-2">
                           <ListFilter size={32} className="opacity-20" />
                           <p>No administrators found matching current filters.</p>
-                       </div>
+                        </div>
                     </td>
                 </tr>
               ) : (
@@ -223,21 +195,17 @@ const SystemAdmins = () => {
                             Super Admin
                           </span>
                       ) : (
-                          // ROLE DROPDOWN
-                          <div className="relative group/role">
-                              <select 
-                                  className="appearance-none bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 pr-6 rounded-full text-xs font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer hover:bg-indigo-500/20 transition-colors"
-                                  value={roles.find(r => r.Name === admin.role_name)?.ID || ''}
-                                  onChange={(e) => handleRoleChange(admin.id, e.target.value)}
-                                  disabled={processingId === admin.id}
-                              >
-                                  {roles.map(role => (
-                                      <option key={role.ID} value={role.ID} className="bg-slate-800 text-slate-200">
-                                          {role.Name}
-                                      </option>
-                                  ))}
-                              </select>
-                              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none group-hover/role:text-white" />
+                          // Display roles as badges
+                          <div className="flex flex-wrap gap-1.5">
+                             {Array.isArray(admin.roles) && admin.roles.length > 0 ? (
+                                admin.roles.map((roleName, idx) => (
+                                    <span key={idx} className="px-2 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded text-xs font-medium">
+                                        {roleName}
+                                    </span>
+                                ))
+                             ) : (
+                                <span className="text-slate-600 text-xs italic">No roles assigned</span>
+                             )}
                           </div>
                       )}
                     </td>

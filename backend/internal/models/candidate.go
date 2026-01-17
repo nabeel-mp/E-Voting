@@ -13,4 +13,5 @@ type Candidate struct {
 	PartyID    uint   `gorm:"not null" json:"party_id"`
 	Party      Party  `gorm:"foreignKey:PartyID" json:"party"`
 	Bio        string `json:"bio"`
+	Photo      string `json:"photo"`
 }

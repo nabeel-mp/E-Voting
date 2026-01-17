@@ -15,6 +15,7 @@ import Layout from './components/layout';
 import Roles from './pages/Role';
 import Elections from './pages/Election';
 import Verification from './pages/Verification';
+import AssignRoles from './pages/AssignROle';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
             <Route path="admins" element={<SystemAdmins />} />
             <Route path="staff" element={<Staff />} />
             <Route path="Roles" element={<Roles />} />
+            <Route path='assign-roles' element={<AssignRoles/>} />
             <Route path="audit" element={<AuditLogs />} />
             <Route path="settings" element={<Settings />} />
           </Route>
