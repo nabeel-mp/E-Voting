@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import api from '../utils/api';
 import { 
   Calendar, 
@@ -10,7 +10,9 @@ import {
   Vote, 
   Lock,
   Pencil,
-  X
+  X,
+  MoreVertical,
+  Trash2
 } from 'lucide-react';
 
 const Elections = () => {
@@ -20,6 +22,10 @@ const Elections = () => {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
+
+  // Dropdown State
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const dropdownRef = useRef(null);
 
   const [form, setForm] = useState({
     title: '',
@@ -41,7 +47,17 @@ const Elections = () => {
 
   useEffect(() => { fetchElections(); }, []);
 
-  // Helper: Format ISO to datetime-local string (YYYY-MM-DDThh:mm)
+  // Click Outside Handler for Dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const formatDateTimeLocal = (isoString) => {
     if (!isoString) return '';
     const date = new Date(isoString);
@@ -49,7 +65,6 @@ const Elections = () => {
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
   };
 
-  // Helper: Get Current Date Time for 'min' attribute
   const getCurrentDateTime = () => {
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
@@ -65,6 +80,18 @@ const Elections = () => {
         end_date: formatDateTimeLocal(election.end_date)
     });
     setShowModal(true);
+    setActiveDropdown(null);
+  };
+
+  const handleDelete = async (id) => {
+    if(!window.confirm("Are you sure you want to delete this election? This cannot be undone.")) return;
+    try {
+        await api.delete(`/api/admin/elections/${id}`);
+        fetchElections();
+        setActiveDropdown(null);
+    } catch (err) {
+        alert(err.response?.data?.error || "Failed to delete election");
+    }
   };
 
   const resetForm = () => {
@@ -73,34 +100,26 @@ const Elections = () => {
       setShowModal(false);
   };
 
-  // --- Strict Date/Time Change Handlers ---
-
   const handleStartDateChange = (e) => {
       const newStart = e.target.value;
       setForm(prev => ({
           ...prev, 
           start_date: newStart,
-          // If the existing end_date is now earlier than the new start_date, clear it
           end_date: (prev.end_date && prev.end_date < newStart) ? '' : prev.end_date
       }));
   };
 
   const handleEndDateChange = (e) => {
       const newEnd = e.target.value;
-      
-      // Strict Check: Prevent selecting a time earlier than start
       if (form.start_date && newEnd < form.start_date) {
           alert("End time cannot be earlier than Start time.");
-          return; // Do not update state
+          return;
       }
-      
       setForm(prev => ({ ...prev, end_date: newEnd }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Final Validation before Submit
     if (new Date(form.end_date) <= new Date(form.start_date)) {
         alert("End Date & Time must be strictly after Start Date & Time");
         return;
@@ -135,9 +154,9 @@ const Elections = () => {
     try {
       await api.post('/api/admin/elections/status', {
         election_id: id,
-        is_active: !currentStatus
+        status: !currentStatus
       });
-      setElections(elections.map(e => e.ID === id ? { ...e, is_active: !currentStatus } : e));
+      fetchElections(); 
     } catch (err) {
       alert("Failed to update status");
     }
@@ -172,9 +191,16 @@ const Elections = () => {
         ) : (
            elections.map((election) => {
              const isEnded = new Date(election.end_date) < new Date();
+             
+             // --- UPDATED RULES ---
+             // 1. Update: Only disabled if currently Active (Allows editing if Ended)
+             const canUpdate = !election.is_active;
+             
+             // 2. Delete: Allowed if Inactive OR Ended
+             const canDelete = !election.is_active || isEnded;
 
              return (
-               <div key={election.ID} className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-start md:items-center justify-between hover:border-slate-700 transition-all shadow-md group">
+               <div key={election.ID} className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-start md:items-center justify-between hover:border-slate-700 transition-all shadow-md group relative">
                   
                   <div className="flex items-start gap-4">
                      <div className={`p-3 rounded-xl ${election.is_active && !isEnded ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
@@ -184,15 +210,57 @@ const Elections = () => {
                         <div className="flex items-center gap-3">
                             <h3 className="text-xl font-bold text-slate-200">{election.title}</h3>
                             
-                            {!isEnded && (
+                            <div className="relative">
                                 <button 
-                                    onClick={() => handleEdit(election)}
-                                    className="p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                    title="Edit Details"
+                                    onClick={() => setActiveDropdown(activeDropdown === election.ID ? null : election.ID)}
+                                    className={`p-1 rounded-lg transition-colors ${activeDropdown === election.ID ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:text-white hover:bg-slate-700'}`}
                                 >
-                                    <Pencil size={16} />
+                                    <MoreVertical size={16} />
                                 </button>
-                            )}
+
+                                {activeDropdown === election.ID && (
+                                    <div 
+                                        ref={dropdownRef}
+                                        className="absolute left-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                                    >
+                                        <div className="p-1">
+                                            {/* Update Button */}
+                                            <button 
+                                                onClick={() => handleEdit(election)}
+                                                disabled={!canUpdate}
+                                                className={`w-full text-left px-3 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-colors ${
+                                                    canUpdate 
+                                                    ? 'text-slate-300 hover:text-white hover:bg-slate-800' 
+                                                    : 'text-slate-600 cursor-not-allowed'
+                                                }`}
+                                                title={!canUpdate ? "Cannot update Active election" : "Edit Election"}
+                                            >
+                                                <Pencil size={14} /> 
+                                                Update
+                                                {!canUpdate && <Lock size={12} className="ml-auto opacity-50"/>}
+                                            </button>
+                                            
+                                            <div className="h-px bg-slate-800 my-1 mx-2"></div>
+                                            
+                                            {/* Delete Button */}
+                                            <button 
+                                                onClick={() => handleDelete(election.ID)}
+                                                disabled={!canDelete}
+                                                className={`w-full text-left px-3 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-colors ${
+                                                    canDelete 
+                                                    ? 'text-rose-400 hover:bg-rose-500/10' 
+                                                    : 'text-slate-600 cursor-not-allowed'
+                                                }`}
+                                                title={!canDelete ? "Cannot delete active election" : "Delete Election"}
+                                            >
+                                                <Trash2 size={14} /> 
+                                                Delete
+                                                {!canDelete && <Lock size={12} className="ml-auto opacity-50"/>}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <p className="text-sm text-slate-500 mb-2">{election.description || "No description provided."}</p>
                         
@@ -223,19 +291,14 @@ const Elections = () => {
                         {isEnded ? "Ended" : (election.is_active ? "Active" : "Closed")}
                      </div>
                      
-                     {isEnded ? (
-                        <div className="p-2 text-slate-600 cursor-not-allowed" title="Election Time Over">
-                           <Lock size={24} />
-                        </div>
-                     ) : (
-                        <button 
+                     {/* FIXED: Toggle button is now ALWAYS visible so you can re-activate */}
+                     <button 
                           onClick={() => toggleStatus(election.ID, election.is_active)}
                           className={`p-2 rounded-lg transition-colors ${election.is_active ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
-                          title="Toggle Status"
-                        >
-                           {election.is_active ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                        </button>
-                     )}
+                          title={election.is_active ? "Stop Election" : "Activate Election"}
+                     >
+                        {election.is_active ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                     </button>
                   </div>
                </div>
              );
@@ -243,7 +306,6 @@ const Elections = () => {
         )}
       </div>
 
-      {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={resetForm} />
@@ -296,10 +358,10 @@ const Elections = () => {
                           <input 
                              type="datetime-local"
                              required 
-                             disabled={!form.start_date} // 1. DISABLED UNTIL START SELECTED
-                             min={form.start_date}       // 2. MINIMUM IS START TIME (Browser Enforcement)
+                             disabled={!form.start_date} 
+                             min={form.start_date} 
                              value={form.end_date} 
-                             onChange={handleEndDateChange} // 3. MANUAL CHECK VIA HANDLER
+                             onChange={handleEndDateChange} 
                              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                        </div>

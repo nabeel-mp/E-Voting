@@ -10,4 +10,5 @@ type Election struct {
 	EndDate     time.Time `json:"end_date"`
 	IsActive    bool      `gorm:"default:false" json:"is_active"`
 	IsPublished bool      `gorm:"default:false" json:"is_published"`
+	Status      string    `gorm:"default:'UPCOMING'" json:"status"`
 }

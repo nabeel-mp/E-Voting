@@ -73,6 +73,8 @@ func RegisterRoutes(app *fiber.App) {
 	candidateAPI := app.Group("/api/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
 	candidateAPI.Post("/parties", CreateParty)
 	candidateAPI.Get("/parties", ListParties)
+	candidateAPI.Put("/parties/:id", UpdateParty)
+	candidateAPI.Delete("/parties/:id", DeleteParty)
 	candidateAPI.Post("/candidates", CreateCandidate)
 	candidateAPI.Get("/candidates", ListCandidates)
 	candidateAPI.Put("/candidates/:id", UpdateCandidate)
@@ -82,6 +84,7 @@ func RegisterRoutes(app *fiber.App) {
 	electionAPI.Post("/elections", CreateElection)
 	electionAPI.Put("/elections/:id", UpdateElection)
 	electionAPI.Get("/elections", ListElections)
+	electionAPI.Delete("/elections/:id", DeleteElection)
 	electionAPI.Post("/elections/status", ToggleElectionStatus)
 	electionAPI.Post("/elections/publish", ToggleElectionPublish)
 
