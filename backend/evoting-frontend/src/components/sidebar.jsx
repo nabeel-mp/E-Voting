@@ -30,7 +30,7 @@ const Sidebar = () => {
         { title: "Voters List", path: "/voters", icon: <Users size={20} />, req: "register_voter" },
         { title: "Verification", path: "/verification", icon: <UserCheck size={20} />, req: "SUPER_ADMIN" },
         { title: "Candidates", path: "/candidates", icon: <UserCheck size={20} />, req: "SUPER_ADMIN" },
-        { title: "Live Results", path: "/results", icon: <BarChart3 size={20} />, req: "view_results" },
+        { title: "Results", path: "/results", icon: <BarChart3 size={20} />, req: "view_results" },
         { title: "Manage Roles", path: "/roles", icon: <UserCog size={20} />, req: "manage_roles" },
         { title: "Manage Staff", path: "/staff", icon: <UserCog size={20} />, req: "manage_admins" },
         { title: "Assign Roles", path: "/assign-roles", icon: <UserCog size={20} />, req: "manage_admins" },

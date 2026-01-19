@@ -39,7 +39,7 @@ func SeedSuperAdmin() {
 		admin := models.Admin{
 			Email:    email,
 			Password: hashedPwd,
-			RoleID:   role.ID,
+			Roles:    []models.Role{role},
 			IsSuper:  true,
 			IsActive: true,
 		}

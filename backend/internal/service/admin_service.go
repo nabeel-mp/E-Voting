@@ -182,7 +182,7 @@ func UpdateRole(id uint, name string, permissions []string) error {
 
 func DeleteRole(id uint) error {
 	var count int64
-	database.PostgresDB.Model(&models.Admin{}).Where("role_id = ?", id).Count(&count)
+	database.PostgresDB.Table("admin_roles").Where("role_id = ?", id).Count(&count)
 	if count > 0 {
 		return errors.New("cannot delete role: it is currently assigned to active staff members")
 	}
@@ -208,9 +208,12 @@ func UpdateAdminRole(targetAdminID uint, newRoleID uint, requesterID uint, reque
 		return errors.New("cannot change your own role")
 	}
 
-	// 3. Update Role
-	targetAdmin.RoleID = newRoleID
-	if err := database.PostgresDB.Save(&targetAdmin).Error; err != nil {
+	var newRole models.Role
+	if err := database.PostgresDB.First(&newRole, newRoleID).Error; err != nil {
+		return errors.New("role not found")
+	}
+
+	if err := database.PostgresDB.Model(&targetAdmin).Association("Roles").Replace([]models.Role{newRole}); err != nil {
 		return err
 	}
 

@@ -291,14 +291,20 @@ const Elections = () => {
                         {isEnded ? "Ended" : (election.is_active ? "Active" : "Closed")}
                      </div>
                      
-                     {/* Toggle Button: Always visible to allow re-activation */}
-                     <button 
+                     {/* CONDITIONAL TOGGLE: Show Lock if Ended, else Show Toggle */}
+                     {isEnded ? (
+                        <div className="p-2 text-slate-600 cursor-not-allowed" title="Election Time Over">
+                           <Lock size={24} />
+                        </div>
+                     ) : (
+                        <button 
                           onClick={() => toggleStatus(election.ID, election.is_active)}
                           className={`p-2 rounded-lg transition-colors ${election.is_active ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
                           title={election.is_active ? "Stop Election" : "Activate Election"}
-                     >
-                        {election.is_active ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                     </button>
+                        >
+                           {election.is_active ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                        </button>
+                     )}
                   </div>
                </div>
              );

@@ -32,9 +32,21 @@ func ConnectPostgres() {
 		log.Fatal(" Failed to connect to PostgreSQL:", err)
 	}
 
+	// log.Println("Connected to PostgreSQL")
+
 	PostgresDB = db
 	if err := db.AutoMigrate(&models.Role{}, &models.Admin{}, &models.Voter{}, &models.Party{}, &models.Candidate{}, &models.Vote{}, &models.Election{}); err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
+
+	if db.Migrator().HasColumn(&models.Admin{}, "role_id") {
+		log.Println("Dropping legacy 'role_id' column from admins table to fix creation error...")
+		if err := db.Migrator().DropColumn(&models.Admin{}, "role_id"); err != nil {
+			log.Printf("Failed to drop column: %v", err)
+		} else {
+			log.Println(" Legacy column dropped successfully.")
+		}
+	}
+
 	log.Println(" PostgreSQL connected & Migrated")
 }
