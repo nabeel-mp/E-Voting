@@ -109,4 +109,7 @@ func RegisterRoutes(app *fiber.App) {
 
 	// Audit Logs
 	app.Get("/api/audit/logs", middleware.PermissionMiddleware("SUPER_ADMIN"), GetAuditLogs)
+	app.Get("/api/admin/config", middleware.PermissionMiddleware(""), GetSystemSettings)
+	app.Post("/api/admin/config", middleware.PermissionMiddleware("SUPER_ADMIN"), UpdateSystemSettings)
+
 }

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../utils/api';
 import {
     LayoutDashboard,
     Users,
@@ -13,15 +14,32 @@ import {
     LogOut,
     ChevronRight,
     UserCircle2,
-    Calendar
+    Calendar,
+    Sliders
 } from 'lucide-react';
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
     const location = useLocation();
+    const [systemName, setSystemName] = useState("E-Voting");
 
     const isSuperAdmin = user?.is_super || user?.role === 'SUPER_ADMIN';
     const permissions = user?.permissions || "";
+
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const res = await api.get('/api/admin/config');
+                if (res.data.success) {
+                    const nameSetting = res.data.data.find(s => s.key === 'system_name');
+                    if (nameSetting) setSystemName(nameSetting.value);
+                }
+            } catch (err) {
+                console.error("Failed to load system name");
+            }
+        };
+        fetchConfig();
+    }, []);
 
     // Menu Configuration
     const menuItems = [
@@ -36,6 +54,7 @@ const Sidebar = () => {
         { title: "Assign Roles", path: "/assign-roles", icon: <UserCog size={20} />, req: "manage_admins" },
         { title: "System Admins", path: "/admins", icon: <Shield size={20} />, req: "SUPER_ADMIN" },
         { title: "Audit Logs", path: "/audit", icon: <ScrollText size={20} />, req: "SUPER_ADMIN" },
+        { title: "Configuration", path: "/configuration", icon: <Sliders size={20} />, req: "SUPER_ADMIN" },
     ];
 
     const bottomItems = [
@@ -48,10 +67,8 @@ const Sidebar = () => {
         return permissions.includes(req);
     };
 
-    // Helper to determine if a link is active
     const isActive = (path) => location.pathname === path;
 
-    // --- NEW: Handle Logout with Confirmation ---
     const handleLogout = () => {
         if (window.confirm("Are you sure you want to sign out?")) {
             logout();
@@ -72,7 +89,7 @@ const Sidebar = () => {
                     </div>
                     <div>
                         <h1 className="font-bold text-white text-lg tracking-tight leading-none">
-                            E-Voting
+                            {systemName}
                         </h1>
                         <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest mt-1">
                             Admin Portal
@@ -95,8 +112,8 @@ const Sidebar = () => {
                                 key={item.path}
                                 to={item.path}
                                 className={`relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${isActive(item.path)
-                                        ? 'bg-indigo-600/10 text-white'
-                                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
+                                    ? 'bg-indigo-600/10 text-white'
+                                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
                                     }`}
                             >
                                 {/* Active Indicator Line */}
@@ -132,8 +149,8 @@ const Sidebar = () => {
                                 key={item.path}
                                 to={item.path}
                                 className={`relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${isActive(item.path)
-                                        ? 'bg-indigo-600/10 text-white'
-                                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
+                                    ? 'bg-indigo-600/10 text-white'
+                                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
                                     }`}
                             >
                                 {isActive(item.path) && (
@@ -158,11 +175,11 @@ const Sidebar = () => {
                         {/* Avatar Container */}
                         <div className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shadow-lg overflow-hidden shrink-0">
                             {user?.avatar ? (
-                                <img 
+                                <img
                                     /* Ensure this URL matches your backend configuration */
-                                    src={`http://localhost:8080${user.avatar}`} 
+                                    src={`http://localhost:8080${user.avatar}`}
                                     alt={user.name}
-                                     className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover"
                                     onError={(e) => {
                                         // Fallback logic: hide image and show icon if load fails
                                         e.target.style.display = 'none';
@@ -170,9 +187,9 @@ const Sidebar = () => {
                                     }}
                                 />
                             ) : null}
-                            
+
                             {/* Fallback Icon (shown if no avatar or on error) */}
-                            <div 
+                            <div
                                 className={`w-full h-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white ${user?.avatar ? 'hidden' : 'flex'}`}
                             >
                                 <UserCircle2 size={20} />

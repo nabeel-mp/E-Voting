@@ -1,6 +1,7 @@
 package api
 
 import (
+	"E-voting/internal/repository"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
 
@@ -19,6 +20,10 @@ type OTPVerifyReq struct {
 }
 
 func VoterLogin(c *fiber.Ctx) error {
+	if repository.GetSettingValue("maintenance_mode") == "true" {
+		return utils.Error(c, 503, "System is currently under maintenance. Please try again later.")
+	}
+
 	var req VoterLoginReq
 	if err := c.BodyParser(&req); err != nil {
 		return utils.Error(c, 400, "Invalid request")

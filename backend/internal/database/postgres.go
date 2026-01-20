@@ -35,7 +35,11 @@ func ConnectPostgres() {
 	// log.Println("Connected to PostgreSQL")
 
 	PostgresDB = db
-	if err := db.AutoMigrate(&models.Role{}, &models.Admin{}, &models.Voter{}, &models.Party{}, &models.Candidate{}, &models.Vote{}, &models.Election{}); err != nil {
+	if err := db.AutoMigrate(&models.Role{},
+		&models.Admin{}, &models.Voter{},
+		&models.Party{}, &models.Candidate{},
+		&models.Vote{}, &models.Election{},
+		&models.SystemSetting{}); err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
 

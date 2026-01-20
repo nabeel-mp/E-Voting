@@ -24,7 +24,13 @@ type VoterStatusReq struct {
 }
 
 func RegisterVoter(c *fiber.Ctx) error {
+
+	if repository.GetSettingValue("allow_voter_registration") == "false" {
+		return utils.Error(c, 403, "Voter registration is currently disabled by the administrator.")
+	}
+
 	var req RegisterVoterRequest
+
 	if err := c.BodyParser(&req); err != nil {
 		return utils.Error(c, 400, "Invalid request body")
 	}
