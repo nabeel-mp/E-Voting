@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
 import { 
@@ -6,9 +5,9 @@ import {
   Check, 
   X, 
   Loader2, 
-  ShieldAlert, 
   Clock,
-  Search
+  Search,
+  Ban
 } from 'lucide-react';
 
 const Verification = () => {
@@ -34,34 +33,41 @@ const Verification = () => {
 
   useEffect(() => { fetchPendingVoters(); }, []);
 
-const handleVerify = async (voter) => {
-    // Determine the correct ID (check for both ID and id)
+  const handleVerify = async (voter) => {
     const targetId = voter.ID || voter.id;
-
-    if (!targetId) {
-        alert("Error: Voter Database ID missing.");
-        return;
-    }
+    if (!targetId) return;
 
     if (!window.confirm(`Verify and approve ${voter.FullName}?`)) return;
     
     setProcessingId(targetId);
     try {
-        // This POST must match the backend route exactly
-        await api.post('/api/admin/voter/verify', { 
-            voter_id: targetId // Ensure this key matches your Go struct tag
-        });
-        
+        await api.post('/api/admin/voter/verify', { voter_id: targetId });
         setPendingVoters(prev => prev.filter(v => (v.ID !== targetId && v.id !== targetId)));
         alert("Voter verified successfully");
     } catch (err) {
-        console.error("Axios Error:", err.response);
-        const msg = err.response?.data?.error || "Method Not Allowed - Check Backend Routes";
-        alert(`Error ${err.response?.status}: ${msg}`);
+        alert(err.response?.data?.error || "Operation failed");
     } finally {
         setProcessingId(null);
     }
-};
+  };
+
+  const handleReject = async (voter) => {
+    const targetId = voter.ID || voter.id;
+    if (!targetId) return;
+
+    if (!window.confirm(`Are you sure you want to REJECT ${voter.FullName}? This will remove the request.`)) return;
+    
+    setProcessingId(targetId);
+    try {
+        await api.post('/api/admin/voter/reject', { voter_id: targetId });
+        setPendingVoters(prev => prev.filter(v => (v.ID !== targetId && v.id !== targetId)));
+        alert("Voter request rejected and removed.");
+    } catch (err) {
+        alert(err.response?.data?.error || "Operation failed");
+    } finally {
+        setProcessingId(null);
+    }
+  };
 
   const filteredList = pendingVoters.filter(v => 
     v.FullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -139,14 +145,25 @@ const handleVerify = async (voter) => {
                                 {new Date(v.CreatedAt).toLocaleDateString()}
                             </td>
                             <td className="px-6 py-4 text-right">
-                                <button 
-                                    onClick={() => handleVerify(v)}
-                                    disabled={processingId === v.ID}
-                                    className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {processingId === v.ID ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                                    Approve
-                                </button>
+                                <div className="flex items-center justify-end gap-2">
+                                    <button 
+                                        onClick={() => handleReject(v)}
+                                        disabled={processingId === v.ID}
+                                        className="inline-flex items-center gap-2 bg-rose-950/30 hover:bg-rose-900/50 text-rose-400 border border-rose-500/20 px-4 py-2 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Ban size={16} />
+                                        Reject
+                                    </button>
+                                    
+                                    <button 
+                                        onClick={() => handleVerify(v)}
+                                        disabled={processingId === v.ID}
+                                        className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {processingId === v.ID ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                        Approve
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     ))

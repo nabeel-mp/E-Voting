@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Voter struct {
 	BaseModel
@@ -9,9 +13,10 @@ type Voter struct {
 	AadhaarHash string `gorm:"uniqueIndex;not null" json:"-"`
 	Mobile      string `gorm:"not null" json:"Mobile"`
 
-	CurrentOTP   string    `json:"-"`
-	OTPExpiresAt time.Time `json:"-"`
-	IsVerified   bool      `gorm:"default:false" json:"IsVerified"`
-	HasVoted     bool      `gorm:"default:false" json:"HasVoted"`
-	IsBlocked    bool      `gorm:"default:false" json:"IsBlocked"`
+	CurrentOTP   string         `json:"-"`
+	OTPExpiresAt time.Time      `json:"-"`
+	IsVerified   bool           `gorm:"default:false" json:"IsVerified"`
+	HasVoted     bool           `gorm:"default:false" json:"HasVoted"`
+	IsBlocked    bool           `gorm:"default:false" json:"IsBlocked"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }

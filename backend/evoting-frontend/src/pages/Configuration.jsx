@@ -87,6 +87,13 @@ const Configuration = () => {
     }
   };
 
+  const formatKey = (key) => {
+    return key.split('_').map(w => {
+        if (['otp', 'url', 'id', 'api'].includes(w.toLowerCase())) return w.toUpperCase();
+        return w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(' ');
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       
@@ -132,7 +139,7 @@ const Configuration = () => {
                     {items.map((setting) => (
                         <div key={setting.key} className="space-y-2">
                             <label className="text-sm font-medium text-slate-300 block">
-                                {setting.key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                {formatKey(setting.key)}
                             </label>
                             
                             {setting.type === 'boolean' ? (

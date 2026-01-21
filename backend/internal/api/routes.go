@@ -64,6 +64,7 @@ func RegisterRoutes(app *fiber.App) {
 	voterMgmt.Post("/voters/import", ImportVotersCSV)
 
 	voterMgmt.Post("/voter/verify", middleware.PermissionMiddleware("SUPER_ADMIN"), VerifyVoter)
+	voterMgmt.Post("/voter/reject", middleware.PermissionMiddleware("SUPER_ADMIN"), RejectVoter)
 
 	// Results (Requires 'view_results' permission)
 	resultsAPI := app.Group("/api/admin", middleware.PermissionMiddleware("view_results"))

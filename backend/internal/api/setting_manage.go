@@ -16,7 +16,14 @@ func InitializeDefaults() {
 		{Key: "support_email", Value: "support@evoting.com", Description: "Contact email for voters", Type: "text", Category: "General"},
 		{Key: "allow_voter_registration", Value: "true", Description: "Allow new voters to register", Type: "boolean", Category: "Features"},
 		{Key: "maintenance_mode", Value: "false", Description: "Enable maintenance mode (voters cannot login)", Type: "boolean", Category: "System"},
-		{Key: "max_session_duration", Value: "60", Description: "Session timeout in minutes", Type: "number", Category: "Security"},
+
+		{
+			Key:         "otp_validity_duration",
+			Value:       "5",
+			Description: "OTP expiry time in minutes",
+			Type:        "number",
+			Category:    "Security",
+		},
 	}
 
 	for _, d := range defaults {

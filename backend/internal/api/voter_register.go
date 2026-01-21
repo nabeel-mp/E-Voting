@@ -120,6 +120,23 @@ func VerifyVoter(c *fiber.Ctx) error {
 	return utils.Success(c, "Voter verified successfully")
 }
 
+func RejectVoter(c *fiber.Ctx) error {
+	var req VoterStatusReq
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	if err := database.PostgresDB.Delete(&models.Voter{}, req.VoterID).Error; err != nil {
+		return utils.Error(c, 500, "Failed to reject voter")
+	}
+
+	actorIDFloat, _ := c.Locals("user_id").(float64)
+	actorRole, _ := c.Locals("role").(string)
+	service.LogAdminAction(uint(actorIDFloat), actorRole, "REJECT_VOTER", req.VoterID, nil)
+
+	return utils.Success(c, "Voter rejected and removed")
+}
+
 func ExportVotersCSV(c *fiber.Ctx) error {
 	var voters []models.Voter
 	if err := database.PostgresDB.Find(&voters).Error; err != nil {

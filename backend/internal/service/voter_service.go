@@ -4,6 +4,7 @@ import (
 	"E-voting/internal/repository"
 	"E-voting/internal/utils"
 	"errors"
+	"strconv"
 	"time"
 )
 
@@ -17,9 +18,15 @@ func InitiateVoterLogin(voterID, mobile, aadhaar string) (string, error) {
 		return "", errors.New("invalid credentials")
 	}
 
+	minutesStr := repository.GetSettingValue("otp_validity_duration")
+	minutes, err := strconv.Atoi(minutesStr)
+	if err != nil || minutes <= 0 {
+		minutes = 5
+	}
 	otp := utils.GenerateOTP()
 	voter.CurrentOTP = otp
-	voter.OTPExpiresAt = time.Now().Add(5 * time.Minute)
+
+	voter.OTPExpiresAt = time.Now().Add(time.Duration(minutes) * time.Minute)
 
 	err = repository.UpdateVoterOTP(voter)
 	if err != nil {
