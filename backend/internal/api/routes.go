@@ -44,6 +44,11 @@ func RegisterRoutes(app *fiber.App) {
 	auth.Post("/voter/login", VoterLogin)
 	auth.Post("/voter/verify-otp", VerifyOTP)
 
+	voterApp := app.Group("/api/voter", middleware.PermissionMiddleware(""))
+	voterApp.Get("/elections", GetVoterElections)
+	voterApp.Get("/elections/:id/candidates", GetVoterCandidates)
+	voterApp.Post("/vote", CastVote)
+
 	// 2. Admin API Routes
 
 	// General Admin Profile

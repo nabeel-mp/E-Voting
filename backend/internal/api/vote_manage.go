@@ -17,6 +17,33 @@ type VoteRequest struct {
 	ElectionID  uint `json:"election_id"`
 }
 
+func GetVoterElections(c *fiber.Ctx) error {
+	var elections []models.Election
+	// Fetch only active and ongoing elections
+	if err := database.PostgresDB.
+		Where("is_active = ?", true).
+		// Where("status = ?", "ONGOING"). // Optional: if you use status field strictly
+		Order("end_date asc").
+		Find(&elections).Error; err != nil {
+		return utils.Error(c, 500, "Failed to fetch elections")
+	}
+	return utils.Success(c, elections)
+}
+
+func GetVoterCandidates(c *fiber.Ctx) error {
+	electionID := c.Params("id")
+	var candidates []models.Candidate
+
+	// Preload Party to show logos
+	if err := database.PostgresDB.
+		Preload("Party").
+		Where("election_id = ?", electionID).
+		Find(&candidates).Error; err != nil {
+		return utils.Error(c, 500, "Failed to fetch candidates")
+	}
+	return utils.Success(c, candidates)
+}
+
 func CastVote(c *fiber.Ctx) error {
 	var req VoteRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -35,8 +62,13 @@ func CastVote(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Election has ended")
 	}
 
-	// 2. Get Voter
-	voterID := uint(c.Locals("user_id").(float64))
+	// 2. Get Voter ID from Token (Middleware puts it in locals)
+	voterIDFloat, ok := c.Locals("user_id").(float64)
+	if !ok {
+		return utils.Error(c, 401, "Unauthorized")
+	}
+	voterID := uint(voterIDFloat)
+
 	var voter models.Voter
 	if err := database.PostgresDB.First(&voter, voterID).Error; err != nil {
 		return utils.Error(c, 401, "Voter not found")
@@ -52,6 +84,7 @@ func CastVote(c *fiber.Ctx) error {
 	}
 
 	// 4. Record Vote
+	// Create a unique hash for the receipt
 	voteHash := sha256.Sum256([]byte(fmt.Sprintf("%d-%d-%d", voter.ID, req.ElectionID, time.Now().UnixNano())))
 	voteHashStr := hex.EncodeToString(voteHash[:])
 
@@ -77,5 +110,9 @@ func CastVote(c *fiber.Ctx) error {
 
 	tx.Commit()
 
-	return utils.Success(c, fiber.Map{"message": "Vote cast successfully", "receipt": voteHashStr})
+	return utils.Success(c, fiber.Map{
+		"message":        "Vote cast successfully",
+		"receipt":        voteHashStr,
+		"election_title": election.Title,
+	})
 }
