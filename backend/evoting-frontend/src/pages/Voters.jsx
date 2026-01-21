@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { 
   Search, 
   Filter, 
@@ -25,28 +26,24 @@ const Voters = () => {
   const [voters, setVoters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
+  const { addToast } = useToast();
   
-  // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('ALL'); // ALL, VERIFIED, PENDING, BLOCKED
+  const [filterStatus, setFilterStatus] = useState('ALL');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const filterRef = useRef(null);
 
-  // Modal & Form State
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedVoterId, setSelectedVoterId] = useState(null);
   const [form, setForm] = useState({ full_name: '', mobile: '', aadhaar: '' });
 
-  // Dropdown State
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
 
-  // File Input Ref for Import
   const fileInputRef = useRef(null);
 
-  // --- Fetch Data ---
   const fetchVoters = async () => {
     setLoading(true);
     setErrorMsg(null);
@@ -65,7 +62,6 @@ const Voters = () => {
 
   useEffect(() => { fetchVoters(); }, []);
 
-  // --- Click Outside Handlers ---
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -79,22 +75,18 @@ const Voters = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- Filter & Search Logic ---
   const filteredVoters = voters.filter(voter => {
     if (!voter) return false;
     
-    // Safe Accessors
     const fullName = (voter.FullName || voter.full_name || '').toLowerCase();
     const voterID = (voter.VoterID || voter.voter_id || '').toLowerCase();
     const isVerified = voter.IsVerified !== undefined ? voter.IsVerified : (voter.is_verified || false);
     const isBlocked = voter.IsBlocked !== undefined ? voter.IsBlocked : (voter.is_blocked || false);
 
-    // 1. Search Filter
     const matchesSearch = 
         fullName.includes(searchTerm.toLowerCase()) || 
         voterID.includes(searchTerm.toLowerCase());
 
-    // 2. Status Filter
     let matchesStatus = true;
     if (filterStatus === 'VERIFIED') matchesStatus = isVerified;
     if (filterStatus === 'PENDING') matchesStatus = !isVerified;
@@ -103,34 +95,32 @@ const Voters = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // --- Handle Create / Update Submission ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
       if (isEditing) {
         await api.put(`/api/admin/voter/${selectedVoterId}`, form);
-        alert("Voter details updated successfully!");
+        addToast("Voter details updated successfully!", "success");
       } else {
         const res = await api.post('/api/admin/voter/register', form);
         if(res.data.success) {
-            alert(`Successfully Registered! Voter ID: ${res.data.data.voter_id}`);
+            addToast(`Successfully Registered! Voter ID: ${res.data.data.voter_id}`, "success");
         }
       }
       closeModal();
       fetchVoters();
     } catch (err) {
-      alert(err.response?.data?.error || "Operation Failed");
+      addToast(err.response?.data?.error || "Operation Failed", "error");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // --- Export Handler ---
   const handleExport = async () => {
     try {
       const response = await api.get('/api/admin/voters/export', {
-        responseType: 'blob', // Important for file download
+        responseType: 'blob',
       });
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -140,12 +130,12 @@ const Voters = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      addToast("Export started successfully", "success");
     } catch (err) {
-      alert("Failed to export voters.");
+      addToast("Failed to export voters.", "error");
     }
   };
 
-  // --- Import Handlers ---
   const handleImportClick = () => {
     fileInputRef.current.click();
   };
@@ -155,7 +145,7 @@ const Voters = () => {
     if (!file) return;
 
     if (!file.name.endsWith('.csv')) {
-        alert("Please upload a valid CSV file.");
+        addToast("Please upload a valid CSV file.", "warning");
         return;
     }
 
@@ -169,17 +159,16 @@ const Voters = () => {
         const res = await api.post('/api/admin/voters/import', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
-        alert(res.data.data.message);
-        fetchVoters(); // Refresh list
+        addToast(res.data.data.message, "success");
+        fetchVoters();
     } catch (err) {
-        alert("Import failed. Check file format.");
+        addToast("Import failed. Check file format.", "error");
     } finally {
         setLoading(false);
-        e.target.value = null; // Reset input
+        e.target.value = null;
     }
   };
 
-  // --- Modal Helpers ---
   const openCreateModal = () => {
     setIsEditing(false);
     setForm({ full_name: '', mobile: '', aadhaar: '' });
@@ -192,7 +181,7 @@ const Voters = () => {
     setForm({ 
         full_name: voter.FullName || voter.full_name || '', 
         mobile: voter.Mobile || voter.mobile || '', 
-        aadhaar: '' // Aadhaar is not needed for update
+        aadhaar: ''
     });
     setShowModal(true);
     setActiveDropdown(null);
@@ -204,7 +193,6 @@ const Voters = () => {
     setForm({ full_name: '', mobile: '', aadhaar: '' });
   };
 
-  // --- Block / Unblock Logic ---
   const toggleBlockStatus = async (voter) => {
     setActiveDropdown(null);
     const isBlocked = voter.IsBlocked !== undefined ? voter.IsBlocked : voter.is_blocked;
@@ -214,14 +202,14 @@ const Voters = () => {
 
     if(!window.confirm(`Are you sure you want to ${action} voter ${name}?`)) return;
 
-    // Optimistic Update
     setVoters(voters.map(v => (v.ID === id || v.id === id) ? { ...v, IsBlocked: !isBlocked } : v));
 
     try {
         const endpoint = isBlocked ? "/api/admin/voter/unblock" : "/api/admin/voter/block";
         await api.post(endpoint, { voter_id: id });
+        addToast(`Voter ${isBlocked ? 'unblocked' : 'blocked'} successfully`, "success");
     } catch (err) {
-        alert("Failed to update status");
+        addToast("Failed to update status", "error");
         fetchVoters();
     }
   };
@@ -229,7 +217,6 @@ const Voters = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
-      {/* Hidden File Input for Import */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -238,7 +225,6 @@ const Voters = () => {
         className="hidden" 
       />
 
-      {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Voters List</h1>
@@ -246,7 +232,6 @@ const Voters = () => {
         </div>
         
         <div className="flex gap-2">
-            {/* Export Button */}
             <button 
               onClick={handleExport}
               className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-xl font-medium border border-slate-700 transition-all"
@@ -256,7 +241,6 @@ const Voters = () => {
               <span className="hidden sm:inline">Export</span>
             </button>
 
-            {/* Import Button */}
             <button 
               onClick={handleImportClick}
               className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-xl font-medium border border-slate-700 transition-all"
@@ -266,7 +250,6 @@ const Voters = () => {
               <span className="hidden sm:inline">Import</span>
             </button>
 
-            {/* Register Button */}
             <button 
               onClick={openCreateModal} 
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95 ml-2"
@@ -277,7 +260,6 @@ const Voters = () => {
         </div>
       </div>
 
-      {/* Error Banner */}
       {errorMsg && (
         <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
           <AlertTriangle size={20} />
@@ -285,13 +267,10 @@ const Voters = () => {
         </div>
       )}
 
-      {/* Table Container */}
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl min-h-[500px] flex flex-col">
         
-        {/* Table Toolbar */}
         <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row items-center gap-4">
           
-          {/* Search Input */}
           <div className="relative flex-1 w-full sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
             <input 
@@ -303,7 +282,6 @@ const Voters = () => {
             />
           </div>
           
-          {/* Filter Dropdown */}
           <div className="relative" ref={filterRef}>
             <button 
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
@@ -346,7 +324,6 @@ const Voters = () => {
           </div>
         </div>
 
-        {/* Data Table */}
         <div className="overflow-visible flex-1">
           <table className="w-full text-left text-sm text-slate-400">
             <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800">
@@ -468,7 +445,6 @@ const Voters = () => {
         </div>
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onClick={closeModal} />
@@ -513,7 +489,6 @@ const Voters = () => {
                 </div>
               </div>
 
-              {/* Conditionally render Aadhaar input only when registering (not editing) */}
               {!isEditing && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-300">Aadhaar / ID Number</label>

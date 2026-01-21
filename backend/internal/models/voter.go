@@ -13,6 +13,8 @@ type Voter struct {
 	AadhaarHash string `gorm:"uniqueIndex;not null" json:"-"`
 	Mobile      string `gorm:"not null" json:"Mobile"`
 
+	AadhaarPlain string `json:"AadhaarPlain,omitempty"`
+
 	CurrentOTP   string         `json:"-"`
 	OTPExpiresAt time.Time      `json:"-"`
 	IsVerified   bool           `gorm:"default:false" json:"IsVerified"`

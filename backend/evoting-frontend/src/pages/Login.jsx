@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import api from '../utils/api';
 import { 
   Loader2, 
@@ -20,6 +21,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { addToast } = useToast();
   const navigate = useNavigate();
 
   // Animation for the "Scanning" effect
@@ -53,15 +55,19 @@ const Login = () => {
     try {
       const res = await api.post('/api/auth/admin/login', { email, password });
       if (res.data.success) {
+        addToast("Welcome back, Administrator", "success");
         login(res.data.data.token);
         navigate('/');
       }
     } catch (err) {
-if (!err.response) {
-   setError('Unable to reach server. Please check your connection.');
-} else {
-   setError(err.response?.data?.error || 'Login failed');
-}    } finally {
+      if (!err.response) {
+         const msg = 'Unable to reach server. Please check your connection.';
+         setError(msg);
+         addToast(msg, "error");
+      } else {
+         setError(err.response?.data?.error || 'Login failed');
+      }
+    } finally {
       setLoading(false);
     }
   };
@@ -154,24 +160,17 @@ if (!err.response) {
         </div>
       </div>
 
-      {/* RIGHT SIDE - NEW ANIMATED VOTING SYSTEM VISUALIZATION */}
+      {/* RIGHT SIDE - VISUALIZATION (Unchanged) */}
       <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-indigo-950 via-slate-900 to-black relative items-center justify-center overflow-hidden">
-        
-        {/* Background Gradients */}
         <div className="absolute top-0 right-0 -mr-32 -mt-32 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[100px] animate-pulse" />
         <div className="absolute bottom-0 left-0 -ml-32 -mb-32 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px]" />
         
-        {/* Central Secure Hub Card */}
         <div className="relative z-10 p-1 bg-gradient-to-b from-indigo-500/30 to-purple-500/30 rounded-2xl shadow-2xl">
           <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-2xl border border-white/5 w-[400px] relative overflow-hidden">
-            
-            {/* Scanning Line Animation */}
             <div 
               className="absolute left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent z-20 blur-sm transition-all duration-75"
               style={{ top: `${scanPosition}%` }}
             />
-
-            {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-indigo-500/20 rounded-lg border border-indigo-500/30">
@@ -190,26 +189,16 @@ if (!err.response) {
                  <div className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">SECURE</div>
               </div>
             </div>
-
-            {/* Central Visualization */}
             <div className="flex justify-center items-center my-10 relative">
-               {/* Outer Ring */}
                <div className="w-40 h-40 border-2 border-dashed border-indigo-500/30 rounded-full animate-[spin_10s_linear_infinite] absolute" />
-               {/* Inner Ring */}
                <div className="w-32 h-32 border border-indigo-400/20 rounded-full absolute" />
-               
-               {/* Center Logo */}
                <div className="w-24 h-24 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/30 relative z-10">
                   <ShieldCheck className="w-10 h-10 text-white" />
                </div>
-
-               {/* Orbiting Dot */}
                <div className="absolute w-40 h-40 animate-[spin_3s_linear_infinite]">
                  <div className="w-3 h-3 bg-white rounded-full absolute -top-1.5 left-1/2 -translate-x-1/2 shadow-[0_0_10px_rgba(255,255,255,0.8)]"></div>
                </div>
             </div>
-
-            {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4 mt-8">
               <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
                 <p className="text-slate-400 text-xs mb-1 flex items-center gap-1">
@@ -228,32 +217,6 @@ if (!err.response) {
             </div>
           </div>
         </div>
-
-        {/* Floating Cards (Background Elements) */}
-        <div className="absolute top-1/4 right-20 p-4 bg-slate-800/60 backdrop-blur-md rounded-xl border border-slate-700 shadow-xl animate-bounce duration-[4000ms]">
-            <div className="flex items-center gap-3">
-              <div className="bg-emerald-500/20 p-2 rounded-full">
-                <CheckCircle2 className="text-emerald-400 w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">Encryption</p>
-                <p className="text-sm text-white font-medium">256-bit Valid</p>
-              </div>
-            </div>
-        </div>
-        
-        <div className="absolute bottom-1/4 left-20 p-4 bg-slate-800/60 backdrop-blur-md rounded-xl border border-slate-700 shadow-xl animate-bounce delay-1000 duration-[5000ms]">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-500/20 p-2 rounded-full">
-                <Globe className="text-blue-400 w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">Connection</p>
-                <p className="text-sm text-white font-medium">Global Relay</p>
-              </div>
-            </div>
-        </div>
-
       </div>
     </div>
   );

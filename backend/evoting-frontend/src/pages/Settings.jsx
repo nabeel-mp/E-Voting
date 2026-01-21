@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext'; // Import
 import api from '../utils/api';
 import { 
   User, 
@@ -8,33 +9,20 @@ import {
   Camera, 
   Loader2, 
   Save, 
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle
+  ShieldCheck
 } from 'lucide-react';
 
 const Settings = () => {
   const { user, login } = useAuth();
+  const { addToast } = useToast(); // Use Hook
   const [loading, setLoading] = useState({ profile: false, password: false, avatar: false });
-  const [message, setMessage] = useState({ type: '', text: '' });
 
   // Determine role for UI logic
   const isSuperAdmin = user?.is_super === true || user?.role === "SUPER_ADMIN";
 
-  // 1. Profile State
-  const [profileForm, setProfileForm] = useState({
-    name: '',
-    email: ''
-  });
+  const [profileForm, setProfileForm] = useState({ name: '', email: '' });
+  const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
 
-  // 2. Password State
-  const [passwordForm, setPasswordForm] = useState({
-    current_password: '',
-    new_password: '',
-    confirm_password: ''
-  });
-
-  // Sync form with user context when it changes
   useEffect(() => {
     if (user) {
       setProfileForm({
@@ -44,18 +32,11 @@ const Settings = () => {
     }
   }, [user]);
 
-  const showAlert = (type, text) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
-  };
-
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setLoading(prev => ({ ...prev, profile: true }));
     
     try {
-      // For Super Admin, ensure we send the existing email to satisfy backend checks
-      // even if the UI input is disabled.
       const payload = {
         name: profileForm.name,
         email: isSuperAdmin ? user.email : profileForm.email
@@ -64,15 +45,13 @@ const Settings = () => {
       const res = await api.put('/api/admin/update-profile', payload);
       
       if (res.data.success) {
-        // CRITICAL: Update local context with the new token from backend
-        // This ensures the displayed name/email updates immediately
         if (res.data.data.token) {
             login(res.data.data.token);
         }
-        showAlert('success', 'Profile updated successfully');
+        addToast('Profile updated successfully', 'success');
       }
     } catch (err) {
-      showAlert('error', err.response?.data?.error || 'Failed to update profile');
+      addToast(err.response?.data?.error || 'Failed to update profile', 'error');
     } finally {
       setLoading(prev => ({ ...prev, profile: false }));
     }
@@ -81,7 +60,7 @@ const Settings = () => {
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      return showAlert('error', 'New passwords do not match');
+      return addToast('New passwords do not match', 'warning');
     }
     setLoading(prev => ({ ...prev, password: true }));
     
@@ -91,11 +70,11 @@ const Settings = () => {
         new_password: passwordForm.new_password
       });
       if (res.data.success) {
-        showAlert('success', 'Password changed successfully');
+        addToast('Password changed successfully', 'success');
         setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
       }
     } catch (err) {
-      showAlert('error', err.response?.data?.error || 'Password change failed');
+      addToast(err.response?.data?.error || 'Password change failed', 'error');
     } finally {
       setLoading(prev => ({ ...prev, password: false }));
     }
@@ -105,9 +84,8 @@ const Settings = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Client-side validation
     if (file.size > 2 * 1024 * 1024) {
-        return showAlert('error', 'Image too large (Max 2MB)');
+        return addToast('Image too large (Max 2MB)', 'warning');
     }
 
     const formData = new FormData();
@@ -121,15 +99,13 @@ const Settings = () => {
       });
       
       if (res.data.success) {
-        // CRITICAL: Update context with the new token containing the new avatar URL
-        // This fixes the issue of the avatar not showing up without a reload
         if (res.data.data.token) {
             login(res.data.data.token);
         }
-        showAlert('success', 'Avatar updated successfully');
+        addToast('Avatar updated successfully', 'success');
       }
     } catch (err) {
-      showAlert('error', err.response?.data?.error || 'Failed to upload image');
+      addToast(err.response?.data?.error || 'Failed to upload image', 'error');
     } finally {
       setLoading(prev => ({ ...prev, avatar: false }));
     }
@@ -141,16 +117,6 @@ const Settings = () => {
         <h1 className="text-3xl font-bold text-white tracking-tight">Account Settings</h1>
         <p className="text-slate-400 mt-1">Manage your administrator profile and security preferences.</p>
       </div>
-
-      {/* Global Alert */}
-      {message.text && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 border animate-in slide-in-from-top-2 ${
-          message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-        }`}>
-          {message.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-          <span className="text-sm font-medium">{message.text}</span>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         
@@ -164,7 +130,7 @@ const Settings = () => {
                     src={`http://localhost:8080${user.avatar}`} 
                     alt="Profile" 
                     className="w-full h-full object-cover" 
-                    onError={(e) => { e.target.src = ''; }} // Fallback on error
+                    onError={(e) => { e.target.src = ''; }}
                   />
                 ) : (
                   <span className="text-4xl font-bold text-slate-500">

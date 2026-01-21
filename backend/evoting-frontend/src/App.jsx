@@ -17,10 +17,12 @@ import Elections from './pages/Election';
 import Verification from './pages/Verification';
 import AssignRoles from './pages/AssignROle';
 import Configuration from './pages/Configuration';
+import { ToastProvider } from './context/ToastContext';
 
 function App() {
   return (
     <AuthProvider>
+      <ToastProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -43,6 +45,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }

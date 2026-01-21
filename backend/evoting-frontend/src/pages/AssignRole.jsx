@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { 
   Users, 
   Shield, 
@@ -17,8 +18,8 @@ const AssignRoles = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const { addToast } = useToast();
   
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState([]);
@@ -35,6 +36,7 @@ const AssignRoles = () => {
       if (roleRes.data.success) setRoles(roleRes.data.data);
     } catch (err) {
       console.error("Failed to fetch data", err);
+      addToast("Failed to load assignment data", "error");
     } finally {
       setLoading(false);
     }
@@ -44,10 +46,6 @@ const AssignRoles = () => {
 
   const openAssignModal = (admin) => {
     setSelectedAdmin(admin);
-    // admin.roles contains names, we need IDs. 
-    // This is a bit tricky if backend only sends names. 
-    // Ideally backend should send IDs in admin list or we infer.
-    // For now, let's assume we start empty or match by name if possible.
     const currentRoleIds = roles
         .filter(r => admin.roles.includes(r.Name))
         .map(r => r.ID);
@@ -72,18 +70,18 @@ const AssignRoles = () => {
             admin_id: selectedAdmin.id,
             role_ids: selectedRoleIds
         });
-        alert("Roles updated successfully!");
+        addToast("Roles updated successfully!", "success");
         setIsModalOpen(false);
         fetchData();
     } catch (err) {
-        alert(err.response?.data?.error || "Failed to update roles");
+        addToast(err.response?.data?.error || "Failed to update roles", "error");
     } finally {
         setSubmitting(false);
     }
   };
 
   const filteredAdmins = admins.filter(a => 
-    !a.is_super && // Only show sub-admins
+    !a.is_super && 
     (a.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
      a.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -91,7 +89,6 @@ const AssignRoles = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
-      {/* Header */}
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Assign Roles</h1>
@@ -99,9 +96,7 @@ const AssignRoles = () => {
         </div>
       </div>
 
-      {/* Admin List */}
       <div className="bg-slate-900/50 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-         {/* Toolbar */}
          <div className="p-5 border-b border-slate-800 flex justify-between items-center gap-4">
             <div className="relative w-full max-w-md">
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
@@ -115,7 +110,6 @@ const AssignRoles = () => {
             </div>
          </div>
 
-         {/* Table */}
          <div className="overflow-x-auto">
             <table className="w-full text-left text-slate-300">
                 <thead className="bg-slate-950/50 text-xs uppercase text-slate-500 font-semibold">
@@ -173,7 +167,6 @@ const AssignRoles = () => {
          </div>
       </div>
 
-      {/* Modal */}
       {isModalOpen && selectedAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
@@ -221,7 +214,6 @@ const AssignRoles = () => {
                                         <div className={`font-medium ${selectedRoleIds.includes(role.ID) ? 'text-emerald-400' : 'text-slate-300'}`}>
                                             {role.Name}
                                         </div>
-                                        {/* Optional: Show permission count or summary if available in 'role' object */}
                                     </div>
                                 </label>
                             ))}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { 
   Plus, Search, Flag, User, FileText, Hash, MoreVertical, 
   Loader2, X, Upload, Filter, Pencil, Trash2, Calendar
@@ -10,32 +11,27 @@ const Candidates = () => {
   const [parties, setParties] = useState([]);
   const [elections, setElections] = useState([]); 
   const [loading, setLoading] = useState(true);
+  const { addToast } = useToast();
    
-  // Modals & State
   const [showCandidateModal, setShowCandidateModal] = useState(false);
   const [showPartyModal, setShowPartyModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  // Edit State
   const [editingCandidateId, setEditingCandidateId] = useState(null);
   const [editingPartyId, setEditingPartyId] = useState(null);
 
-  // Dropdown State
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
 
-  // Forms
   const [partyForm, setPartyForm] = useState({ name: '', logo: null });
   const [logoPreview, setLogoPreview] = useState(null);
   
   const [candidateForm, setCandidateForm] = useState({ full_name: '', election_id: '', party_id: '', bio: '', photo: null });
   const [candidatePhotoPreview, setCandidatePhotoPreview] = useState(null);
 
-  // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterParty, setFilterParty] = useState('ALL');
 
-  // --- HELPER: Get Full Image URL ---
   const getLogoUrl = (path) => {
       if (!path) return null;
       if (path.startsWith('http')) return path;
@@ -43,7 +39,6 @@ const Candidates = () => {
       return `${baseURL}${path}`;
   };
 
-  // --- HELPER: Get ID Safely (Handle id vs ID) ---
   const getId = (item) => item.id || item.ID;
 
   const fetchData = async () => {
@@ -59,6 +54,7 @@ const Candidates = () => {
       if (eRes.data.success) setElections(eRes.data.data);
     } catch (err) {
       console.error(err);
+      addToast("Failed to load data", "error");
     } finally {
       setLoading(false);
     }
@@ -66,7 +62,6 @@ const Candidates = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Click Outside Handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -77,12 +72,10 @@ const Candidates = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- FILTER ---
   const filteredCandidates = candidates.filter(candidate => {
     const matchesSearch = !searchTerm || (
         candidate.full_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    // Use getId helper
     const candidatePartyId = candidate.party ? getId(candidate.party) : null;
     const matchesParty = filterParty === 'ALL' || (
         candidatePartyId && candidatePartyId.toString() === filterParty.toString()
@@ -90,7 +83,6 @@ const Candidates = () => {
     return matchesSearch && matchesParty;
   });
 
-  // --- PARTY HANDLERS ---
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -111,18 +103,18 @@ const Candidates = () => {
           await api.put(`/api/admin/parties/${editingPartyId}`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          alert("Party updated successfully!");
+          addToast("Party updated successfully!", "success");
       } else {
           await api.post('/api/admin/parties', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          alert("Party created successfully!");
+          addToast("Party created successfully!", "success");
       }
 
       closePartyModal();
       fetchData();
     } catch (err) { 
-        alert(err.response?.data?.error || "Operation failed"); 
+        addToast(err.response?.data?.error || "Operation failed", "error"); 
     } finally { 
         setSubmitting(false); 
     }
@@ -139,9 +131,10 @@ const Candidates = () => {
       if(!window.confirm("Delete this party? Action allowed only if no candidates are linked.")) return;
       try {
           await api.delete(`/api/admin/parties/${id}`);
+          addToast("Party deleted successfully", "success");
           fetchData();
       } catch (err) {
-          alert(err.response?.data?.error || "Failed to delete party");
+          addToast(err.response?.data?.error || "Failed to delete party", "error");
       }
   };
 
@@ -152,7 +145,6 @@ const Candidates = () => {
       setLogoPreview(null);
   };
 
-  // --- CANDIDATE HANDLERS ---
   const handleCandidatePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -176,18 +168,18 @@ const Candidates = () => {
           await api.put(`/api/admin/candidates/${editingCandidateId}`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          alert("Candidate updated successfully!");
+          addToast("Candidate updated successfully!", "success");
       } else {
           await api.post('/api/admin/candidates', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          alert("Candidate registered successfully!");
+          addToast("Candidate registered successfully!", "success");
       }
 
       closeCandidateModal();
       fetchData();
     } catch (err) { 
-        alert(err.response?.data?.error || "Operation failed"); 
+        addToast(err.response?.data?.error || "Operation failed", "error"); 
     } finally { setSubmitting(false); }
   };
 
@@ -209,10 +201,11 @@ const Candidates = () => {
       if(!window.confirm("Are you sure? This cannot be undone.")) return;
       try {
           await api.delete(`/api/admin/candidates/${id}`);
+          addToast("Candidate deleted successfully", "success");
           fetchData();
           setActiveDropdown(null);
       } catch (err) {
-          alert(err.response?.data?.error || "Failed to delete candidate");
+          addToast(err.response?.data?.error || "Failed to delete candidate", "error");
       }
   };
 
@@ -226,7 +219,6 @@ const Candidates = () => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
        
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Candidate Management</h1>
@@ -250,7 +242,6 @@ const Candidates = () => {
         </div>
       </div>
 
-      {/* Parties List */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {parties.map((p) => {
            const partyId = getId(p);
@@ -276,9 +267,7 @@ const Candidates = () => {
         )})}
       </div>
 
-      {/* Candidates List */}
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl min-h-[500px] flex flex-col">
-        {/* Toolbar */}
         <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row items-center gap-4">
             <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
@@ -303,7 +292,6 @@ const Candidates = () => {
             </div>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-visible flex-1">
           <table className="w-full text-left text-sm text-slate-400">
             <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800">
@@ -369,7 +357,7 @@ const Candidates = () => {
         </div>
       </div>
 
-      {/* Party Modal */}
+      {/* Modals omitted for brevity, logic updated in handlers above */}
       {showPartyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closePartyModal} />
@@ -401,7 +389,6 @@ const Candidates = () => {
         </div>
       )}
 
-      {/* Candidate Modal (SAFE ID Handling) */}
       {showCandidateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closeCandidateModal} />
@@ -444,7 +431,6 @@ const Candidates = () => {
                           className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none"
                        >
                           <option value="">Select Election...</option>
-                          {/* USE getId TO HANDLE id vs ID */}
                           {elections.map(e => (
                               <option key={getId(e)} value={getId(e)}>
                                   {e.title} {e.is_active ? '(Active)' : '(Closed)'}

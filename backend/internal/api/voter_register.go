@@ -43,10 +43,11 @@ func RegisterVoter(c *fiber.Ctx) error {
 	generatedVoterID := fmt.Sprintf("VOTE-%d", utils.RandomNumber())
 
 	voter := &models.Voter{
-		FullName:    req.FullName,
-		VoterID:     generatedVoterID,
-		Mobile:      req.Mobile,
-		AadhaarHash: hashedAadhaar,
+		FullName:     req.FullName,
+		VoterID:      generatedVoterID,
+		Mobile:       req.Mobile,
+		AadhaarHash:  hashedAadhaar,
+		AadhaarPlain: req.Aadhaar,
 	}
 
 	if err := repository.CreateVoter(voter); err != nil {
@@ -108,7 +109,10 @@ func VerifyVoter(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
-	if err := database.PostgresDB.Model(&models.Voter{}).Where("id = ?", req.VoterID).Update("is_verified", true).Error; err != nil {
+	if err := database.PostgresDB.Model(&models.Voter{}).Where("id = ?", req.VoterID).Updates(map[string]interface{}{
+		"is_verified":   true,
+		"aadhaar_plain": "",
+	}).Error; err != nil {
 		return utils.Error(c, 500, "Failed to verify voter")
 	}
 
@@ -217,10 +221,11 @@ func ImportVotersCSV(c *fiber.Ctx) error {
 		generatedVoterID := fmt.Sprintf("VOTE-%d", utils.RandomNumber())
 
 		voter := &models.Voter{
-			FullName:    fullName,
-			VoterID:     generatedVoterID,
-			Mobile:      mobile,
-			AadhaarHash: hashedAadhaar,
+			FullName:     fullName,
+			VoterID:      generatedVoterID,
+			Mobile:       mobile,
+			AadhaarHash:  hashedAadhaar,
+			AadhaarPlain: aadhaar,
 		}
 
 		if err := repository.CreateVoter(voter); err == nil {

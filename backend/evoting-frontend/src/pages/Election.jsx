@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { 
   Calendar, 
   Plus, 
@@ -22,8 +23,8 @@ const Elections = () => {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const { addToast } = useToast();
 
-  // Dropdown State
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
 
@@ -40,6 +41,7 @@ const Elections = () => {
       if (res.data.success) setElections(res.data.data);
     } catch (err) {
       console.error("Failed to fetch elections", err);
+      addToast("Failed to load elections", "error");
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,6 @@ const Elections = () => {
 
   useEffect(() => { fetchElections(); }, []);
 
-  // Click Outside Handler for Dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -87,10 +88,11 @@ const Elections = () => {
     if(!window.confirm("Are you sure you want to delete this election? This cannot be undone.")) return;
     try {
         await api.delete(`/api/admin/elections/${id}`);
+        addToast("Election deleted successfully", "success");
         fetchElections();
         setActiveDropdown(null);
     } catch (err) {
-        alert(err.response?.data?.error || "Failed to delete election");
+        addToast(err.response?.data?.error || "Failed to delete election", "error");
     }
   };
 
@@ -112,7 +114,7 @@ const Elections = () => {
   const handleEndDateChange = (e) => {
       const newEnd = e.target.value;
       if (form.start_date && newEnd < form.start_date) {
-          alert("End time cannot be earlier than Start time.");
+          addToast("End time cannot be earlier than Start time.", "warning");
           return;
       }
       setForm(prev => ({ ...prev, end_date: newEnd }));
@@ -121,7 +123,7 @@ const Elections = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (new Date(form.end_date) <= new Date(form.start_date)) {
-        alert("End Date & Time must be strictly after Start Date & Time");
+        addToast("End Date & Time must be strictly after Start Date & Time", "warning");
         return;
     }
 
@@ -135,16 +137,16 @@ const Elections = () => {
 
       if (editingId) {
           await api.put(`/api/admin/elections/${editingId}`, payload);
-          alert("Election updated successfully!");
+          addToast("Election updated successfully!", "success");
       } else {
           await api.post('/api/admin/elections', payload);
-          alert("Election created successfully!");
+          addToast("Election created successfully!", "success");
       }
       
       resetForm();
       fetchElections();
     } catch (err) {
-      alert(`Failed to ${editingId ? 'update' : 'create'} election.`);
+      addToast(`Failed to ${editingId ? 'update' : 'create'} election.`, "error");
     } finally {
       setSubmitting(false);
     }
@@ -156,9 +158,10 @@ const Elections = () => {
         election_id: id,
         status: !currentStatus
       });
+      addToast(`Election ${!currentStatus ? 'activated' : 'stopped'} successfully`, "info");
       fetchElections(); 
     } catch (err) {
-      alert("Failed to update status");
+      addToast("Failed to update status", "error");
     }
   };
 
@@ -191,12 +194,7 @@ const Elections = () => {
         ) : (
            elections.map((election) => {
              const isEnded = new Date(election.end_date) < new Date();
-             
-             // --- RULES ---
-             // 1. Update: Disabled if Active OR Ended
              const canUpdate = !election.is_active && !isEnded;
-             
-             // 2. Delete: Disabled if Active (Allowed if Ended or Inactive)
              const canDelete = !election.is_active || isEnded;
 
              return (
@@ -209,7 +207,6 @@ const Elections = () => {
                      <div>
                         <div className="flex items-center gap-3">
                             <h3 className="text-xl font-bold text-slate-200">{election.title}</h3>
-                            
                             <div className="relative">
                                 <button 
                                     onClick={() => setActiveDropdown(activeDropdown === election.ID ? null : election.ID)}
@@ -224,7 +221,6 @@ const Elections = () => {
                                         className="absolute left-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
                                     >
                                         <div className="p-1">
-                                            {/* Update Button */}
                                             <button 
                                                 onClick={() => handleEdit(election)}
                                                 disabled={!canUpdate}
@@ -235,14 +231,12 @@ const Elections = () => {
                                                 }`}
                                                 title={!canUpdate ? "Cannot update: Active or Ended" : "Edit Election"}
                                             >
-                                                <Pencil size={14} /> 
-                                                Update
+                                                <Pencil size={14} /> Update
                                                 {!canUpdate && <Lock size={12} className="ml-auto opacity-50"/>}
                                             </button>
                                             
                                             <div className="h-px bg-slate-800 my-1 mx-2"></div>
                                             
-                                            {/* Delete Button */}
                                             <button 
                                                 onClick={() => handleDelete(election.ID)}
                                                 disabled={!canDelete}
@@ -253,8 +247,7 @@ const Elections = () => {
                                                 }`}
                                                 title={!canDelete ? "Cannot delete active election" : "Delete Election"}
                                             >
-                                                <Trash2 size={14} /> 
-                                                Delete
+                                                <Trash2 size={14} /> Delete
                                                 {!canDelete && <Lock size={12} className="ml-auto opacity-50"/>}
                                             </button>
                                         </div>
@@ -290,8 +283,6 @@ const Elections = () => {
                      }`}>
                         {isEnded ? "Ended" : (election.is_active ? "Active" : "Closed")}
                      </div>
-                     
-                     {/* CONDITIONAL TOGGLE: Show Lock if Ended, else Show Toggle */}
                      {isEnded ? (
                         <div className="p-2 text-slate-600 cursor-not-allowed" title="Election Time Over">
                            <Lock size={24} />

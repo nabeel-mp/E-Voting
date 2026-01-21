@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { 
   UserPlus, 
   Mail, 
@@ -14,16 +15,14 @@ import {
 } from 'lucide-react';
 
 const Staff = () => {
-  // Form State
   const [staffForm, setStaffForm] = useState({ email: '', password: '' });
   const [staffLoading, setStaffLoading] = useState(false);
+  const { addToast } = useToast();
 
-  // List State
   const [admins, setAdmins] = useState([]);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch Existing Admins
   const fetchAdmins = async () => {
     try {
       setLoadingAdmins(true);
@@ -33,6 +32,7 @@ const Staff = () => {
       }
     } catch (err) {
       console.error("Failed to fetch admins", err);
+      addToast("Failed to load staff list", "error");
     } finally {
       setLoadingAdmins(false);
     }
@@ -46,21 +46,20 @@ const Staff = () => {
     try {
       await api.post('/api/auth/admin/create-sub-admin', {
         ...staffForm,
-        role_ids: [] // Send empty array (Role-less creation)
+        role_ids: []
       });
-      alert("Staff created successfully! Don't forget to assign roles."); 
+      addToast("Staff created successfully! Roles can be assigned now.", "success");
       setStaffForm({ email: '', password: '' });
-      fetchAdmins(); // Refresh the list immediately
+      fetchAdmins();
     } catch (err) { 
-      alert(err.response?.data?.error || "Failed to create staff"); 
+      addToast(err.response?.data?.error || "Failed to create staff", "error");
     } finally {
       setStaffLoading(false);
     }
   };
 
-  // Filter logic
   const filteredAdmins = admins.filter(admin => 
-    !admin.is_super && // Optionally hide Super Admin from this list if desired, or keep them
+    !admin.is_super &&
     (admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
      (admin.name && admin.name.toLowerCase().includes(searchTerm.toLowerCase())))
   );
@@ -68,7 +67,6 @@ const Staff = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
       
-      {/* Header with Action Button */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Staff Management</h1>
@@ -84,7 +82,6 @@ const Staff = () => {
         </Link>
       </div>
 
-      {/* --- CREATE FORM --- */}
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
 
@@ -144,9 +141,7 @@ const Staff = () => {
         </form>
       </div>
 
-      {/* --- STAFF LIST --- */}
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-          {/* Toolbar */}
           <div className="p-6 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
              <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Users className="text-emerald-500" size={20} /> 
@@ -164,7 +159,6 @@ const Staff = () => {
              </div>
           </div>
           
-          {/* Table */}
           <div className="overflow-x-auto">
              <table className="w-full text-left text-sm text-slate-400">
                 <thead className="bg-slate-950/50 uppercase text-xs font-semibold text-slate-500 border-b border-slate-800">

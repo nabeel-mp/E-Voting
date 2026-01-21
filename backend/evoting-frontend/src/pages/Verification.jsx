@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext'; // Import Hook
 import { 
   UserCheck, 
   Check, 
-  X, 
   Loader2, 
   Clock,
   Search,
@@ -15,12 +15,12 @@ const Verification = () => {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const { addToast } = useToast(); // Initialize Hook
 
   const fetchPendingVoters = async () => {
     try {
       const res = await api.get('/api/admin/voters');
       if(res.data.success) {
-        // Filter only unverified voters
         const pending = (res.data.data || []).filter(v => !v.IsVerified && !v.is_verified);
         setPendingVoters(pending);
       }
@@ -43,9 +43,9 @@ const Verification = () => {
     try {
         await api.post('/api/admin/voter/verify', { voter_id: targetId });
         setPendingVoters(prev => prev.filter(v => (v.ID !== targetId && v.id !== targetId)));
-        alert("Voter verified successfully");
+        addToast("Voter verified successfully", "success"); // Toast
     } catch (err) {
-        alert(err.response?.data?.error || "Operation failed");
+        addToast(err.response?.data?.error || "Operation failed", "error"); // Toast
     } finally {
         setProcessingId(null);
     }
@@ -61,9 +61,9 @@ const Verification = () => {
     try {
         await api.post('/api/admin/voter/reject', { voter_id: targetId });
         setPendingVoters(prev => prev.filter(v => (v.ID !== targetId && v.id !== targetId)));
-        alert("Voter request rejected and removed.");
+        addToast("Voter request rejected and removed", "info"); // Toast
     } catch (err) {
-        alert(err.response?.data?.error || "Operation failed");
+        addToast(err.response?.data?.error || "Operation failed", "error"); // Toast
     } finally {
         setProcessingId(null);
     }
@@ -76,7 +76,6 @@ const Verification = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Voter Verification</h1>
@@ -89,8 +88,6 @@ const Verification = () => {
       </div>
 
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl min-h-[400px]">
-        
-        {/* Toolbar */}
         <div className="p-4 border-b border-slate-800">
             <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
@@ -104,7 +101,6 @@ const Verification = () => {
             </div>
         </div>
 
-        {/* Table */}
         <table className="w-full text-left text-sm text-slate-400">
             <thead className="bg-slate-950/50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800">
                 <tr>
@@ -137,9 +133,15 @@ const Verification = () => {
                                 </div>
                             </td>
                             <td className="px-6 py-4 font-mono">
-                                <span className="bg-slate-800 px-2 py-1 rounded text-slate-300 border border-slate-700">
-                                    {v.AadhaarHash ? "HASHED-SECURE" : "Aadhaar"}
-                                </span>
+                                {v.AadhaarPlain ? (
+                                    <span className="text-amber-300 font-bold bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
+                                        {v.AadhaarPlain}
+                                    </span>
+                                ) : (
+                                    <span className="bg-slate-800 px-2 py-1 rounded text-slate-300 border border-slate-700">
+                                        {v.AadhaarHash ? "HASHED-SECURE" : "Unknown"}
+                                    </span>
+                                )}
                             </td>
                             <td className="px-6 py-4">
                                 {new Date(v.CreatedAt).toLocaleDateString()}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { 
   ShieldCheck, 
   Shield, 
@@ -19,16 +20,13 @@ const Roles = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const { addToast } = useToast();
   
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Form State
   const [editingId, setEditingId] = useState(null); 
   const [name, setName] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState([]);
 
-  // Predefined System Permissions
   const AVAILABLE_PERMISSIONS = [
     { id: 'view_dashboard', label: 'View Dashboard' },
     { id: 'manage_elections', label: 'Manage Elections' },
@@ -50,6 +48,7 @@ const Roles = () => {
       if (res.data.success) setRoles(res.data.data);
     } catch (err) { 
       console.error("Failed to fetch roles", err); 
+      addToast("Failed to load roles", "error");
     } finally {
       setLoading(false);
     }
@@ -57,7 +56,6 @@ const Roles = () => {
 
   useEffect(() => { fetchRoles(); }, []);
 
-  // Filter Roles
   const filteredRoles = roles.filter(role => {
     const searchLower = searchTerm.toLowerCase();
     const roleName = role.Name.toLowerCase();
@@ -78,7 +76,6 @@ const Roles = () => {
 
   const openModal = (role = null) => {
     if (role) {
-      // Edit Mode
       setEditingId(role.ID);
       setName(role.Name);
       let perms = [];
@@ -89,7 +86,6 @@ const Roles = () => {
       }
       setSelectedPermissions(perms);
     } else {
-      // Create Mode
       setEditingId(null);
       setName('');
       setSelectedPermissions([]);
@@ -108,9 +104,10 @@ const Roles = () => {
       if(!window.confirm("Are you sure you want to delete this role? This might affect users assigned to it.")) return;
       try {
           await api.delete(`/api/auth/admin/roles/${id}`);
+          addToast("Role deleted successfully", "success");
           setRoles(roles.filter(r => r.ID !== id));
       } catch (err) {
-          alert("Failed to delete role. It might be in use.");
+          addToast("Failed to delete role. It might be in use.", "error");
       }
   };
 
@@ -123,15 +120,15 @@ const Roles = () => {
       const payload = { name: name, permissions: selectedPermissions };
       if (editingId) {
           await api.put(`/api/auth/admin/roles/${editingId}`, payload);
-          alert("Role updated successfully!");
+          addToast("Role updated successfully!", "success");
       } else {
           await api.post('/api/auth/admin/roles', payload);
-          alert("Role created successfully!");
+          addToast("Role created successfully!", "success");
       }
       closeModal();
       fetchRoles();
     } catch (err) { 
-      alert(`Failed to ${editingId ? 'update' : 'create'} role.`); 
+      addToast(`Failed to ${editingId ? 'update' : 'create'} role.`, "error"); 
     } finally {
       setSubmitting(false);
     }
@@ -139,15 +136,11 @@ const Roles = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 h-[calc(100vh-100px)] flex flex-col">
-      
-      {/* --- Page Header --- */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Role Definitions</h1>
           <p className="text-slate-400 mt-1">Configure access levels and permissions for the system.</p>
         </div>
-        
-        {/* Create Button */}
         <button 
           onClick={() => openModal(null)}
           className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
@@ -157,16 +150,12 @@ const Roles = () => {
         </button>
       </div>
 
-      {/* --- Active Roles Table --- */}
       <div className="flex-1 bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl flex flex-col shadow-xl overflow-hidden">
-         
-         {/* Toolbar */}
          <div className="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/50">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
               <Check size={16} className="text-emerald-500" />
               Active Roles List
             </h3>
-            
             <div className="relative w-full sm:w-72">
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                <input 
@@ -179,7 +168,6 @@ const Roles = () => {
             </div>
          </div>
 
-         {/* Table Area */}
          <div className="flex-1 overflow-y-auto custom-scrollbar relative">
          {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-500">
@@ -280,7 +268,6 @@ const Roles = () => {
          )}
          </div>
          
-         {/* Footer */}
          <div className="px-6 py-4 border-t border-slate-800 text-xs text-slate-500 flex justify-between items-center bg-slate-900/30 shrink-0">
             <span>Showing {filteredRoles.length} roles</span>
             {searchTerm && filteredRoles.length !== roles.length && (
@@ -289,19 +276,14 @@ const Roles = () => {
          </div>
       </div>
 
-      {/* --- MODAL --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={closeModal}
           ></div>
 
-          {/* Modal Content */}
           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
                <div className="flex items-center gap-3">
                    <div className={`p-2 rounded-lg ${editingId ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
@@ -321,7 +303,6 @@ const Roles = () => {
                </button>
             </div>
 
-            {/* Modal Form */}
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 <div className="space-y-2">
                    <label className="text-xs font-semibold text-slate-500 uppercase">Role Name</label>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { 
   ShieldAlert, 
   ShieldCheck, 
@@ -14,19 +15,18 @@ const SystemAdmins = () => {
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+  const { addToast } = useToast();
   
-  // --- FILTER STATES ---
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL'); 
 
-  // --- FETCH DATA ---
   const fetchData = async () => {
     try {
-      // Only fetch admins list, roles list not needed for display anymore
       const res = await api.get('/auth/admin/list');
       if(res.data.success) setAdmins(res.data.data);
     } catch (err) {
       console.error("Failed to fetch data", err);
+      addToast("Failed to load admin list", "error");
     } finally {
       setLoading(false);
     }
@@ -34,7 +34,6 @@ const SystemAdmins = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // --- BLOCK/UNBLOCK LOGIC ---
   const toggleStatus = async (id, currentStatus) => {
     if (processingId) return;
 
@@ -52,17 +51,16 @@ const SystemAdmins = () => {
     try {
       const endpoint = currentStatus ? "/auth/admin/block" : "/auth/admin/unblock";
       await api.post(endpoint, { admin_id: id });
+      addToast(`Admin ${currentStatus ? 'blocked' : 'unblocked'} successfully`, "success");
     } catch (err) {
-      alert(`Failed to ${action.toLowerCase()} admin.`);
+      addToast(`Failed to ${action.toLowerCase()} admin.`, "error");
       setAdmins(previousAdmins);
     } finally {
       setProcessingId(null);
     }
   };
 
-  // --- FILTER LOGIC ---
   const filteredAdmins = admins.filter(admin => {
-    // Check roles array for search term
     const rolesString = Array.isArray(admin.roles) ? admin.roles.join(' ') : (admin.role_name || '');
     
     const matchesSearch = !searchTerm || (
@@ -79,14 +77,12 @@ const SystemAdmins = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
-      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">System Administrators</h1>
           <p className="text-slate-400 mt-1">Monitor and manage privileged access accounts.</p>
         </div>
         
-        {/* Stats Summary */}
         <div className="flex gap-4">
            <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl">
               <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400"><ShieldCheck size={18} /></div>
@@ -105,10 +101,7 @@ const SystemAdmins = () => {
         </div>
       </div>
 
-      {/* Main Table Card */}
       <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        
-        {/* Toolbar */}
         <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row gap-4 justify-between items-center">
             <div className="relative w-full sm:max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
@@ -139,7 +132,6 @@ const SystemAdmins = () => {
             </div>
         </div>
 
-        {/* Table Content */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-400">
             <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800">
@@ -195,7 +187,6 @@ const SystemAdmins = () => {
                             Super Admin
                           </span>
                       ) : (
-                          // Display roles as badges
                           <div className="flex flex-wrap gap-1.5">
                              {Array.isArray(admin.roles) && admin.roles.length > 0 ? (
                                 admin.roles.map((roleName, idx) => (

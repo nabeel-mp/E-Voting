@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { 
   Sliders, 
   Save, 
@@ -17,8 +18,8 @@ const Configuration = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [originalSettings, setOriginalSettings] = useState([]);
+  const { addToast } = useToast();
 
-  // Fetch Settings
   const fetchSettings = async () => {
     setLoading(true);
     try {
@@ -29,6 +30,7 @@ const Configuration = () => {
       }
     } catch (err) {
       console.error("Failed to load config", err);
+      addToast("Failed to load system configuration", "error");
     } finally {
       setLoading(false);
     }
@@ -36,48 +38,42 @@ const Configuration = () => {
 
   useEffect(() => { fetchSettings(); }, []);
 
-  // Handle Input Change
   const handleChange = (key, newValue) => {
     setSettings(prev => prev.map(s => 
       s.key === key ? { ...s, value: newValue.toString() } : s
     ));
   };
 
-  // Save Changes
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Only send changed items
       const changes = settings.filter(s => {
         const orig = originalSettings.find(o => o.key === s.key);
         return orig && orig.value !== s.value;
       }).map(s => ({ key: s.key, value: s.value }));
 
       if (changes.length === 0) {
-        alert("No changes to save.");
+        addToast("No changes to save.", "info");
         setSaving(false);
         return;
       }
 
       await api.post('/api/admin/config', changes);
-      alert("Configuration updated successfully!");
+      addToast("Configuration updated successfully!", "success");
       setOriginalSettings(JSON.parse(JSON.stringify(settings)));
     } catch (err) {
       console.error("Save Error:", err);
-      const errMsg = err.response?.data?.error || err.message || "Failed to save configuration.";
-      alert("Failed to save configuration.");
+      addToast("Failed to save configuration.", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  // Helper to Group Settings
   const groupedSettings = settings.reduce((acc, item) => {
     (acc[item.Category] = acc[item.Category] || []).push(item);
     return acc;
   }, {});
 
-  // Icons Helper
   const getCategoryIcon = (cat) => {
     switch(cat) {
       case 'General': return <Globe size={18} />;
@@ -96,8 +92,6 @@ const Configuration = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
-      
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">System Configuration</h1>
@@ -134,7 +128,6 @@ const Configuration = () => {
                     </div>
                     <h3 className="font-bold text-lg text-white">{category} Settings</h3>
                 </div>
-                
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     {items.map((setting) => (
                         <div key={setting.key} className="space-y-2">
@@ -157,20 +150,10 @@ const Configuration = () => {
                                     </button>
                                     <span className="text-xs text-slate-500">{setting.description}</span>
                                 </div>
-                            ) : setting.type === 'number' ? (
-                                <div>
-                                    <input 
-                                        type="number" 
-                                        value={setting.value} 
-                                        onChange={(e) => handleChange(setting.key, e.target.value)}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                                    />
-                                    <p className="text-xs text-slate-500 mt-1.5">{setting.description}</p>
-                                </div>
                             ) : (
                                 <div>
                                     <input 
-                                        type="text" 
+                                        type={setting.type === 'number' ? 'number' : 'text'}
                                         value={setting.value} 
                                         onChange={(e) => handleChange(setting.key, e.target.value)}
                                         className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
