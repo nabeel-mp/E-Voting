@@ -10,7 +10,7 @@ import (
 func FindAdminByEmail(email string) (*models.Admin, error) {
 	var admin models.Admin
 	err := database.PostgresDB.
-		Preload("Role").
+		Preload("Roles").
 		Where("email = ? AND is_active = true", email).
 		First(&admin).Error
 	return &admin, err
@@ -26,13 +26,13 @@ func CreateSubAdmin(admin *models.Admin) error {
 
 func GetAllAdmins() ([]models.Admin, error) {
 	var admins []models.Admin
-	err := database.PostgresDB.Preload("Role").Find(&admins).Error
+	err := database.PostgresDB.Preload("Roles").Find(&admins).Error
 	return admins, err
 }
 
 func FindAdminByID(id uint) (*models.Admin, error) {
 	var admin models.Admin
-	err := database.PostgresDB.Preload("Role").First(&admin, id).Error
+	err := database.PostgresDB.Preload("Roles").First(&admin, id).Error
 	return &admin, err
 }
 
