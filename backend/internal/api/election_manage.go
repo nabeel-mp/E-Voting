@@ -40,7 +40,12 @@ func UpdateElection(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Election not found")
 	}
 
-	if election.IsActive {
+	var req models.Election
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	if election.IsActive && req.IsActive {
 		return utils.Error(c, 403, "Cannot update an ACTIVE election. Stop it first.")
 	}
 
@@ -48,15 +53,12 @@ func UpdateElection(c *fiber.Ctx) error {
 		return utils.Error(c, 403, "Cannot updated an Ended Election")
 	}
 
-	var req models.Election
-	if err := c.BodyParser(&req); err != nil {
-		return utils.Error(c, 400, "Invalid request")
-	}
-
 	election.Title = req.Title
 	election.Description = req.Description
 	election.StartDate = req.StartDate
 	election.EndDate = req.EndDate
+
+	election.IsActive = req.IsActive
 
 	if err := database.PostgresDB.Save(&election).Error; err != nil {
 		return utils.Error(c, 500, "Failed to update election")

@@ -25,8 +25,13 @@ const Configuration = () => {
     try {
       const res = await api.get('/api/admin/config');
       if (res.data.success) {
-        setSettings(res.data.data);
-        setOriginalSettings(JSON.parse(JSON.stringify(res.data.data)));
+        // Filter out 'max_session_duration' so it doesn't appear in the list
+        const visibleSettings = (res.data.data || []).filter(
+          s => s.key !== 'max_session_duration'
+        );
+        
+        setSettings(visibleSettings);
+        setOriginalSettings(JSON.parse(JSON.stringify(visibleSettings)));
       }
     } catch (err) {
       console.error("Failed to load config", err);

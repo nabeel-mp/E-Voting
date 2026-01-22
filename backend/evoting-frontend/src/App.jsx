@@ -18,24 +18,15 @@ import Verification from './pages/Verification';
 import AssignRoles from './pages/AssignROle';
 import Configuration from './pages/Configuration';
 import { ToastProvider } from './context/ToastContext';
-import { VoterProvider } from './context/VoterContext';
-import Home from './pages/Public/Home';
-import VoterLogin from './pages/voter/VoterLogin';
-import VoterDashboard from './pages/voter/VoterDashboard';
-import VotingBooth from './pages/voter/VotingBooth';
-import VoterLayout from './layouts/VoterLayout';
 
 function App() {
   return (
     <AuthProvider>
-      <VoterProvider>
       <ToastProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/home" element={<Home />} />
+        <Routes>          
               <Route path="/login" element={<Login />} />
-              <Route path="/voter/login" element={<VoterLogin />} />
-          
+
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path='configuration' element={<Configuration />} />
@@ -52,18 +43,9 @@ function App() {
             <Route path="audit" element={<AuditLogs />} />
             <Route path="settings" element={<Settings />} />
           </Route>
-
-             {/* Voter Routes (Protected by VoterLayout) */}
-              <Route path="/voter" element={<VoterLayout />}>
-                 <Route path="dashboard" element={<VoterDashboard />} />
-                 <Route path="booth/:id" element={<VotingBooth />} />
-              </Route>
-
-
         </Routes>
       </BrowserRouter>
       </ToastProvider>
-      </VoterProvider>
     </AuthProvider>
   );
 }

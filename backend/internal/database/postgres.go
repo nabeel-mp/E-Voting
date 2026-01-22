@@ -39,7 +39,7 @@ func ConnectPostgres() {
 		&models.Admin{}, &models.Voter{},
 		&models.Party{}, &models.Candidate{},
 		&models.Vote{}, &models.Election{},
-		&models.SystemSetting{}); err != nil {
+		&models.SystemSetting{}, &models.ElectionParticipation{}); err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
 

@@ -10,47 +10,73 @@ import {
   ArrowDownRight,
   Activity,
   MoreHorizontal,
-  Loader2
+  Loader2,
+  Clock,
+  ShieldAlert,
+  CheckCircle2,
+  FileText
 } from 'lucide-react';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   
-  // Initial state set to 0/empty (no mock data)
   const [stats, setStats] = useState({ 
     TotalVoters: 0, 
     VotesCast: 0, 
     Candidates: 0, 
-    ActiveElections: 0,
-    TimeRemaining: 'N/A' // Assuming API might send this, or calculate based on election end time
+    ActiveElections: 0
   });
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     try {
-      // Ensure this endpoint returns the exact keys matching state
-      const res = await api.get('/api/admin/dashboard');
-      if(res.data) {
-        setStats(res.data);
+      // Fetch Dashboard Stats and Audit Logs in parallel
+      const [statsRes, logsRes] = await Promise.allSettled([
+        api.get('/api/admin/dashboard'),
+        api.get('/api/audit/logs')
+      ]);
+
+      // 1. Update Stats
+      if (statsRes.status === 'fulfilled' && statsRes.value.data.success) {
+        setStats(statsRes.value.data.data);
+      }
+
+      // 2. Update Recent Activity (Last 4)
+      if (logsRes.status === 'fulfilled' && logsRes.value.data.success) {
+        const sortedLogs = (logsRes.value.data.data || [])
+          .sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp)) // Sort Newest First
+          .slice(0, 4); // Take only top 4
+        setActivities(sortedLogs);
       }
     } catch (err) {
       console.error("Failed to load dashboard data", err);
-      // No fallback mock data here anymore
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // 1. Initial Fetch
     fetchData();
-
-    // 2. Real-time Polling (Refresh every 5 seconds)
-    const intervalId = setInterval(fetchData, 5000);
-
-    // Cleanup interval on component unmount
+    // Real-time polling every 3 seconds
+    const intervalId = setInterval(fetchData, 3000);
     return () => clearInterval(intervalId);
   }, []);
+
+  // Helper to format activity messages
+  const formatActivity = (action) => {
+    return action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  // Helper to get icon based on action type
+  const getActivityIcon = (action) => {
+    if (action.includes('DELETE') || action.includes('BLOCK')) return <ShieldAlert size={16} className="text-rose-400" />;
+    if (action.includes('CREATE') || action.includes('REGISTER')) return <PlusIconWrapper />;
+    if (action.includes('VOTE')) return <Vote size={16} className="text-emerald-400" />;
+    return <FileText size={16} className="text-slate-400" />;
+  };
+
+  const PlusIconWrapper = () => <CheckCircle2 size={16} className="text-emerald-400" />;
 
   const cards = [
     { 
@@ -73,16 +99,16 @@ const Dashboard = () => {
       border: "border-emerald-500/20",
       icon: <Vote size={22} /> 
     },
-    { 
-      title: "Candidates", 
-      value: stats.Candidates, 
-      trend: "Fixed", 
-      trendUp: true,
-      color: "text-rose-400", 
-      bg: "bg-rose-500/10", 
-      border: "border-rose-500/20",
-      icon: <UserCheck size={22} /> 
-    },
+    // { 
+    //   title: "Candidates", 
+    //   value: stats.Candidates, 
+    //   trend: "Fixed", 
+    //   trendUp: true,
+    //   color: "text-rose-400", 
+    //   bg: "bg-rose-500/10", 
+    //   border: "border-rose-500/20",
+    //   icon: <UserCheck size={22} /> 
+    // },
     { 
       title: "Active Elections", 
       value: stats.ActiveElections, 
@@ -118,7 +144,7 @@ const Dashboard = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                Live Updates Active
+                System Live
             </span>
         </div>
       </div>
@@ -130,7 +156,6 @@ const Dashboard = () => {
             key={idx} 
             className={`group bg-slate-900/50 backdrop-blur-xl p-6 rounded-2xl border border-slate-800 hover:border-slate-700 transition-all duration-300 shadow-xl relative overflow-hidden`}
           >
-             {/* Decorative Gradient Blob */}
              <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 ${card.bg.replace('/10', '')}`}></div>
 
             <div className="flex justify-between items-start mb-4 relative z-10">
@@ -149,7 +174,6 @@ const Dashboard = () => {
                 <p className="text-3xl font-bold text-white tracking-tight">{card.value}</p>
             </div>
             
-            {/* Visual Bar */}
             <div className="mt-4 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full ${card.bg.replace('bg-', 'bg-').replace('/10', '')} w-2/3 opacity-50`}></div>
             </div>
@@ -160,32 +184,54 @@ const Dashboard = () => {
       {/* Secondary Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Activity Feed */}
+        {/* Real-time Activity Feed */}
         <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Activity size={18} className="text-indigo-400" />
                     Recent Activity
                 </h3>
-                <button className="text-slate-400 hover:text-white transition-colors">
+                <button 
+                  onClick={() => navigate('/audit')}
+                  className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800 rounded"
+                  title="View All Logs"
+                >
                     <MoreHorizontal size={20} />
                 </button>
             </div>
             
-            {/* Note: This assumes the API might send an 'activities' array in stats, 
-                otherwise this section is static. Modify to map real data if available. */}
             <div className="space-y-4">
-                <div className="flex items-center gap-4 p-3 rounded-xl transition-colors">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                    <div className="flex-1">
-                        <p className="text-sm text-slate-200">System Dashboard Initialized</p>
-                        <p className="text-xs text-slate-500">Monitoring real-time data</p>
+                {activities.length === 0 ? (
+                   <div className="text-center py-8 text-slate-500 text-sm italic">
+                      No recent activity recorded.
+                   </div>
+                ) : (
+                  activities.map((log, index) => (
+                    <div key={index} className="flex items-center gap-4 p-3 rounded-xl bg-slate-950/30 border border-slate-800/50 hover:border-slate-700 transition-colors animate-in fade-in slide-in-from-bottom-2">
+                        <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
+                           {getActivityIcon(log.Action)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-200 truncate">
+                                {formatActivity(log.Action)}
+                            </p>
+                            <p className="text-xs text-slate-500 truncate">
+                                By {log.ActorRole} (ID: {log.ActorID})
+                            </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                            <div className="flex items-center gap-1 text-xs text-slate-400 bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                                <Clock size={10} />
+                                {new Date(log.Timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                        </div>
                     </div>
-                </div>
+                  ))
+                )}
             </div>
         </div>
 
-        {/* Quick Actions / Server Status */}
+        {/* Quick Actions */}
         <div className="bg-gradient-to-br from-indigo-900/20 to-slate-900/50 border border-slate-800 rounded-2xl p-6 flex flex-col justify-center items-center text-center">
              <div className="w-16 h-16 rounded-full bg-indigo-500/10 flex items-center justify-center mb-4 border border-indigo-500/20 relative">
                 <div className="absolute inset-0 rounded-full border border-indigo-500 opacity-20 animate-ping"></div>
@@ -194,10 +240,9 @@ const Dashboard = () => {
              <h3 className="text-white font-bold text-lg mb-1">Voter Registration</h3>
              <p className="text-slate-400 text-sm mb-6">Manage the voter registry and approvals.</p>
              
-             {/* Manage Voters Navigation Button */}
              <button 
                 onClick={() => navigate('/voters')}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors text-sm"
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-indigo-500/20"
              >
                 Manage Voters
              </button>

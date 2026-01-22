@@ -1,3 +1,4 @@
+// backend/evoting-frontend/src/pages/Election.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -113,6 +114,11 @@ const Elections = () => {
           start_date: newStart,
           end_date: (prev.end_date && prev.end_date < newStart) ? '' : prev.end_date
       }));
+  };
+
+  // --- FIX: Defined the missing function here ---
+  const handleEndDateChange = (e) => {
+      setForm(prev => ({ ...prev, end_date: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
@@ -245,14 +251,27 @@ const Elections = () => {
              const canUpdate = !election.is_active && !isEnded;
              const canDelete = !election.is_active || isEnded;
              
-             // Check if "Stop Permanently" is available (must not be already ended)
              const canStop = !isEnded;
+             
+             // --- Logic for Green Glow Animation ---
+             const isActiveElection = election.is_active && !isEnded;
+             const cardClasses = isActiveElection
+               ? "bg-slate-900/50 border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all duration-500"
+               : "bg-slate-900/50 border border-slate-800 hover:border-slate-700 shadow-md transition-all";
 
              return (
-               <div key={election.ID} className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-start md:items-center justify-between hover:border-slate-700 transition-all shadow-md group relative">
+               <div key={election.ID} className={`${cardClasses} p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-start md:items-center justify-between group relative`}>
                   
+                  {/* Pulsing Dot for Active Elections */}
+                  {isActiveElection && (
+                    <div className="absolute top-6 right-6 flex h-3 w-3 md:hidden">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </div>
+                  )}
+
                   <div className="flex items-start gap-4">
-                      <div className={`p-3 rounded-xl ${election.is_active && !isEnded ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                      <div className={`p-3 rounded-xl ${isActiveElection ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
                          <Vote size={24} />
                       </div>
                       <div>
@@ -286,7 +305,7 @@ const Elections = () => {
                                                 {!canUpdate && <Lock size={12} className="ml-auto opacity-50"/>}
                                             </button>
 
-                                            {/* Stop Permanently - New Option */}
+                                            {/* Stop Permanently */}
                                             <button 
                                                 onClick={() => initiateStatusChange(election, 'stop')}
                                                 disabled={!canStop}
@@ -323,27 +342,34 @@ const Elections = () => {
                         <p className="text-sm text-slate-500 mb-2">{election.description || "No description provided."}</p>
                         
                         <div className="flex flex-wrap gap-4 text-xs font-mono text-slate-400">
+                           {/* --- UPDATED: Show Start Time --- */}
                            <span className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded">
                               <Calendar size={12} /> 
-                              {new Date(election.start_date).toLocaleDateString()}
+                              {new Date(election.start_date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                            </span>
                            <span className={`flex items-center gap-1.5 px-2 py-1 rounded ${isEnded ? 'bg-rose-900/20 text-rose-400' : 'bg-slate-800'}`}>
                               <Clock size={12} />
                               {isEnded ? "Ended: " : "Ends: "} 
-                              {new Date(election.end_date).toLocaleString()}
+                              {new Date(election.end_date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                            </span>
                         </div>
                      </div>
                   </div>
 
                   <div className="flex items-center gap-4 w-full md:w-auto pl-16 md:pl-0">
-                      <div className={`text-sm font-bold px-3 py-1 rounded-full border ${
+                      <div className={`text-sm font-bold px-3 py-1 rounded-full border flex items-center gap-2 ${
                          isEnded 
                            ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' 
                            : election.is_active 
                               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
                               : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
                       }`}>
+                         {election.is_active && !isEnded && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                         )}
                          {isEnded ? "Ended" : (election.is_active ? "Live" : "Paused")}
                       </div>
 
