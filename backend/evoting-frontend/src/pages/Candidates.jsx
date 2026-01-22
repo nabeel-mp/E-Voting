@@ -3,7 +3,7 @@ import api from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { 
   Plus, Search, Flag, User, FileText, Hash, MoreVertical, 
-  Loader2, X, Upload, Filter, Pencil, Trash2, Calendar
+  Loader2, X, Upload, Filter, Pencil, Trash2, Calendar, Lock
 } from 'lucide-react';
 
 const Candidates = () => {
@@ -308,6 +308,16 @@ const Candidates = () => {
                ) : filteredCandidates.map(c => {
                    const cId = getId(c);
                    const elec = elections.find(e => getId(e) === c.election_id || getId(e) === c.ElectionID);
+                   
+                   // --- LOGIC: Allow Update/Delete ONLY if Closed (Ended) OR Upcoming (Not Started)
+                   // Block if Active AND Running
+                   
+                   const isEnded = elec ? new Date(elec.end_date) < new Date() : false;
+                   const isActive = elec?.is_active;
+
+                   // Locked if: Active AND Not Ended
+                   const isLocked = isActive && !isEnded;
+                   
                    return (
                    <tr key={cId} className="group hover:bg-slate-800/40 transition-colors">
                      <td className="px-6 py-4">
@@ -329,8 +339,14 @@ const Candidates = () => {
                      </td>
                      <td className="px-6 py-4 text-xs">
                         {elec ? (
-                            <span className={`px-2 py-1 rounded border ${elec.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>
-                                {elec.title}
+                            <span className={`px-2 py-1 rounded border ${
+                                isEnded 
+                                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                                    : isActive
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                        : 'bg-slate-800 text-slate-500 border-slate-700'
+                            }`}>
+                                {elec.title} {isEnded ? '(Closed)' : (isActive ? '(Active)' : '')}
                             </span>
                         ) : 'Unknown Election'}
                      </td>
@@ -343,9 +359,35 @@ const Candidates = () => {
                        </button>
                        {activeDropdown === cId && (
                            <div ref={dropdownRef} className="absolute right-8 top-12 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                                <button onClick={() => handleEditCandidate(c)} className="w-full text-left px-3 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"><Pencil size={14} /> Update</button>
+                                <button 
+                                    onClick={() => handleEditCandidate(c)} 
+                                    disabled={isLocked}
+                                    className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 transition-colors ${
+                                        isLocked 
+                                        ? 'text-slate-600 cursor-not-allowed' 
+                                        : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                                    }`}
+                                >
+                                    <Pencil size={14} /> 
+                                    Update
+                                    {isLocked && <span className="ml-auto text-[10px] uppercase bg-slate-800 px-1 rounded text-slate-500">Locked</span>}
+                                </button>
+                                
                                 <div className="h-px bg-slate-800 my-1 mx-2"></div>
-                                <button onClick={() => handleDeleteCandidate(cId)} className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 flex items-center gap-2"><Trash2 size={14} /> Delete</button>
+                                
+                                <button 
+                                    onClick={() => handleDeleteCandidate(cId)} 
+                                    disabled={isLocked}
+                                    className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 transition-colors ${
+                                        isLocked 
+                                        ? 'text-slate-600 cursor-not-allowed' 
+                                        : 'text-rose-400 hover:bg-rose-500/10'
+                                    }`}
+                                >
+                                    <Trash2 size={14} /> 
+                                    Delete
+                                    {isLocked && <Lock size={12} className="ml-auto opacity-50" />}
+                                </button>
                            </div>
                        )}
                      </td>
@@ -357,7 +399,6 @@ const Candidates = () => {
         </div>
       </div>
 
-      {/* Modals omitted for brevity, logic updated in handlers above */}
       {showPartyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closePartyModal} />
@@ -431,11 +472,17 @@ const Candidates = () => {
                           className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none"
                        >
                           <option value="">Select Election...</option>
-                          {elections.map(e => (
-                              <option key={getId(e)} value={getId(e)}>
-                                  {e.title} {e.is_active ? '(Active)' : '(Closed)'}
-                              </option>
-                          ))}
+                          {elections.map(e => {
+                              const isEnded = new Date(e.end_date) < new Date();
+                              // Disable if Active OR Closed (only allow Upcoming)
+                              const isDisabled = e.is_active || isEnded;
+                              
+                              return (
+                                  <option key={getId(e)} value={getId(e)} disabled={isDisabled}>
+                                      {e.title} {e.is_active ? '(Active)' : (isEnded ? '(Closed)' : '')}
+                                  </option>
+                              );
+                          })}
                        </select>
                     </div>
                  </div>

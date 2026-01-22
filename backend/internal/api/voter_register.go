@@ -14,9 +14,14 @@ import (
 )
 
 type RegisterVoterRequest struct {
-	FullName string `json:"full_name"`
-	Mobile   string `json:"mobile"`
-	Aadhaar  string `json:"aadhaar"`
+	FullName   string `json:"full_name"`
+	Mobile     string `json:"mobile"`
+	Aadhaar    string `json:"aadhaar"`
+	Address    string `json:"address"`
+	District   string `json:"district"`
+	Block      string `json:"block"`
+	Panchayath string `json:"panchayath"`
+	Ward       string `json:"ward"`
 }
 
 type VoterStatusReq struct {
@@ -39,15 +44,18 @@ func RegisterVoter(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Missing required fields")
 	}
 
-	hashedAadhaar := utils.HashAadhaar(req.Aadhaar)
 	generatedVoterID := fmt.Sprintf("VOTE-%d", utils.RandomNumber())
 
 	voter := &models.Voter{
-		FullName:     req.FullName,
-		VoterID:      generatedVoterID,
-		Mobile:       req.Mobile,
-		AadhaarHash:  hashedAadhaar,
-		AadhaarPlain: req.Aadhaar,
+		FullName:      req.FullName,
+		VoterID:       generatedVoterID,
+		Mobile:        req.Mobile,
+		AadhaarNumber: req.Aadhaar,
+		Address:       req.Address,
+		District:      req.District,
+		Block:         req.Block,
+		Panchayath:    req.Panchayath,
+		Ward:          req.Ward,
 	}
 
 	if err := repository.CreateVoter(voter); err != nil {
@@ -70,6 +78,74 @@ func RegisterVoter(c *fiber.Ctx) error {
 		"message":  "Voter registered successfully",
 		"voter_id": generatedVoterID,
 	})
+}
+
+func UpdateVoter(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var voter models.Voter
+	if err := database.PostgresDB.First(&voter, id).Error; err != nil {
+		return utils.Error(c, 404, "Voter not found")
+	}
+
+	var req RegisterVoterRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid body")
+	}
+
+	// Update allowed fields
+	if req.FullName != "" {
+		voter.FullName = req.FullName
+	}
+	if req.Mobile != "" {
+		voter.Mobile = req.Mobile
+	}
+	if req.Aadhaar != "" {
+		voter.AadhaarNumber = req.Aadhaar
+	}
+	if req.Address != "" {
+		voter.Address = req.Address
+	}
+	if req.District != "" {
+		voter.District = req.District
+	}
+	if req.Block != "" {
+		voter.Block = req.Block
+	}
+	if req.Panchayath != "" {
+		voter.Panchayath = req.Panchayath
+	}
+	if req.Ward != "" {
+		voter.Ward = req.Ward
+	}
+
+	if err := database.PostgresDB.Save(&voter).Error; err != nil {
+		return utils.Error(c, 500, "Failed to update voter")
+	}
+
+	return utils.Success(c, "Voter updated successfully")
+}
+
+func DeleteVoter(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var voter models.Voter
+
+	if err := database.PostgresDB.First(&voter, id).Error; err != nil {
+		return utils.Error(c, 404, "Voter not found")
+	}
+
+	if err := database.PostgresDB.Delete(&voter).Error; err != nil {
+		return utils.Error(c, 500, "Failed to delete voter")
+	}
+
+	// Audit Log
+	actorIDFloat, _ := c.Locals("user_id").(float64)
+	actorRole, _ := c.Locals("role").(string)
+	service.LogAdminAction(uint(actorIDFloat), actorRole, "DELETE_VOTER", voter.ID, map[string]interface{}{
+		"voter_id": voter.VoterID,
+		"name":     voter.FullName,
+	})
+
+	return utils.Success(c, "Voter deleted successfully")
 }
 
 func ListVoters(c *fiber.Ctx) error {
@@ -217,15 +293,13 @@ func ImportVotersCSV(c *fiber.Ctx) error {
 		}
 
 		// Register Logic
-		hashedAadhaar := utils.HashAadhaar(aadhaar)
 		generatedVoterID := fmt.Sprintf("VOTE-%d", utils.RandomNumber())
 
 		voter := &models.Voter{
-			FullName:     fullName,
-			VoterID:      generatedVoterID,
-			Mobile:       mobile,
-			AadhaarHash:  hashedAadhaar,
-			AadhaarPlain: aadhaar,
+			FullName:      fullName,
+			VoterID:       generatedVoterID,
+			Mobile:        mobile,
+			AadhaarNumber: aadhaar,
 		}
 
 		if err := repository.CreateVoter(voter); err == nil {

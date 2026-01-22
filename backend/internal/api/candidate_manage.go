@@ -153,6 +153,14 @@ func CreateCandidate(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Selected election does not exist")
 	}
 
+	if election.IsActive {
+		return utils.Error(c, 403, "Cannot register new candidates for an ACTIVE election.")
+	}
+
+	if time.Now().After(election.EndDate) {
+		return utils.Error(c, 403, "Cannot register new candidates: Election has ENDED.")
+	}
+
 	if err := database.PostgresDB.Create(&candidate).Error; err != nil {
 		return utils.Error(c, 500, "Failed to create candidate")
 	}
@@ -185,8 +193,8 @@ func UpdateCandidate(c *fiber.Ctx) error {
 
 	var election models.Election
 	if err := database.PostgresDB.First(&election, candidate.ElectionID).Error; err == nil {
-		if election.IsActive {
-			return utils.Error(c, 403, "Cannot modify candidate while their election is ACTIVE.")
+		if election.IsActive && time.Now().Before(election.EndDate) {
+			return utils.Error(c, 403, "Cannot modify candidate: Election is currently ACTIVE.")
 		}
 	}
 
@@ -248,8 +256,8 @@ func DeleteCandidate(c *fiber.Ctx) error {
 	// SAFETY CHECK 2: Active Election?
 	var election models.Election
 	if err := database.PostgresDB.First(&election, candidate.ElectionID).Error; err == nil {
-		if election.IsActive {
-			return utils.Error(c, 403, "Cannot delete candidate while their election is ACTIVE.")
+		if election.IsActive && time.Now().Before(election.EndDate) {
+			return utils.Error(c, 403, "Cannot delete candidate: Election is currently ACTIVE.")
 		}
 	}
 

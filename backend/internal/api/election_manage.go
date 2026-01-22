@@ -58,6 +58,12 @@ func UpdateElection(c *fiber.Ctx) error {
 	election.StartDate = req.StartDate
 	election.EndDate = req.EndDate
 
+	election.District = req.District
+	election.LocalBodyType = req.LocalBodyType
+	election.LocalBodyName = req.LocalBodyName
+	election.Block = req.Block
+	election.Ward = req.Ward
+
 	election.IsActive = req.IsActive
 
 	if err := database.PostgresDB.Save(&election).Error; err != nil {
@@ -105,7 +111,7 @@ func ListElections(c *fiber.Ctx) error {
 func ToggleElectionStatus(c *fiber.Ctx) error {
 	var req struct {
 		ElectionID uint `json:"election_id"`
-		Status     bool `json:"status"` // true = active, false = inactive
+		Status     bool `json:"status"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -121,7 +127,6 @@ func ToggleElectionStatus(c *fiber.Ctx) error {
 	if req.Status {
 		election.Status = "ONGOING"
 	} else {
-		// If stopping, check if end date passed to mark completed, else just paused
 		if time.Now().After(election.EndDate) {
 			election.Status = "COMPLETED"
 		} else {
