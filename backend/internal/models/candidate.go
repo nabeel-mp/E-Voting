@@ -14,4 +14,6 @@ type Candidate struct {
 	Party      Party  `gorm:"foreignKey:PartyID" json:"party"`
 	Bio        string `json:"bio"`
 	Photo      string `json:"photo"`
+
+	WardNumber string `json:"ward_number"`
 }

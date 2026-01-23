@@ -3,7 +3,7 @@ import api from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { 
   Plus, Search, Flag, User, FileText, Hash, MoreVertical, 
-  Loader2, X, Upload, Filter, Pencil, Trash2, Calendar, Lock
+  Loader2, X, Upload, Filter, Pencil, Trash2, Calendar, Lock, MapPin
 } from 'lucide-react';
 
 const Candidates = () => {
@@ -26,7 +26,15 @@ const Candidates = () => {
   const [partyForm, setPartyForm] = useState({ name: '', logo: null });
   const [logoPreview, setLogoPreview] = useState(null);
   
-  const [candidateForm, setCandidateForm] = useState({ full_name: '', election_id: '', party_id: '', bio: '', photo: null });
+  // Added ward_number to state
+  const [candidateForm, setCandidateForm] = useState({ 
+      full_name: '', 
+      election_id: '', 
+      party_id: '', 
+      bio: '', 
+      photo: null, 
+      ward_number: '' 
+  });
   const [candidatePhotoPreview, setCandidatePhotoPreview] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -162,6 +170,9 @@ const Candidates = () => {
       formData.append('election_id', candidateForm.election_id);
       formData.append('party_id', candidateForm.party_id);
       formData.append('bio', candidateForm.bio);
+      // Append Ward Number
+      formData.append('ward_number', candidateForm.ward_number);
+      
       if (candidateForm.photo) formData.append('photo', candidateForm.photo);
 
       if (editingCandidateId) {
@@ -190,6 +201,7 @@ const Candidates = () => {
           election_id: c.election_id || c.ElectionID, 
           party_id: c.party_id || c.PartyID,
           bio: c.bio || '',
+          ward_number: c.ward_number || '', // Populate ward number
           photo: null
       });
       setCandidatePhotoPreview(c.photo || c.Photo ? getLogoUrl(c.photo || c.Photo) : null);
@@ -212,8 +224,25 @@ const Candidates = () => {
   const closeCandidateModal = () => {
       setShowCandidateModal(false);
       setEditingCandidateId(null);
-      setCandidateForm({ full_name: '', election_id: '', party_id: '', bio: '', photo: null });
+      setCandidateForm({ full_name: '', election_id: '', party_id: '', bio: '', photo: null, ward_number: '' });
       setCandidatePhotoPreview(null);
+  };
+
+  // Helper to determine the label (Ward vs Division)
+  const getWardLabel = () => {
+    if (!candidateForm.election_id) return "Ward / Division Number";
+    
+    // Find the selected election object
+    const selectedElection = elections.find(e => getId(e) == candidateForm.election_id);
+    if (!selectedElection) return "Ward / Division Number";
+    
+    const type = selectedElection.election_type || '';
+    // If it's a District or Block level election, they usually have "Divisions". 
+    // GP/Municipality/Corporation have "Wards".
+    if (type.includes("District") || type.includes("Block")) {
+        return "Division Number";
+    }
+    return "Ward Number";
   };
 
   return (
@@ -309,15 +338,17 @@ const Candidates = () => {
                    const cId = getId(c);
                    const elec = elections.find(e => getId(e) === c.election_id || getId(e) === c.ElectionID);
                    
-                   // --- LOGIC: Allow Update/Delete ONLY if Closed (Ended) OR Upcoming (Not Started)
-                   // Block if Active AND Running
-                   
+                   // Check if the election is active or ended (to lock edit/delete)
                    const isEnded = elec ? new Date(elec.end_date) < new Date() : false;
                    const isActive = elec?.is_active;
 
-                   // Locked if: Active AND Not Ended
+                   // Locked logic: Locked ONLY if Active AND NOT Ended
                    const isLocked = isActive && !isEnded;
-                   
+                   const lockLabel = isEnded ? 'Closed' : 'Active';
+
+                   // Determine ward/division type for display
+                   const divisionType = (elec?.election_type?.includes("Block") || elec?.election_type?.includes("District")) ? "Division" : "Ward";
+
                    return (
                    <tr key={cId} className="group hover:bg-slate-800/40 transition-colors">
                      <td className="px-6 py-4">
@@ -339,15 +370,22 @@ const Candidates = () => {
                      </td>
                      <td className="px-6 py-4 text-xs">
                         {elec ? (
-                            <span className={`px-2 py-1 rounded border ${
-                                isEnded 
-                                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
-                                    : isActive
-                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                        : 'bg-slate-800 text-slate-500 border-slate-700'
-                            }`}>
-                                {elec.title} {isEnded ? '(Closed)' : (isActive ? '(Active)' : '')}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                                <span className={`px-2 py-1 rounded border w-fit ${
+                                    isEnded 
+                                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                                        : isActive
+                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                            : 'bg-slate-800 text-slate-500 border-slate-700'
+                                }`}>
+                                    {elec.title} {isEnded ? '(Closed)' : (isActive ? '(Active)' : '')}
+                                </span>
+                                {c.ward_number && (
+                                    <span className="text-indigo-400 flex items-center gap-1">
+                                        <MapPin size={10} /> {divisionType} {c.ward_number}
+                                    </span>
+                                )}
+                            </div>
                         ) : 'Unknown Election'}
                      </td>
                      <td className="px-6 py-4 text-right relative">
@@ -370,7 +408,7 @@ const Candidates = () => {
                                 >
                                     <Pencil size={14} /> 
                                     Update
-                                    {isLocked && <span className="ml-auto text-[10px] uppercase bg-slate-800 px-1 rounded text-slate-500">Locked</span>}
+                                    {isLocked && <span className="ml-auto text-[10px] uppercase bg-slate-800 px-1 rounded text-slate-500">{lockLabel}</span>}
                                 </button>
                                 
                                 <div className="h-px bg-slate-800 my-1 mx-2"></div>
@@ -399,6 +437,7 @@ const Candidates = () => {
         </div>
       </div>
 
+      {/* Add Party Modal (Unchanged logic, just ensure styling matches) */}
       {showPartyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closePartyModal} />
@@ -430,16 +469,17 @@ const Candidates = () => {
         </div>
       )}
 
+      {/* CANDIDATE MODAL */}
       {showCandidateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={closeCandidateModal} />
-           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-              <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
                  <h2 className="text-xl font-bold text-white">{editingCandidateId ? 'Update Candidate' : 'Add Candidate'}</h2>
                  <button onClick={closeCandidateModal}><X className="text-slate-500 hover:text-white" /></button>
               </div>
               
-              <form onSubmit={handleCandidateSubmit} className="p-6 space-y-4">
+              <form onSubmit={handleCandidateSubmit} className="p-6 space-y-4 overflow-y-auto">
                  <div className="flex justify-center mb-2">
                     <div className="relative w-24 h-24 group">
                         <div className={`w-full h-full rounded-full overflow-hidden border-2 flex items-center justify-center bg-slate-800 ${candidatePhotoPreview ? 'border-indigo-500' : 'border-slate-600 border-dashed'}`}>
@@ -473,18 +513,29 @@ const Candidates = () => {
                        >
                           <option value="">Select Election...</option>
                           {elections.map(e => {
-                              const isEnded = new Date(e.end_date) < new Date();
-                              // Disable if Active OR Closed (only allow Upcoming)
-                              const isDisabled = e.is_active || isEnded;
-                              
-                              return (
+                               // Disable selection if election is Active or Ended
+                               const isEnded = new Date(e.end_date) < new Date();
+                               const isDisabled = e.is_active || isEnded;
+                               return (
                                   <option key={getId(e)} value={getId(e)} disabled={isDisabled}>
                                       {e.title} {e.is_active ? '(Active)' : (isEnded ? '(Closed)' : '')}
                                   </option>
-                              );
+                               );
                           })}
                        </select>
                     </div>
+                 </div>
+
+                 {/* DYNAMIC WARD/DIVISION FIELD */}
+                 <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-400 uppercase">{getWardLabel()}</label>
+                    <input 
+                        required
+                        placeholder="e.g. 15"
+                        value={candidateForm.ward_number}
+                        onChange={e => setCandidateForm({...candidateForm, ward_number: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    />
                  </div>
 
                  <div className="space-y-2">

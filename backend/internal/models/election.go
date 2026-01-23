@@ -9,11 +9,11 @@ type Election struct {
 	StartDate   time.Time `json:"start_date"`
 	EndDate     time.Time `json:"end_date"`
 
-	District      string `json:"district"`
-	LocalBodyType string `json:"local_body_type"`
+	ElectionType string `json:"election_type"`
+
+	District      string `json:"district"` // Always required
+	Block         string `json:"block"`    // Required if Type is Block or Grama Panchayat
 	LocalBodyName string `json:"local_body_name"`
-	Block         string `json:"block"`
-	Ward          string `json:"ward"`
 
 	IsActive    bool   `gorm:"default:false" json:"is_active"`
 	IsPublished bool   `gorm:"default:false" json:"is_published"`
