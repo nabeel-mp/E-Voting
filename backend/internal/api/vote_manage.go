@@ -18,14 +18,72 @@ type VoteRequest struct {
 }
 
 func GetVoterElections(c *fiber.Ctx) error {
-	var elections []models.Election
+	// 1. Get Logged in Voter
+	voterIDFloat, ok := c.Locals("user_id").(float64)
+	if !ok {
+		return utils.Error(c, 401, "Unauthorized")
+	}
+	var voter models.Voter
+	if err := database.PostgresDB.First(&voter, uint(voterIDFloat)).Error; err != nil {
+		return utils.Error(c, 401, "Voter details not found")
+	}
+
+	// 2. Fetch Active Elections
+	var allElections []models.Election
 	if err := database.PostgresDB.
 		Where("is_active = ?", true).
 		Order("end_date asc").
-		Find(&elections).Error; err != nil {
+		Find(&allElections).Error; err != nil {
 		return utils.Error(c, 500, "Failed to fetch elections")
 	}
-	return utils.Success(c, elections)
+
+	// 3. Filter based on 3-Tier Hierarchy
+	var eligibleElections []models.Election
+
+	for _, e := range allElections {
+		isEligible := false
+
+		// Rule 1: District Match is always required (foundation)
+		if e.District == voter.District {
+			switch e.ElectionType {
+			case "District Panchayat":
+				// Matches if District matches
+				isEligible = true
+
+			case "Block Panchayat":
+				// Matches if Block matches
+				if e.Block == voter.Block {
+					isEligible = true
+				}
+
+			case "Grama Panchayat":
+				if e.Block == voter.Block &&
+					e.LocalBodyName == voter.Panchayath &&
+					e.Ward == voter.Ward { // Strict Ward Match
+					isEligible = true
+				}
+
+			case "Municipality", "Municipal Corporation":
+				if e.LocalBodyName == voter.Panchayath &&
+					e.Ward == voter.Ward { // Strict Ward Match
+					isEligible = true
+				}
+			}
+		}
+
+		// Rule 2: Specific Ward Restriction (Optional)
+		if isEligible && e.Ward != "" {
+			if e.Ward != voter.Ward {
+				isEligible = false
+			}
+		}
+
+		if isEligible {
+			eligibleElections = append(eligibleElections, e)
+		}
+	}
+
+	return utils.Success(c, eligibleElections)
 }
 
 func GetVoterCandidates(c *fiber.Ctx) error {

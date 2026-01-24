@@ -170,16 +170,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// CreateElectionRequest maps strictly to the Frontend JSON
 type CreateElectionRequest struct {
 	Title         string `json:"title"`
 	Description   string `json:"description"`
-	StartDate     string `json:"start_date"` // JSON dates come as strings
+	StartDate     string `json:"start_date"`
 	EndDate       string `json:"end_date"`
-	ElectionType  string `json:"election_type"` // Frontend sends 'election_type'
+	ElectionType  string `json:"election_type"`
 	District      string `json:"district"`
 	Block         string `json:"block"`
 	LocalBodyName string `json:"local_body_name"`
+	Ward          string `json:"ward"`
 }
 
 func CreateElection(c *fiber.Ctx) error {
@@ -213,12 +213,21 @@ func CreateElection(c *fiber.Ctx) error {
 		Description:   req.Description,
 		StartDate:     start,
 		EndDate:       end,
-		ElectionType:  req.ElectionType, // Maps from JSON 'election_type'
+		ElectionType:  req.ElectionType,
 		District:      req.District,
 		Block:         req.Block,
 		LocalBodyName: req.LocalBodyName,
-		IsActive:      false, // Default to Paused/Inactive on creation
+		Ward:          req.Ward,
+		IsActive:      false,
 		Status:        calculateStatus(start, end, false),
+	}
+
+	isWardRequired := req.ElectionType == "Grama Panchayat" ||
+		req.ElectionType == "Municipality" ||
+		req.ElectionType == "Municipal Corporation"
+
+	if isWardRequired && req.Ward == "" {
+		return utils.Error(c, 400, "Ward number is required for "+req.ElectionType+" elections.")
 	}
 
 	if err := database.PostgresDB.Create(&election).Error; err != nil {
@@ -243,9 +252,6 @@ func UpdateElection(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Election not found")
 	}
 
-	// Parse incoming update data
-	// We use a map or struct to capture only sent fields, but for simplicity re-using a model-like struct
-	// Note: Frontend sends 'election_type' but model might have 'ElectionType'
 	var req struct {
 		Title         string    `json:"title"`
 		Description   string    `json:"description"`
@@ -255,6 +261,7 @@ func UpdateElection(c *fiber.Ctx) error {
 		District      string    `json:"district"`
 		Block         string    `json:"block"`
 		LocalBodyName string    `json:"local_body_name"`
+		Ward          string    `json:"ward"`
 		IsActive      bool      `json:"is_active"`
 	}
 
@@ -262,17 +269,20 @@ func UpdateElection(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request format")
 	}
 
-	// Logic: If election is currently Live (Active), we generally disallow editing critical fields
-	// UNLESS the update is specifically to Stop/Pause it (req.IsActive = false).
 	if election.IsActive && req.IsActive {
 		return utils.Error(c, 403, "Cannot edit a LIVE election. Pause it first.")
 	}
 
-	// Logic: Cannot edit an election that has already ended
 	if time.Now().After(election.EndDate) && !req.EndDate.After(time.Now()) {
-		// Exception: If they are extending the EndDate to the future, allow it.
-		// Otherwise, block editing old history.
 		return utils.Error(c, 403, "Cannot edit a completed election.")
+	}
+
+	isWardRequired := req.ElectionType == "Grama Panchayat" ||
+		req.ElectionType == "Municipality" ||
+		req.ElectionType == "Municipal Corporation"
+
+	if isWardRequired && req.Ward == "" {
+		return utils.Error(c, 400, "Ward number is required for "+req.ElectionType+" elections.")
 	}
 
 	// Update Fields
@@ -284,6 +294,7 @@ func UpdateElection(c *fiber.Ctx) error {
 	election.District = req.District
 	election.Block = req.Block
 	election.LocalBodyName = req.LocalBodyName
+	election.Ward = req.Ward
 
 	// Handle "Stop Permanently" or Pause from Update form
 	election.IsActive = req.IsActive
@@ -394,7 +405,6 @@ func ToggleElectionPublish(c *fiber.Ctx) error {
 
 // --- Helpers ---
 
-// calculateStatus determines the string status based on time and active flag
 func calculateStatus(start, end time.Time, isActive bool) string {
 	now := time.Now()
 

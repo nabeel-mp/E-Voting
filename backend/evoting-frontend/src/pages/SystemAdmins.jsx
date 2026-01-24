@@ -8,7 +8,9 @@ import {
   Lock, 
   Unlock,
   Loader2,
-  ListFilter
+  ListFilter,
+  Shield,
+  UserCheck
 } from 'lucide-react';
 
 const SystemAdmins = () => {
@@ -75,53 +77,62 @@ const SystemAdmins = () => {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 h-[calc(100vh-100px)] flex flex-col p-6 md:p-8">
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">System Administrators</h1>
-          <p className="text-slate-400 mt-1">Monitor and manage privileged access accounts.</p>
+          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 tracking-tight">
+            System Administrators
+          </h1>
+          <p className="text-slate-400 mt-2 text-lg font-light">
+            Monitor and manage privileged access accounts.
+          </p>
         </div>
         
         <div className="flex gap-4">
-           <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl">
-              <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400"><ShieldCheck size={18} /></div>
+           <div className="flex items-center gap-3 bg-slate-900/50 border border-slate-700/50 px-5 py-3 rounded-xl shadow-lg backdrop-blur-md">
+              <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400"><UserCheck size={20} /></div>
               <div>
-                <span className="block text-xs text-slate-500 uppercase font-bold">Active</span>
-                <span className="font-mono text-white font-bold">{admins.filter(a => a.is_active).length}</span>
+                <span className="block text-xs text-slate-500 uppercase font-bold tracking-wider">Active</span>
+                <span className="font-mono text-white font-bold text-lg leading-none">{admins.filter(a => a.is_active).length}</span>
               </div>
            </div>
-           <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl">
-              <div className="p-1.5 bg-rose-500/10 rounded-lg text-rose-400"><ShieldAlert size={18} /></div>
+           <div className="flex items-center gap-3 bg-slate-900/50 border border-slate-700/50 px-5 py-3 rounded-xl shadow-lg backdrop-blur-md">
+              <div className="p-2 bg-rose-500/10 rounded-lg text-rose-400"><ShieldAlert size={20} /></div>
               <div>
-                <span className="block text-xs text-slate-500 uppercase font-bold">Blocked</span>
-                <span className="font-mono text-white font-bold">{admins.filter(a => !a.is_active).length}</span>
+                <span className="block text-xs text-slate-500 uppercase font-bold tracking-wider">Blocked</span>
+                <span className="font-mono text-white font-bold text-lg leading-none">{admins.filter(a => !a.is_active).length}</span>
               </div>
            </div>
         </div>
       </div>
 
-      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row gap-4 justify-between items-center">
-            <div className="relative w-full sm:max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                <input 
+      {/* Main Content Area */}
+      <div className="flex-1 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden min-h-[650px]">
+        
+        {/* Toolbar */}
+        <div className="p-6 border-b border-slate-800/60 flex flex-col sm:flex-row items-center gap-4 bg-slate-900/30">
+            <div className="relative w-full sm:max-w-md group">
+               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+               <input 
                   type="text" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search email, role, or ID..." 
-                  className="w-full bg-slate-800/50 border border-slate-700 text-slate-200 pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
-                />
+                  className="w-full bg-slate-950/50 border border-slate-800 text-slate-200 pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
+               />
             </div>
-            <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50">
+            
+            <div className="flex bg-slate-950/50 p-1.5 rounded-xl border border-slate-800 ml-auto">
                 {['ALL', 'ACTIVE', 'BLOCKED'].map((status) => (
                     <button
                         key={status}
                         onClick={() => setFilterStatus(status)}
-                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ${
+                        className={`px-5 py-2 text-xs font-bold rounded-lg transition-all duration-300 ${
                             filterStatus === status 
-                            ? 'bg-indigo-500 text-white shadow-lg' 
-                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                            ? 'bg-indigo-600 text-white shadow-md' 
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
                         }`}
                     >
                         {status === 'ALL' && 'All Users'}
@@ -132,65 +143,66 @@ const SystemAdmins = () => {
             </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Scrollable Table */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left text-sm text-slate-400">
-            <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800">
+            <thead className="bg-slate-900/80 text-xs uppercase font-bold text-slate-500 tracking-wider border-b border-slate-800/60 sticky top-0 backdrop-blur-md z-10 shadow-sm">
               <tr>
-                <th className="px-6 py-4">Administrator</th>
-                <th className="px-6 py-4">Access Roles</th>
-                <th className="px-6 py-4">Account Status</th>
-                <th className="px-6 py-4 text-right">Security Action</th>
+                <th className="px-8 py-5">Administrator</th>
+                <th className="px-6 py-5">Access Roles</th>
+                <th className="px-6 py-5">Account Status</th>
+                <th className="px-8 py-5 text-right">Security Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-slate-800/40">
               {loading ? (
                 <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center">
-                      <div className="flex justify-center items-center gap-2 text-indigo-400">
-                        <Loader2 className="animate-spin" size={20} />
-                        Loading administrators...
+                    <td colSpan="4" className="px-6 py-20 text-center">
+                      <div className="flex flex-col items-center gap-3 text-slate-500">
+                        <Loader2 className="animate-spin text-indigo-500" size={32} />
+                        <p className="animate-pulse">Loading secure admin list...</p>
                       </div>
                     </td>
                 </tr>
               ) : filteredAdmins.length === 0 ? (
                 <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-slate-500 italic">
-                        <div className="flex flex-col items-center gap-2">
-                          <ListFilter size={32} className="opacity-20" />
-                          <p>No administrators found matching current filters.</p>
+                    <td colSpan="4" className="px-6 py-20 text-center text-slate-500">
+                        <div className="flex flex-col items-center gap-3 opacity-60">
+                          <ListFilter size={40} />
+                          <p className="text-lg">No administrators found matching current filters.</p>
                         </div>
                     </td>
                 </tr>
               ) : (
                 filteredAdmins.map((admin) => (
-                  <tr key={admin.id} className={`group transition-colors ${admin.is_active ? 'hover:bg-slate-800/40' : 'bg-rose-950/10 hover:bg-rose-900/10'}`}>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-lg ${
+                  <tr key={admin.id} className={`group transition-colors ${admin.is_active ? 'hover:bg-indigo-500/[0.02]' : 'bg-rose-950/10 hover:bg-rose-900/10'}`}>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold shadow-lg text-lg ${
                             admin.is_super 
-                            ? 'bg-gradient-to-br from-amber-500 to-orange-600' 
-                            : 'bg-gradient-to-br from-indigo-500 to-violet-600'
+                            ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/20' 
+                            : 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-500/20'
                         }`}>
-                           {admin.is_super ? <ShieldCheck size={18} /> : admin.email?.charAt(0).toUpperCase()}
+                           {admin.is_super ? <Shield size={20} /> : admin.email?.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                           <span className={`block font-medium ${admin.is_active ? 'text-slate-200' : 'text-slate-400'}`}>
+                           <span className={`block font-semibold text-base ${admin.is_active ? 'text-slate-200' : 'text-slate-400'}`}>
                                 {admin.email}
                            </span>
-                           <span className="text-xs text-slate-500">ID: #{admin.id}</span>
+                           <span className="text-xs text-slate-500 font-mono">ID: #{admin.id}</span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5">
                       {admin.is_super ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border bg-amber-500/10 text-amber-400 border-amber-500/20">
-                            Super Admin
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-sm">
+                            <ShieldCheck size={12} /> SUPER ADMIN
                           </span>
                       ) : (
                           <div className="flex flex-wrap gap-1.5">
                              {Array.isArray(admin.roles) && admin.roles.length > 0 ? (
                                 admin.roles.map((roleName, idx) => (
-                                    <span key={idx} className="px-2 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded text-xs font-medium">
+                                    <span key={idx} className="px-2.5 py-1 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded-lg text-[10px] font-bold uppercase tracking-wide">
                                         {roleName}
                                     </span>
                                 ))
@@ -200,26 +212,26 @@ const SystemAdmins = () => {
                           </div>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                    <td className="px-6 py-5">
+                        <div className="flex items-center gap-2.5">
                           <span className={`relative flex h-2.5 w-2.5`}>
                             {admin.is_active && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
                             <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${admin.is_active ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
                           </span>
-                          <span className={`font-medium ${admin.is_active ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          <span className={`font-medium text-sm ${admin.is_active ? 'text-emerald-400' : 'text-rose-400'}`}>
                              {admin.is_active ? 'Active' : 'Blocked'}
                           </span>
                         </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-8 py-5 text-right">
                       {!admin.is_super ? (
                         <button 
                           onClick={() => toggleStatus(admin.id, admin.is_active)}
                           disabled={processingId === admin.id}
-                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all active:scale-95 ${
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 shadow-sm ${
                             admin.is_active 
-                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20 hover:shadow-[0_0_10px_rgba(244,63,94,0.2)]' 
-                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:shadow-[0_0_10px_rgba(52,211,153,0.2)]'
+                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20 hover:shadow-rose-500/20' 
+                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:shadow-emerald-500/20'
                           } ${processingId === admin.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                            {processingId === admin.id ? (
@@ -227,12 +239,12 @@ const SystemAdmins = () => {
                            ) : (
                              admin.is_active ? <Lock size={14} /> : <Unlock size={14} />
                            )}
-                           {admin.is_active ? 'Block Access' : 'Unblock'}
+                           <span>{admin.is_active ? 'Block Access' : 'Unblock Access'}</span>
                         </button>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-500 border border-slate-700/50 px-2 py-1 rounded bg-slate-800/50 cursor-not-allowed opacity-70">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 border border-slate-700/50 px-3 py-1.5 rounded-xl bg-slate-800/50 cursor-not-allowed opacity-60 select-none">
                             <ShieldCheck size={12} />
-                            Protected
+                            Protected Account
                         </span>
                       )}
                     </td>

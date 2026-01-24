@@ -10,7 +10,9 @@ import {
   ShieldAlert, 
   ToggleLeft, 
   ToggleRight,
-  RotateCcw
+  RotateCcw,
+  Settings,
+  Database
 } from 'lucide-react';
 
 const Configuration = () => {
@@ -81,96 +83,137 @@ const Configuration = () => {
 
   const getCategoryIcon = (cat) => {
     switch(cat) {
-      case 'General': return <Globe size={18} />;
-      case 'Security': return <ShieldAlert size={18} />;
-      case 'System': return <Server size={18} />;
-      default: return <Sliders size={18} />;
+      case 'General': return <Globe size={20} />;
+      case 'Security': return <ShieldAlert size={20} />;
+      case 'System': return <Server size={20} />;
+      case 'Database': return <Database size={20} />;
+      default: return <Sliders size={20} />;
     }
   };
 
   const formatKey = (key) => {
     return key.split('_').map(w => {
-        if (['otp', 'url', 'id', 'api'].includes(w.toLowerCase())) return w.toUpperCase();
+        if (['otp', 'url', 'id', 'api', 'jwt', 'db'].includes(w.toLowerCase())) return w.toUpperCase();
         return w.charAt(0).toUpperCase() + w.slice(1);
     }).join(' ');
   };
 
+  // Calculate changes to enable/disable buttons
+  const hasChanges = settings.some(s => {
+      const orig = originalSettings.find(o => o.key === s.key);
+      return orig && orig.value !== s.value;
+  });
+
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
-      <div className="flex justify-between items-center">
+    <div className="space-y-8 animate-in fade-in duration-500 h-[calc(100vh-100px)] flex flex-col p-6 md:p-8">
+      
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">System Configuration</h1>
-          <p className="text-slate-400 mt-1">Global settings and environmental variables.</p>
+          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 tracking-tight">
+            System Configuration
+          </h1>
+          <p className="text-slate-400 mt-2 text-lg font-light">
+            Manage global settings and environmental variables.
+          </p>
         </div>
-        <div className="flex gap-3">
+        
+        <div className="flex gap-4">
             <button 
                 onClick={fetchSettings}
-                className="p-2.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+                disabled={!hasChanges && !loading}
+                className={`p-3 rounded-xl border border-slate-700 transition-all ${
+                    hasChanges 
+                    ? 'bg-slate-800 text-white hover:bg-slate-700 shadow-lg' 
+                    : 'bg-slate-900/50 text-slate-500 cursor-not-allowed'
+                }`}
                 title="Reset Changes"
             >
-                <RotateCcw size={20} />
+                <RotateCcw size={20} className={loading ? 'animate-spin' : ''} />
             </button>
+            
             <button 
                 onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={saving || !hasChanges}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 transform hover:-translate-y-0.5 ${
+                    hasChanges
+                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-indigo-500/25'
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                }`}
             >
                 {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                <span>Save Changes</span>
+                <span>{saving ? 'Saving...' : 'Save Changes'}</span>
             </button>
         </div>
       </div>
 
+      {/* Main Content Area */}
       {loading ? (
-        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-500" size={40} /></div>
+        <div className="flex-1 flex flex-col items-center justify-center text-indigo-400">
+            <Loader2 className="animate-spin mb-4" size={48} />
+            <p className="text-slate-500 text-lg animate-pulse">Loading system configuration...</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
-          {Object.entries(groupedSettings).map(([category, items]) => (
-            <div key={category} className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-                <div className="px-6 py-4 border-b border-slate-800 flex items-center gap-3 bg-slate-900/50">
-                    <div className="p-2 bg-slate-800 rounded-lg text-indigo-400">
-                        {getCategoryIcon(category)}
-                    </div>
-                    <h3 className="font-bold text-lg text-white">{category} Settings</h3>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    {items.map((setting) => (
-                        <div key={setting.key} className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300 block">
-                                {formatKey(setting.key)}
-                            </label>
-                            
-                            {setting.type === 'boolean' ? (
-                                <div className="flex items-center gap-3">
-                                    <button 
-                                        onClick={() => handleChange(setting.key, setting.value === 'true' ? 'false' : 'true')}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
-                                            setting.value === 'true' 
-                                            ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' 
-                                            : 'bg-slate-800 border-slate-700 text-slate-400'
-                                        }`}
-                                    >
-                                        {setting.value === 'true' ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
-                                        <span className="text-sm font-bold">{setting.value === 'true' ? 'Enabled' : 'Disabled'}</span>
-                                    </button>
-                                    <span className="text-xs text-slate-500">{setting.description}</span>
-                                </div>
-                            ) : (
-                                <div>
-                                    <input 
-                                        type={setting.type === 'number' ? 'number' : 'text'}
-                                        value={setting.value} 
-                                        onChange={(e) => handleChange(setting.key, e.target.value)}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                                    />
-                                    <p className="text-xs text-slate-500 mt-1.5">{setting.description}</p>
-                                </div>
-                            )}
+        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pb-10 pr-2">
+            {Object.entries(groupedSettings).map(([category, items]) => (
+                <div key={category} className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
+                    
+                    {/* Category Header */}
+                    <div className="px-8 py-5 border-b border-slate-800/60 flex items-center gap-4 bg-slate-900/30">
+                        <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
+                            {getCategoryIcon(category)}
                         </div>
-                    ))}
+                        <div>
+                            <h3 className="font-bold text-xl text-slate-100">{category}</h3>
+                            <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Configuration Group</p>
+                        </div>
+                    </div>
+
+                    {/* Settings Grid */}
+                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                        {items.map((setting) => (
+                            <div key={setting.key} className="group">
+                                <div className="flex justify-between items-start mb-2">
+                                    <label className="text-sm font-semibold text-slate-300 group-hover:text-indigo-300 transition-colors">
+                                        {formatKey(setting.key)}
+                                    </label>
+                                    {setting.type === 'boolean' && (
+                                        <button 
+                                            onClick={() => handleChange(setting.key, setting.value === 'true' ? 'false' : 'true')}
+                                            className={`transition-colors duration-300 ${setting.value === 'true' ? 'text-emerald-400' : 'text-slate-600'}`}
+                                        >
+                                            {setting.value === 'true' ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                                        </button>
+                                    )}
+                                </div>
+
+                                {setting.type === 'boolean' ? (
+                                    <div className="flex items-center justify-between bg-slate-950/30 border border-slate-800 rounded-xl p-3 px-4">
+                                        <span className="text-xs text-slate-500">{setting.description}</span>
+                                        <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${
+                                            setting.value === 'true' 
+                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                            : 'bg-slate-800 text-slate-400 border border-slate-700'
+                                        }`}>
+                                            {setting.value === 'true' ? 'Enabled' : 'Disabled'}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="relative">
+                                        <input 
+                                            type={setting.type === 'number' ? 'number' : 'text'}
+                                            value={setting.value} 
+                                            onChange={(e) => handleChange(setting.key, e.target.value)}
+                                            className="w-full bg-slate-950/50 border border-slate-800 text-slate-200 px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder:text-slate-700 font-mono text-sm shadow-inner"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-2 ml-1">{setting.description}</p>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
-          ))}
+            ))}
         </div>
       )}
     </div>

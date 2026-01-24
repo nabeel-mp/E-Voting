@@ -4,10 +4,10 @@ import { useToast } from '../context/ToastContext';
 import {
   Calendar, Plus, Loader2, Clock, ToggleLeft, ToggleRight, Vote, Lock,
   Pencil, X, MoreVertical, Trash2, AlertTriangle, Ban,
-  MapPin, Building, ChevronDown, Layers, Search
+  MapPin, Building, ChevronDown, Layers, Search, Hash
 } from 'lucide-react';
 
-// --- KERALA ADMINISTRATIVE DATA (Kept as is) ---
+// --- KERALA ADMINISTRATIVE DATA ---
 const KERALA_ADMIN_DATA = {
   districts: [
     "Thiruvananthapuram", "Kollam", "Pathanamthitta", "Alappuzha", "Kottayam",
@@ -81,7 +81,8 @@ const Elections = () => {
     election_type: 'Grama Panchayat',
     district: '',
     block: '',
-    local_body_name: ''
+    local_body_name: '',
+    ward: ''
   });
 
   const fetchElections = async () => {
@@ -113,6 +114,10 @@ const Elections = () => {
     const date = new Date(isoString);
     const offset = date.getTimezoneOffset() * 60000;
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  const isWardRequired = (type) => {
+    return ['Grama Panchayat', 'Municipality', 'Municipal Corporation'].includes(type);
   };
 
   const getLocalBodyList = () => {
@@ -149,7 +154,8 @@ const Elections = () => {
       election_type: election.election_type || 'Grama Panchayat',
       district: election.district || '',
       block: election.block || '',
-      local_body_name: election.local_body_name || ''
+      local_body_name: election.local_body_name || '',
+      ward: election.ward || ''
     });
     setShowFormModal(true); setActiveDropdown(null);
   };
@@ -157,7 +163,7 @@ const Elections = () => {
   const resetForm = () => {
     setForm({
       title: '', description: '', start_date: '', end_date: '',
-      election_type: 'Grama Panchayat', district: '', block: '', local_body_name: ''
+      election_type: 'Grama Panchayat', district: '', block: '', local_body_name: '', ward: ''
     });
     setEditingId(null); setShowFormModal(false);
   };
@@ -168,12 +174,21 @@ const Elections = () => {
       addToast("End Date must be strictly after Start Date", "warning");
       return;
     }
+    
+    // Validate Ward Requirement
+    if (isWardRequired(form.election_type) && !form.ward.trim()) {
+      addToast(`Ward is required for ${form.election_type} elections`, "error");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
         ...form,
-        block: (form.election_type === 'District Panchayat' || form.election_type === 'Municipality' || form.election_type === 'Municipal Corporation') ? '' : form.block,
-        local_body_name: (form.election_type === 'District Panchayat' || form.election_type === 'Block Panchayat') ? '' : form.local_body_name,
+        // Clear irrelevant fields based on type
+        block: (['District Panchayat', 'Municipality', 'Municipal Corporation'].includes(form.election_type)) ? '' : form.block,
+        local_body_name: (['District Panchayat', 'Block Panchayat'].includes(form.election_type)) ? '' : form.local_body_name,
+        ward: isWardRequired(form.election_type) ? form.ward : '', // Ensure ward is sent only if relevant
         start_date: new Date(form.start_date).toISOString(),
         end_date: new Date(form.end_date).toISOString()
       };
@@ -188,7 +203,7 @@ const Elections = () => {
       resetForm(); fetchElections();
     } catch (err) {
       if (err.response?.status === 403) addToast("Forbidden", "error");
-      else addToast("Operation Failed", "error");
+      else addToast(err.response?.data?.error || "Operation Failed", "error");
     }
     finally { setSubmitting(false); }
   };
@@ -283,7 +298,6 @@ const Elections = () => {
             const canStop = !isEnded;
             const isActiveElection = election.is_active && !isEnded;
 
-
             return (
               <div
                 key={election.ID}
@@ -306,7 +320,7 @@ const Elections = () => {
                     <div className="flex items-center justify-between">
                       <h3 className="text-2xl font-bold text-slate-100 group-hover:text-white transition-colors">{election.title}</h3>
 
-                      {/* Desktop Menu (Visible on MD+) */}
+                      {/* Desktop Menu */}
                       <div className="relative">
                         <button
                           onClick={() => setActiveDropdown(activeDropdown === election.ID ? null : election.ID)}
@@ -344,6 +358,11 @@ const Elections = () => {
                       {election.local_body_name && (
                         <span className="bg-slate-800 text-slate-400 px-3 py-1 rounded-lg border border-slate-700 text-xs flex items-center gap-1.5">
                           <Building size={12} /> {election.local_body_name}
+                        </span>
+                      )}
+                      {election.ward && (
+                        <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-lg border border-emerald-500/20 text-xs font-semibold flex items-center gap-1.5">
+                          <Hash size={12} /> Ward {election.ward}
                         </span>
                       )}
                     </div>
@@ -426,7 +445,7 @@ const Elections = () => {
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-xs uppercase font-bold text-slate-500">Election Level <span className="text-red-500">*</span></label>
                     <div className="relative group">
-                      <select required value={form.election_type} onChange={(e) => setForm({ ...form, election_type: e.target.value, block: '', local_body_name: '' })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer hover:border-slate-600">
+                      <select required value={form.election_type} onChange={(e) => setForm({ ...form, election_type: e.target.value, block: '', local_body_name: '', ward: '' })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer hover:border-slate-600">
                         {ELECTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                       <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-hover:text-slate-300 transition-colors" size={16} />
@@ -473,6 +492,25 @@ const Elections = () => {
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
                       </div>
+                    </div>
+                  )}
+
+                  {/* 5. Ward (Conditional Visibility) */}
+                  {isWardRequired(form.election_type) && (
+                    <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2">
+                      <label className="text-xs uppercase font-bold text-slate-500">
+                        Specific Ward / Division <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          value={form.ward}
+                          onChange={(e) => setForm({ ...form, ward: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white outline-none transition-all placeholder-slate-600 pl-10"
+                          placeholder="e.g. 12"
+                        />
+                        <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                      </div>
+                      <p className="text-xs text-slate-500">Only voters registered in this ward will see this election.</p>
                     </div>
                   )}
                 </div>

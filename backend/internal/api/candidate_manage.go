@@ -119,61 +119,49 @@ func ListParties(c *fiber.Ctx) error {
 
 // --- CANDIDATE MANAGEMENT ---
 
+type CreateCandidateRequest struct {
+	FullName   string `form:"full_name"`
+	PartyID    uint   `form:"party_id"`
+	ElectionID uint   `form:"election_id"`
+	Bio        string `form:"bio"`
+}
+
 func CreateCandidate(c *fiber.Ctx) error {
-	// Parse fields manually since we expect multipart form data
-	fullName := c.FormValue("full_name")
-	electionID, _ := utils.StringToUint(c.FormValue("election_id"))
-	partyID, _ := utils.StringToUint(c.FormValue("party_id"))
-	bio := c.FormValue("bio")
-
-	if fullName == "" || electionID == 0 || partyID == 0 {
-		return utils.Error(c, 400, "Name, Election, and Party are required")
+	// 1. Parse Form Data
+	var req CreateCandidateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request body")
 	}
 
-	candidate := models.Candidate{
-		FullName:   fullName,
-		ElectionID: electionID,
-		PartyID:    partyID,
-		Bio:        bio,
+	// 2. Validate
+	if req.FullName == "" || req.ElectionID == 0 || req.PartyID == 0 {
+		return utils.Error(c, 400, "Full Name, Election, and Party are required")
 	}
 
-	// Handle Photo Upload
-	file, err := c.FormFile("photo")
-	if err == nil {
-		filename := fmt.Sprintf("candidate_%d_%d%s", electionID, time.Now().UnixNano(), filepath.Ext(file.Filename))
+	// 3. File Upload Handling (Only Candidate Photo)
+	candidatePhotoPath := ""
+	if file, err := c.FormFile("candidate_photo"); err == nil {
+		filename := fmt.Sprintf("candidate_%d_%d%s", req.ElectionID, time.Now().UnixNano(), filepath.Ext(file.Filename))
 		savePath := filepath.Join("./uploads", filename)
 		if err := c.SaveFile(file, savePath); err == nil {
-			candidate.Photo = "/uploads/" + filename
+			candidatePhotoPath = "/uploads/" + filename
 		}
 	}
 
-	// Verify Election exists
-	var election models.Election
-	if err := database.PostgresDB.First(&election, candidate.ElectionID).Error; err != nil {
-		return utils.Error(c, 404, "Selected election does not exist")
-	}
-
-	if election.IsActive {
-		return utils.Error(c, 403, "Cannot register new candidates for an ACTIVE election.")
-	}
-
-	if time.Now().After(election.EndDate) {
-		return utils.Error(c, 403, "Cannot register new candidates: Election has ENDED.")
+	// 3. Create Model
+	candidate := models.Candidate{
+		FullName:   req.FullName,
+		PartyID:    req.PartyID,
+		ElectionID: req.ElectionID,
+		Bio:        req.Bio,
+		Photo:      candidatePhotoPath,
 	}
 
 	if err := database.PostgresDB.Create(&candidate).Error; err != nil {
 		return utils.Error(c, 500, "Failed to create candidate")
 	}
 
-	// Audit
-	actorID := uint(c.Locals("user_id").(float64))
-	actorRole := c.Locals("role").(string)
-	service.LogAdminAction(actorID, actorRole, "CREATE_CANDIDATE", candidate.ID, map[string]interface{}{
-		"name":     candidate.FullName,
-		"election": election.Title,
-	})
-
-	return utils.Success(c, "Candidate created successfully")
+	return utils.Success(c, candidate)
 }
 
 func ListCandidates(c *fiber.Ctx) error {
