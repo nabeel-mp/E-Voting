@@ -124,13 +124,14 @@ func ListAdmins(c *fiber.Ctx) error {
 		}
 
 		response = append(response, fiber.Map{
-			"id":        a.ID,
-			"name":      a.Name,
-			"email":     a.Email,
-			"roles":     roleNames,
-			"is_active": a.IsActive,
-			"is_super":  a.IsSuper,
-			"created":   a.CreatedAt,
+			"id":           a.ID,
+			"name":         a.Name,
+			"email":        a.Email,
+			"roles":        roleNames,
+			"is_active":    a.IsActive,
+			"is_available": a.IsAvailable,
+			"is_super":     a.IsSuper,
+			"created":      a.CreatedAt,
 		})
 	}
 
@@ -427,4 +428,22 @@ func DeleteRoleHandler(c *fiber.Ctx) error {
 
 func UpdateAdminRoleHandler(c *fiber.Ctx) error {
 	return AssignRolesHandler(c)
+}
+
+func ToggleAvailabilityHandler(c *fiber.Ctx) error {
+	var req struct {
+		AdminID uint `json:"admin_id"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	actorID := uint(c.Locals("user_id").(float64))
+	actorRole := c.Locals("role").(string)
+
+	if err := service.ToggleAdminAvailability(req.AdminID, actorID, actorRole); err != nil {
+		return utils.Error(c, 500, err.Error())
+	}
+
+	return utils.Success(c, "Availability status updated")
 }

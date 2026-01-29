@@ -43,3 +43,11 @@ func UpdateAdminStatus(id uint, status bool) error {
 		Update("is_active", status).
 		Error
 }
+
+func UpdateAdminAvailability(id uint, available bool) error {
+	return database.PostgresDB.
+		Model(&models.Admin{}).
+		Where("id = ?", id).
+		Update("is_available", available).
+		Error
+}

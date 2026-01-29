@@ -1,6 +1,7 @@
 package api
 
 import (
+	"E-voting/internal/blockchain"
 	"E-voting/internal/database"
 	"E-voting/internal/models"
 	"E-voting/internal/utils"
@@ -178,9 +179,20 @@ func CastVote(c *fiber.Ctx) error {
 
 	tx.Commit()
 
+	go func() {
+		txHash, err := blockchain.CastVoteOnChain(req.ElectionID, req.CandidateID, voterID)
+		if err != nil {
+			fmt.Printf("Blockchain Write failed: %v\n", err)
+		} else {
+			fmt.Printf("Vote written to blockchain! Tx Hash: %s\n", txHash)
+			database.PostgresDB.Model(&models.Vote{}).Where("vote_hash = ?", voteHashStr).Update("blockchain_tx", txHash)
+		}
+	}()
+
 	return utils.Success(c, fiber.Map{
-		"message":        "Vote cast successfully",
-		"receipt":        voteHashStr,
-		"election_title": election.Title,
+		"message":           "Vote cast successfully",
+		"receipt":           voteHashStr,
+		"election_title":    election.Title,
+		"blockchain_status": "Processing in background",
 	})
 }

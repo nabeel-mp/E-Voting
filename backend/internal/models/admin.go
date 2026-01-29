@@ -8,13 +8,13 @@ type Role struct {
 }
 type Admin struct {
 	BaseModel
-	Name     string `json:"name"`
-	Email    string `gorm:"uniqueIndex;not null"`
-	Password string `gorm:"not null" json:"-"`
-	// RoleID      uint   `gorm:"not null"`
+	Name        string `json:"name"`
+	Email       string `gorm:"uniqueIndex;not null"`
+	Password    string `gorm:"not null" json:"-"`
 	Roles       []Role `gorm:"many2many:admin_roles;"`
 	IsActive    bool   `gorm:"default:true"`
 	IsSuper     bool   `gorm:"default:false"`
+	IsAvailable bool   `gorm:"default:true" json:"is_available"`
 	Avatar      string `json:"avatar"`
 	Preferences string `json:"preferences"`
 }

@@ -224,3 +224,35 @@ func UpdateAdminRole(targetAdminID uint, newRoleID uint, requesterID uint, reque
 
 	return nil
 }
+
+func ToggleAdminAvailability(targetID uint, requesterID uint, requesterRole string) error {
+	admin, err := repository.FindAdminByID(targetID)
+	if err != nil {
+		return errors.New("admin not found")
+	}
+
+	// Determine new status (toggle)
+	newStatus := !admin.IsAvailable
+
+	if err := repository.UpdateAdminAvailability(targetID, newStatus); err != nil {
+		return err
+	}
+
+	action := "SET_UNAVAILABLE"
+	if newStatus {
+		action = "SET_AVAILABLE"
+	}
+
+	LogAdminAction(
+		requesterID,
+		requesterRole,
+		action,
+		targetID,
+		map[string]interface{}{
+			"email":        admin.Email,
+			"is_available": newStatus,
+		},
+	)
+
+	return nil
+}

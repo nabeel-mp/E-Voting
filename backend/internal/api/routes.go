@@ -1,6 +1,7 @@
 package api
 
 import (
+	"E-voting/internal/blockchain"
 	"E-voting/internal/middleware"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
@@ -13,28 +14,6 @@ func RegisterRoutes(app *fiber.App) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return utils.Success(c, service.HealthCheck())
 	})
-
-	// // --- VIEW ROUTES (HTML) ---
-	// app.Get("/admin/login", func(c *fiber.Ctx) error {
-	// 	return c.Render("admin/login", nil)
-	// })
-
-	// // Protected Pages (Middleware verifies token presence/validity if applied,
-	// // but usually rendered pages are protected by client-side JS redirection if API fails.
-	// // We allow rendering, main.js will redirect if no token.)
-	// app.Get("/admin/dashboard", func(c *fiber.Ctx) error { return c.Render("admin/Dashboard", nil) })
-	// app.Get("/admin/settings", func(c *fiber.Ctx) error { return c.Render("admin/settings", nil) })
-	// app.Get("/admin/voters", func(c *fiber.Ctx) error { return c.Render("admin/voters", nil) })
-	// app.Get("/admin/results", func(c *fiber.Ctx) error { return c.Render("admin/results", nil) })
-	// app.Get("/admin/system-admins", func(c *fiber.Ctx) error { return c.Render("admin/admin", nil) })
-
-	// // Super Admin Pages
-	// // Ideally shielded by middleware, but client-side also handles it.
-	// superAdminPages := app.Group("/admin")
-	// superAdminPages.Get("/roles/create", func(c *fiber.Ctx) error { return c.Render("admin/create_role", nil) })
-	// superAdminPages.Get("/staff/add", func(c *fiber.Ctx) error { return c.Render("admin/add_staffs", nil) })
-	// superAdminPages.Get("/audit-logs", func(c *fiber.Ctx) error { return c.Render("admin/audit_logs", nil) })
-	// superAdminPages.Get("/candidates", func(c *fiber.Ctx) error { return c.Render("admin/candidates", nil) })
 
 	// --- API ROUTES ---
 
@@ -104,6 +83,7 @@ func RegisterRoutes(app *fiber.App) {
 	staffMgmt.Post("/roles", CreateRoleHandler)
 	staffMgmt.Put("/roles/:id", UpdateRoleHandler)
 	staffMgmt.Delete("/roles/:id", DeleteRoleHandler)
+	staffMgmt.Post("/toggle-availability", ToggleAvailabilityHandler)
 
 	staffMgmt.Post("/assign-roles", AssignRolesHandler)
 
@@ -119,5 +99,30 @@ func RegisterRoutes(app *fiber.App) {
 	app.Get("/api/audit/logs", middleware.PermissionMiddleware("SUPER_ADMIN"), GetAuditLogs)
 	app.Get("/api/admin/config", middleware.PermissionMiddleware(""), GetSystemSettings)
 	app.Post("/api/admin/config", middleware.PermissionMiddleware("SUPER_ADMIN"), UpdateSystemSettings)
+
+	bc := app.Group("/api/blockchain")
+
+	bc.Get("/verify/:election_id/:candidate_id", func(c *fiber.Ctx) error {
+		elecID, _ := c.ParamsInt("election_id")
+		candID, _ := c.ParamsInt("candidate_id")
+
+		count, err := blockchain.GetVotesFromChain(uint(elecID), uint(candID))
+		if err != nil {
+			return utils.Error(c, 500, "Blockchain read error")
+		}
+
+		return utils.Success(c, fiber.Map{
+			"source":              "Ethereum Blockchain",
+			"election_id":         elecID,
+			"candidate_id":        candID,
+			"verified_vote_count": count,
+		})
+	})
+
+	bc.Get("/tx/:hash", func(c *fiber.Ctx) error {
+		hash := c.Params("hash")
+		// Logic to query eth client for transaction receipt
+		return utils.Success(c, fiber.Map{"tx_hash": hash, "status": "Mined"})
+	})
 
 }
