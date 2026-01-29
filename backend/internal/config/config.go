@@ -23,6 +23,11 @@ type AppConfig struct {
 		URI string
 		DB  string
 	}
+	Blockchain struct {
+		URL             string
+		PrivateKey      string
+		ContractAddress string
+	}
 }
 
 var Config AppConfig
@@ -53,6 +58,10 @@ func LoadConfig() {
 
 	Config.Mongo.URI = os.Getenv("MONGO_URI")
 	Config.Mongo.DB = os.Getenv("MONGO_DB")
+
+	Config.Blockchain.URL = os.Getenv("BLOCKCHAIN_URL")
+	Config.Blockchain.PrivateKey = os.Getenv("BLOCKCHAIN_PRIVATE_KEY")
+	Config.Blockchain.ContractAddress = os.Getenv("BLOCKCHAIN_CONTRACT_ADDRESS")
 
 	log.Println("Config loaded")
 }

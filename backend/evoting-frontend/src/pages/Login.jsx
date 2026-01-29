@@ -58,7 +58,7 @@ const Login = () => {
       if (res.data.success) {
         addToast("Welcome back, Administrator", "success");
         login(res.data.data.token);
-        navigate('/');
+        navigate('/admin');
       }
     } catch (err) {
       if (!err.response) {

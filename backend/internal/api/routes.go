@@ -20,8 +20,8 @@ func RegisterRoutes(app *fiber.App) {
 	// 1. Auth Routes (Public)
 	auth := app.Group("/api/auth")
 	auth.Post("/admin/login", AdminLogin)
-	// auth.Post("/voter/login", VoterLogin)
-	// auth.Post("/voter/verify-otp", VerifyOTP)
+	auth.Post("/voter/login", VoterLogin)
+	auth.Post("/voter/verify-otp", VerifyOTP)
 
 	voterApp := app.Group("/api/voter", middleware.PermissionMiddleware(""))
 	voterApp.Get("/elections", GetVoterElections)
@@ -40,7 +40,7 @@ func RegisterRoutes(app *fiber.App) {
 
 	// Voter Management (Requires 'register_voter' permission)
 	voterMgmt := app.Group("/api/admin", middleware.PermissionMiddleware("register_voter"))
-	voterMgmt.Get("/voters", ListVoters)
+	voterMgmt.Get("/voters", GetAllVoters)
 	voterMgmt.Post("/voter/register", RegisterVoter)
 	voterMgmt.Put("/voter/:id", UpdateVoter)
 	voterMgmt.Delete("/voter/:id", DeleteVoter)

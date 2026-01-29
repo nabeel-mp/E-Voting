@@ -1,58 +1,72 @@
 package service
 
-// import (
-// 	"E-voting/internal/repository"
-// 	"E-voting/internal/utils"
-// 	"errors"
-// 	"strconv"
-// 	"time"
-// )
+import (
+	"E-voting/internal/repository"
+	"E-voting/internal/utils"
+	"errors"
+	"strconv"
+	"time"
+)
 
-// func InitiateVoterLogin(voterID, mobile, aadhaar string) (string, error) {
-// 	voter, err := repository.FindVoterByID(voterID)
-// 	if err != nil {
-// 		return "", errors.New("voter not found")
-// 	}
+func InitiateVoterLogin(voterID, aadhaar string) (string, error) {
+	voter, err := repository.FindVoterByID(voterID)
+	if err != nil {
+		return "", errors.New("voter ID not found")
+	}
 
-// 	if voter.Mobile != mobile || voter.AadhaarHash != utils.HashAadhaar(aadhaar) {
-// 		return "", errors.New("invalid credentials")
-// 	}
+	// Verify Aadhaar (Assuming stored exactly as registered)
+	if voter.AadhaarNumber != aadhaar {
+		return "", errors.New("invalid credentials provided")
+	}
 
-// 	minutesStr := repository.GetSettingValue("otp_validity_duration")
-// 	minutes, err := strconv.Atoi(minutesStr)
-// 	if err != nil || minutes <= 0 {
-// 		minutes = 5
-// 	}
-// 	otp := utils.GenerateOTP()
-// 	voter.CurrentOTP = otp
+	if voter.IsBlocked {
+		return "", errors.New("account is blocked. contact admin")
+	}
 
-// 	voter.OTPExpiresAt = time.Now().Add(time.Duration(minutes) * time.Minute)
+	if !voter.IsVerified {
+		return "", errors.New("account pending verification")
+	}
 
-// 	err = repository.UpdateVoterOTP(voter)
-// 	if err != nil {
-// 		return "", err
-// 	}
+	// Generate OTP
+	minutesStr := repository.GetSettingValue("otp_validity_duration")
+	minutes, err := strconv.Atoi(minutesStr)
+	if err != nil || minutes <= 0 {
+		minutes = 5
+	}
+	otp := utils.GenerateOTP()
 
-// 	return "OTP sent to your mobile number", nil
-// }
+	// Update Voter with OTP
+	voter.CurrentOTP = otp
+	voter.OTPExpiresAt = time.Now().Add(time.Duration(minutes) * time.Minute)
 
-// func VerifyVoterOTP(voterID, otp string) (string, error) {
-// 	voter, err := repository.FindVoterByID(voterID)
-// 	if err != nil {
-// 		return "", errors.New("voter not found")
-// 	}
+	if err := repository.UpdateVoterOTP(voter); err != nil {
+		return "", errors.New("failed to generate OTP")
+	}
 
-// 	if voter.CurrentOTP != otp {
-// 		return "", errors.New("incorrect OTP")
-// 	}
+	// In production, integrate SMS Gateway here.
+	// For demo, we return it in the message or log it.
+	return "OTP sent successfully (Simulated: " + otp + ")", nil
+}
 
-// 	if time.Now().After(voter.OTPExpiresAt) {
-// 		return "", errors.New("OTP expired, please resend")
-// 	}
+func VerifyVoterOTP(voterID, otp string) (string, error) {
+	voter, err := repository.FindVoterByID(voterID)
+	if err != nil {
+		return "", errors.New("voter not found")
+	}
 
-// 	voter.CurrentOTP = ""
-// 	repository.UpdateVoterOTP(voter)
+	if voter.CurrentOTP != otp {
+		return "", errors.New("incorrect OTP")
+	}
 
-// 	token, err := utils.GenerateJWT(voter.ID, "VOTER", "", false, voter.FullName, voter.VoterID, "")
-// 	return token, err
-// }
+	if time.Now().After(voter.OTPExpiresAt) {
+		return "", errors.New("OTP expired, please request a new one")
+	}
+
+	// Clear OTP after success
+	voter.CurrentOTP = ""
+	repository.UpdateVoterOTP(voter)
+
+	// Generate Token with Role "VOTER"
+	token, err := utils.GenerateJWT(voter.ID, "VOTER", "vote", false, voter.FullName, voter.VoterID, "")
+	return token, err
+}

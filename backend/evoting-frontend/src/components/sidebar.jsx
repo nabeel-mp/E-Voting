@@ -48,18 +48,18 @@ const Sidebar = () => {
 
     // Menu Configuration
     const menuItems = [
-        { title: "Overview", path: "/", icon: <LayoutDashboard size={20} />, req: null },
-        { title: "Elections", path: "/elections", icon: <Calendar size={20} />, req: "SUPER_ADMIN" },
-        { title: "Voters List", path: "/voters", icon: <Users size={20} />, req: "register_voter" },
-        { title: "Verification", path: "/verification", icon: <UserCheck size={20} />, req: "SUPER_ADMIN" },
-        { title: "Candidates", path: "/candidates", icon: <Vote size={20} />, req: "SUPER_ADMIN" },
-        { title: "Results", path: "/results", icon: <BarChart3 size={20} />, req: "view_results" },
-        { title: "Manage Roles", path: "/roles", icon: <ShieldCheck size={20} />, req: "manage_roles" },
-        { title: "Manage Staff", path: "/staff", icon: <UserCog size={20} />, req: "manage_admins" },
-        { title: "Assign Roles", path: "/assign-roles", icon: <Shield size={20} />, req: "manage_admins" },
-        { title: "System Admins", path: "/admins", icon: <Shield size={20} />, req: "SUPER_ADMIN" },
-        { title: "Audit Logs", path: "/audit", icon: <ScrollText size={20} />, req: "SUPER_ADMIN" },
-        { title: "Configuration", path: "/configuration", icon: <Sliders size={20} />, req: "SUPER_ADMIN" },
+        { title: "Overview", path: "/admin", icon: <LayoutDashboard size={20} />, req: null },
+        { title: "Elections", path: "/admin/elections", icon: <Calendar size={20} />, req: "SUPER_ADMIN" },
+        { title: "Voters List", path: "/admin/voters", icon: <Users size={20} />, req: "register_voter" },
+        { title: "Verification", path: "/admin/verification", icon: <UserCheck size={20} />, req: "SUPER_ADMIN" },
+        { title: "Candidates", path: "/admin/candidates", icon: <Vote size={20} />, req: "SUPER_ADMIN" },
+        { title: "Results", path: "/admin/results", icon: <BarChart3 size={20} />, req: "view_results" },
+        { title: "Manage Roles", path: "/admin/roles", icon: <ShieldCheck size={20} />, req: "manage_roles" },
+        { title: "Manage Staff", path: "/admin/staff", icon: <UserCog size={20} />, req: "manage_admins" },
+        { title: "Assign Roles", path: "/admin/assign-roles", icon: <Shield size={20} />, req: "manage_admins" },
+        { title: "System Admins", path: "/admin/admins", icon: <Shield size={20} />, req: "SUPER_ADMIN" },
+        { title: "Audit Logs", path: "/admin/audit", icon: <ScrollText size={20} />, req: "SUPER_ADMIN" },
+        { title: "Configuration", path: "/admin/configuration", icon: <Sliders size={20} />, req: "SUPER_ADMIN" },
     ];
 
     const bottomItems = [

@@ -3,6 +3,7 @@ package api
 import (
 	"E-voting/internal/database"
 	"E-voting/internal/models"
+	"E-voting/internal/repository"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
 	"encoding/json"
@@ -372,6 +373,27 @@ func UpdateNotifications(c *fiber.Ctx) error {
 
 	return utils.Success(c, "Preferences updated")
 }
+
+func GetAllVoters(c *fiber.Ctx) error {
+	voters, err := repository.GetAllVoters()
+	if err != nil {
+		return utils.Error(c, 500, "Failed to fetch voters")
+	}
+	return utils.Success(c, voters)
+}
+
+// func DeleteVoter(c *fiber.Ctx) error {
+// 	id, err := c.ParamsInt("id")
+// 	if err != nil {
+// 		return utils.Error(c, 400, "Invalid Voter ID")
+// 	}
+
+// 	if err := database.PostgresDB.Delete(&models.Voter{}, id).Error; err != nil {
+// 		return utils.Error(c, 500, "Failed to delete voter")
+// 	}
+
+// 	return utils.Success(c, "Voter deleted successfully")
+// }
 
 func UpdateRoleHandler(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")

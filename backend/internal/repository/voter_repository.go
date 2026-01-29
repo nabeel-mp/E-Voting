@@ -15,6 +15,12 @@ func FindVoterByID(voterID string) (*models.Voter, error) {
 	return &voter, err
 }
 
+func GetAllVoters() ([]models.Voter, error) {
+	var voters []models.Voter
+	err := database.PostgresDB.Order("created_at desc").Find(&voters).Error
+	return voters, err
+}
+
 func UpdateVoterOTP(voter *models.Voter) error {
 	return database.PostgresDB.Model(voter).Updates(map[string]interface{}{
 		"current_otp":    voter.CurrentOTP,

@@ -1,52 +1,51 @@
 package api
 
-// import (
-// 	"E-voting/internal/repository"
-// 	"E-voting/internal/service"
-// 	"E-voting/internal/utils"
+import (
+	"E-voting/internal/repository"
+	"E-voting/internal/service"
+	"E-voting/internal/utils"
 
-// 	"github.com/gofiber/fiber/v2"
-// )
+	"github.com/gofiber/fiber/v2"
+)
 
-// type VoterLoginReq struct {
-// 	VoterID string `json:"voter_id"`
-// 	Mobile  string `json:"mobile"`
-// 	Aadhaar string `json:"aadhaar"`
-// }
+type VoterLoginReq struct {
+	VoterID string `json:"voter_id"`
+	Aadhaar string `json:"aadhaar"`
+}
 
-// type OTPVerifyReq struct {
-// 	VoterID string `json:"voter_id"`
-// 	OTP     string `json:"otp"`
-// }
+type OTPVerifyReq struct {
+	VoterID string `json:"voter_id"`
+	OTP     string `json:"otp"`
+}
 
-// func VoterLogin(c *fiber.Ctx) error {
-// 	if repository.GetSettingValue("maintenance_mode") == "true" {
-// 		return utils.Error(c, 503, "System is currently under maintenance. Please try again later.")
-// 	}
+func VoterLogin(c *fiber.Ctx) error {
+	if repository.GetSettingValue("maintenance_mode") == "true" {
+		return utils.Error(c, 503, "System is currently under maintenance.")
+	}
 
-// 	var req VoterLoginReq
-// 	if err := c.BodyParser(&req); err != nil {
-// 		return utils.Error(c, 400, "Invalid request")
-// 	}
+	var req VoterLoginReq
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
 
-// 	msg, err := service.InitiateVoterLogin(req.VoterID, req.Mobile, req.Aadhaar)
-// 	if err != nil {
-// 		return utils.Error(c, 401, err.Error())
-// 	}
+	msg, err := service.InitiateVoterLogin(req.VoterID, req.Aadhaar)
+	if err != nil {
+		return utils.Error(c, 401, err.Error())
+	}
 
-// 	return utils.Success(c, msg)
-// }
+	return utils.Success(c, fiber.Map{"message": msg})
+}
 
-// func VerifyOTP(c *fiber.Ctx) error {
-// 	var req OTPVerifyReq
-// 	if err := c.BodyParser(&req); err != nil {
-// 		return utils.Error(c, 400, "Invalid request")
-// 	}
+func VerifyOTP(c *fiber.Ctx) error {
+	var req OTPVerifyReq
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
 
-// 	token, err := service.VerifyVoterOTP(req.VoterID, req.OTP)
-// 	if err != nil {
-// 		return utils.Error(c, 401, err.Error())
-// 	}
+	token, err := service.VerifyVoterOTP(req.VoterID, req.OTP)
+	if err != nil {
+		return utils.Error(c, 401, err.Error())
+	}
 
-// 	return utils.Success(c, fiber.Map{"token": token})
-// }
+	return utils.Success(c, fiber.Map{"token": token})
+}
