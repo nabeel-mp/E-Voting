@@ -1,7 +1,7 @@
 package blockchain
 
 import (
-	"E-voting/internal/blockchain/contract" // This imports the file we generated in Step 2
+	"E-voting/internal/blockchain/contract"
 	"E-voting/internal/config"
 	"context"
 	"crypto/ecdsa"
@@ -27,7 +27,7 @@ func InitBlockchain() {
 	cfg := config.Config.Blockchain
 
 	if cfg.URL == "" || cfg.PrivateKey == "" || cfg.ContractAddress == "" {
-		log.Println("⚠️ Blockchain config missing. Skipping Blockchain init.")
+		log.Println(" Blockchain config missing. Skipping Blockchain init.")
 		return
 	}
 
@@ -36,10 +36,9 @@ func InitBlockchain() {
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
-	log.Println("✅ Connected to Blockchain at " + cfg.URL)
+	log.Println(" Connected to Blockchain at " + cfg.URL)
 
 	// 2. Load Private Key
-	// Remove "0x" prefix if present
 	cleanKey := strings.TrimPrefix(cfg.PrivateKey, "0x")
 	privateKey, err := crypto.HexToECDSA(cleanKey)
 	if err != nil {
@@ -53,7 +52,7 @@ func InitBlockchain() {
 	}
 
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	log.Printf("🔑 Wallet Address Loaded: %s", fromAddress.Hex())
+	log.Printf(" Wallet Address Loaded: %s", fromAddress.Hex())
 
 	// 3. Create Auth Transactor
 	chainID, err := client.ChainID(context.Background())
@@ -67,7 +66,6 @@ func InitBlockchain() {
 	}
 	auth.Value = big.NewInt(0)      // in wei
 	auth.GasLimit = uint64(3000000) // Adjusted Gas Limit
-	// Note: We will set Nonce dynamically per transaction
 
 	// 4. Instantiate Contract
 	address := common.HexToAddress(cfg.ContractAddress)
@@ -75,7 +73,7 @@ func InitBlockchain() {
 	if err != nil {
 		log.Fatalf("Failed to instantiate contract: %v", err)
 	}
-	log.Println("✅ Smart Contract Loaded at " + cfg.ContractAddress)
+	log.Println(" Smart Contract Loaded at " + cfg.ContractAddress)
 }
 
 // Function to write vote to blockchain
@@ -91,7 +89,7 @@ func CastVoteOnChain(electionID uint, candidateID uint, voterID uint) (string, e
 	}
 	auth.Nonce = big.NewInt(int64(nonce))
 
-	// Optional: Fetch dynamic gas price
+	// Fetch dynamic gas price
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	if err == nil {
 		auth.GasPrice = gasPrice
@@ -100,11 +98,11 @@ func CastVoteOnChain(electionID uint, candidateID uint, voterID uint) (string, e
 	// 2. Call Smart Contract
 	tx, err := instance.CastVote(auth, big.NewInt(int64(electionID)), big.NewInt(int64(candidateID)), big.NewInt(int64(voterID)))
 	if err != nil {
-		log.Printf("❌ Blockchain Transaction Failed: %v", err)
+		log.Printf(" Blockchain Transaction Failed: %v", err)
 		return "", err
 	}
 
-	log.Printf("🔗 Vote Transaction Sent! Hash: %s", tx.Hash().Hex())
+	log.Printf(" Vote Transaction Sent! Hash: %s", tx.Hash().Hex())
 	return tx.Hash().Hex(), nil
 }
 

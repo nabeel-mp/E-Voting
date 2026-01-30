@@ -186,8 +186,7 @@ func VerifyVoter(c *fiber.Ctx) error {
 	}
 
 	if err := database.PostgresDB.Model(&models.Voter{}).Where("id = ?", req.VoterID).Updates(map[string]interface{}{
-		"is_verified":   true,
-		"aadhaar_plain": "",
+		"is_verified": true,
 	}).Error; err != nil {
 		return utils.Error(c, 500, "Failed to verify voter")
 	}

@@ -379,6 +379,7 @@ func GetAllVoters(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.Error(c, 500, "Failed to fetch voters")
 	}
+	fmt.Printf("Fetched %d voters from database.\n", len(voters))
 	return utils.Success(c, voters)
 }
 

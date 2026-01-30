@@ -38,15 +38,17 @@ func RegisterRoutes(app *fiber.App) {
 	adminAPI.Post("/upload-avatar", UploadAvatar)
 	adminAPI.Put("/notifications", UpdateNotifications)
 
-	// Voter Management (Requires 'register_voter' permission)
+	// Voter Management
+	voterListMgmt := app.Group("/api/admin", middleware.PermissionMiddleware("manage_voters"))
+	voterListMgmt.Get("/voters", GetAllVoters)
+	voterListMgmt.Get("/voters/export", ExportVotersCSV)
+
 	voterMgmt := app.Group("/api/admin", middleware.PermissionMiddleware("register_voter"))
-	voterMgmt.Get("/voters", GetAllVoters)
 	voterMgmt.Post("/voter/register", RegisterVoter)
 	voterMgmt.Put("/voter/:id", UpdateVoter)
 	voterMgmt.Delete("/voter/:id", DeleteVoter)
 	voterMgmt.Post("/voter/block", BlockVoter)
 	voterMgmt.Post("/voter/unblock", UnblockVoter)
-	voterMgmt.Get("/voters/export", ExportVotersCSV)
 	voterMgmt.Post("/voters/import", ImportVotersCSV)
 
 	voterMgmt.Post("/voter/verify", middleware.PermissionMiddleware("SUPER_ADMIN"), VerifyVoter)
