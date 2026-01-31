@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func SeedKeralaAdminData() {
@@ -14,16 +15,6 @@ func SeedKeralaAdminData() {
 	defer cancel()
 
 	collection := MongoDB.Collection("reference_data")
-
-	count, err := collection.CountDocuments(ctx, bson.M{"type": "kerala_admin_data"})
-	if err != nil {
-		log.Println("Error checking mongo seeder:", err)
-		return
-	}
-
-	if count > 0 {
-		return
-	}
 
 	adminData := bson.M{
 		"type": "kerala_admin_data",
@@ -258,10 +249,14 @@ func SeedKeralaAdminData() {
 			},
 		},
 	}
-	_, err = collection.InsertOne(ctx, adminData)
+
+	filter := bson.M{"type": "kerala_admin_data"}
+	opts := options.Replace().SetUpsert(true)
+
+	_, err := collection.ReplaceOne(ctx, filter, adminData, opts)
 	if err != nil {
-		log.Println("Failed to seed Kerala Admin Data:", adminData)
+		log.Println(" Failed to seed Kerala Admin Data:", err)
 	} else {
-		log.Println("Kerala Administrative Data seeded to MongoDB")
+		log.Println(" Kerala Administrative Data successfully seeded/updated.")
 	}
 }

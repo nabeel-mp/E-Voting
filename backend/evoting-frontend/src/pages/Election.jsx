@@ -41,21 +41,30 @@ const Elections = () => {
     ward: ''
   });
 
-  // --- Combined Initial Fetch ---
+  // --- Separated Initial Fetch ---
   const initData = async () => {
+    setLoading(true);
+    
+    // 1. Fetch Admin Reference Data (Independent)
     try {
-      setLoading(true);
-      const [electionsRes, adminDataRes] = await Promise.all([
-        api.get('/api/admin/elections'),
-        api.get('/api/common/kerala-data') // Fetches from MongoDB
-      ]);
+      const adminDataRes = await api.get('/api/common/kerala-data');
+      if (adminDataRes.data.success) {
+        setAdminData(adminDataRes.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to load Kerala admin data", err);
+      // Don't show toast here to avoid spamming if just this fails
+    }
 
-      if (electionsRes.data.success) setElections(electionsRes.data.data);
-      if (adminDataRes.data.success) setAdminData(adminDataRes.data.data);
-      
+    // 2. Fetch Elections List
+    try {
+      const electionsRes = await api.get('/api/admin/elections');
+      if (electionsRes.data.success) {
+        setElections(electionsRes.data.data);
+      }
     } catch (err) {
       if (err.response?.status === 403) addToast("Forbidden: Access denied.", "error");
-      else addToast("Failed to load initial data", "error");
+      else console.error("Failed to load elections list", err);
     } finally {
       setLoading(false);
     }
@@ -243,7 +252,7 @@ const Elections = () => {
 
       {/* --- ELECTION GRID --- */}
       <div className="grid grid-cols-1 gap-5">
-        {loading ? (
+        {loading && elections.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-500">
             <Loader2 className="animate-spin text-indigo-500 w-10 h-10" />
             <p>Loading application data...</p>

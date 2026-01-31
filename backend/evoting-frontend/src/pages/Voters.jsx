@@ -4,8 +4,8 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import {
   Search, Filter, Plus, MoreVertical, User, Phone, CreditCard, X,
-  Loader2, CheckCircle2, AlertCircle, Pencil, Ban, Unlock, ChevronDown,
-  AlertTriangle, Download, Upload, Eye, MapPin, FileText, Trash2, Building, Hash
+  Loader2, CheckCircle2, AlertCircle, Pencil, Ban, ChevronDown,
+  AlertTriangle, Download, Upload, Eye, MapPin, Trash2, Hash
 } from 'lucide-react';
 
 const Voters = () => {
@@ -50,20 +50,35 @@ const Voters = () => {
   const fileInputRef = useRef(null);
 
   /* -------------------------- DATA FETCHING -------------------------- */
-  // Combined fetch for Voters and Admin Data
   const initData = async () => {
     setLoading(true);
     setErrorMsg(null);
+    
+    // 1. Fetch Admin Data (Independent)
     try {
-      const [votersRes, adminDataRes] = await Promise.all([
-        api.get('/api/admin/voters'),
-        api.get('/api/common/kerala-data')
-      ]);
-
-      if (votersRes.data.success) setVoters(votersRes.data.data || []);
-      if (adminDataRes.data.success) setAdminData(adminDataRes.data.data);
+      console.log("Fetching Kerala Data...");
+      const adminDataRes = await api.get('/api/common/kerala-data');
       
+      // LOG THE DATA TO CONSOLE FOR DEBUGGING
+      console.log("Kerala Data Response:", adminDataRes);
+
+      if (adminDataRes.success && adminDataRes.data) {
+        setAdminData(adminDataRes.data || {});
+      } else {
+        console.warn("Kerala Data response was success but data was empty");
+      }
     } catch (err) {
+      console.error("Failed to load Kerala admin data", err);
+    }
+
+    // 2. Fetch Voters
+    try {
+      const votersRes = await api.get('/api/admin/voters');
+      if (votersRes.data.success) {
+        setVoters(votersRes.data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch voters", err);
       setErrorMsg("Failed to load directory data. Please check your connection.");
     } finally {
       setLoading(false);
@@ -99,11 +114,19 @@ const Voters = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Use Dynamic Admin Data
+  // Use Dynamic Admin Data with Safe Navigation
   const getLocalBodyList = () => {
     if (!form.district) return [];
-    if (form.local_body_type === 'Municipality') return adminData.municipalities?.[form.district] || [];
-    if (form.local_body_type === 'Municipal Corporation') return adminData.corporations?.[form.district] || [];
+    
+    // Ensure adminData is loaded before accessing properties
+    if (!adminData) return [];
+
+    if (form.local_body_type === 'Municipality') {
+      return adminData.municipalities?.[form.district] || [];
+    }
+    if (form.local_body_type === 'Municipal Corporation') {
+      return adminData.corporations?.[form.district] || [];
+    }
     if (form.local_body_type === 'Grama Panchayat') {
       if (!form.block) return [];
       return adminData.grama_panchayats?.[form.block] || [];
@@ -264,7 +287,7 @@ const Voters = () => {
               <tr><th className="px-6 py-4">Identity</th><th className="px-6 py-4">Contact</th><th className="px-6 py-4">Aadhaar</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-  {loading ? (
+  {loading && voters.length === 0 ? (
     <tr>
       <td colSpan="5" className="px-6 py-20 text-center">
         <Loader2 className="animate-spin inline" /> Loading application data...
@@ -416,7 +439,7 @@ const Voters = () => {
                     <div className="relative">
                       <select required value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value, block: '', local_body_name: '' })} className="input-field appearance-none">
                         <option value="">Select District</option>
-                        {adminData.districts?.map(d => <option key={d} value={d}>{d}</option>)}
+                        {adminData?.districts?.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
                     </div>
@@ -440,7 +463,7 @@ const Voters = () => {
                       <div className="relative">
                         <select required value={form.block} onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} className="input-field appearance-none disabled:opacity-50 disabled:cursor-not-allowed" disabled={!form.district}>
                           <option value="">Select Block</option>
-                          {form.district && adminData.blocks?.[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}
+                          {form.district && adminData?.blocks?.[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
                       </div>
