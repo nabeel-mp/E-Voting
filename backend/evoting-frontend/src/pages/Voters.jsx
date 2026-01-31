@@ -5,42 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   Search, Filter, Plus, MoreVertical, User, Phone, CreditCard, X,
   Loader2, CheckCircle2, AlertCircle, Pencil, Ban, Unlock, ChevronDown,
-  AlertTriangle, Download, Upload, Eye, MapPin, FileText, Trash2, Building
+  AlertTriangle, Download, Upload, Eye, MapPin, FileText, Trash2, Building, Hash
 } from 'lucide-react';
-
-/* -------------------------------------------------------------------------- */
-/* KERALA ADMINISTRATIVE DATA                                                 */
-/* -------------------------------------------------------------------------- */
-const KERALA_ADMIN_DATA = {
-  districts: [
-    "Thiruvananthapuram", "Kollam", "Pathanamthitta", "Alappuzha", "Kottayam",
-    "Idukki", "Ernakulam", "Thrissur", "Palakkad", "Malappuram",
-    "Kozhikode", "Wayanad", "Kannur", "Kasaragod"
-  ],
-  blocks: {
-    "Malappuram": ["Manjeri", "Malappuram", "Kondotty", "Areekode", "Nilambur", "Wandoor", "Kalikavu", "Perinthalmanna", "Mankada", "Kuttippuram", "Vengara", "Tiroorangadi", "Tanur", "Tirur", "Ponnani", "Perumpadappu"],
-    "Thiruvananthapuram": ["Parassala", "Athiyannoor", "Perunkadavila", "Nemom", "Thiruvananthapuram Rural", "Kazhakoottam", "Nedumangad", "Vellanad", "Vamanapuram", "Chirayinkizhu", "Kilimanoor", "Varkala"],
-    // ... (Add other districts)
-  },
-  municipalities: {
-    "Malappuram": ["Malappuram", "Manjeri", "Ponnani", "Tirur", "Perinthalmanna", "Nilambur", "Kottakkal", "Valanchery"],
-    "Thiruvananthapuram": ["Neyyattinkara", "Nedumangad", "Attingal", "Varkala"],
-    // ...
-  },
-  corporations: {
-    "Thiruvananthapuram": ["Thiruvananthapuram Corporation"],
-    "Kozhikode": ["Kozhikode Corporation"],
-    "Ernakulam": ["Kochi Corporation"],
-    "Kollam": ["Kollam Corporation"],
-    "Thrissur": ["Thrissur Corporation"],
-    "Kannur": ["Kannur Corporation"]
-  },
-  grama_panchayats: {
-    "Manjeri": ["Thrikkalangode", "Pandikkad", "Edavanna", "Keezhuparamba"],
-    "Kondotty": ["Cheekkode", "Cherukavu", "Kondotty", "Pulikkal", "Vazhayur"],
-    "DEFAULT": ["Grama Panchayat 1", "Grama Panchayat 2"]
-  }
-};
 
 const Voters = () => {
   const { user } = useAuth();
@@ -49,6 +15,15 @@ const Voters = () => {
   const [voters, setVoters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  // --- Dynamic Admin Data State ---
+  const [adminData, setAdminData] = useState({
+    districts: [],
+    blocks: {},
+    municipalities: {},
+    corporations: {},
+    grama_panchayats: {}
+  });
 
   // Filter & Search
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,20 +50,27 @@ const Voters = () => {
   const fileInputRef = useRef(null);
 
   /* -------------------------- DATA FETCHING -------------------------- */
-  const fetchVoters = async () => {
+  // Combined fetch for Voters and Admin Data
+  const initData = async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await api.get('/api/admin/voters');
-      if (res.data.success) setVoters(res.data.data || []);
+      const [votersRes, adminDataRes] = await Promise.all([
+        api.get('/api/admin/voters'),
+        api.get('/api/common/kerala-data')
+      ]);
+
+      if (votersRes.data.success) setVoters(votersRes.data.data || []);
+      if (adminDataRes.data.success) setAdminData(adminDataRes.data.data);
+      
     } catch (err) {
-      setErrorMsg("Failed to load voters. Please check your connection.");
+      setErrorMsg("Failed to load directory data. Please check your connection.");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchVoters(); }, []);
+  useEffect(() => { initData(); }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -117,13 +99,14 @@ const Voters = () => {
     return matchesSearch && matchesStatus;
   });
 
+  // Use Dynamic Admin Data
   const getLocalBodyList = () => {
     if (!form.district) return [];
-    if (form.local_body_type === 'Municipality') return KERALA_ADMIN_DATA.municipalities[form.district] || [];
-    if (form.local_body_type === 'Municipal Corporation') return KERALA_ADMIN_DATA.corporations[form.district] || [];
+    if (form.local_body_type === 'Municipality') return adminData.municipalities?.[form.district] || [];
+    if (form.local_body_type === 'Municipal Corporation') return adminData.corporations?.[form.district] || [];
     if (form.local_body_type === 'Grama Panchayat') {
       if (!form.block) return [];
-      return KERALA_ADMIN_DATA.grama_panchayats[form.block] || KERALA_ADMIN_DATA.grama_panchayats["DEFAULT"];
+      return adminData.grama_panchayats?.[form.block] || [];
     }
     return [];
   };
@@ -142,7 +125,7 @@ const Voters = () => {
         addToast("New voter registered successfully!", "success");
       }
       closeModal();
-      fetchVoters();
+      initData(); // Refresh list
     } catch (err) {
       addToast(err.response?.data?.error || "Operation Failed", "error");
     } finally {
@@ -155,7 +138,7 @@ const Voters = () => {
     try {
       await api.delete(`/api/admin/voter/${id}`);
       addToast("Voter deleted successfully", "success");
-      fetchVoters();
+      initData();
       setActiveDropdown(null);
     } catch (err) { addToast("Failed to delete voter", "error"); }
   };
@@ -165,17 +148,14 @@ const Voters = () => {
     const isBlocked = voter.IsBlocked;
     if (!window.confirm(`${isBlocked ? "UNBLOCK" : "BLOCK"} access for ${voter.FullName}?`)) return;
 
-    setVoters(prev => prev.map(v => v.ID === id ? { ...v, IsBlocked: !isBlocked } : v));
     setActiveDropdown(null);
-
     try {
       const endpoint = isBlocked ? "/api/admin/voter/unblock" : "/api/admin/voter/block";
       await api.post(endpoint, { voter_id: id });
       addToast(`Voter ${isBlocked ? 'unblocked' : 'blocked'} successfully`, "success");
-      fetchVoters();
+      initData();
     } catch (err) {
       addToast("Failed to update status", "error");
-      fetchVoters();
     }
   };
 
@@ -192,8 +172,15 @@ const Voters = () => {
     setIsEditing(true);
     setSelectedVoter(voter);
     setForm({
-      full_name: voter.FullName, mobile: voter.Mobile, aadhaar: voter.AadhaarNumber, address: voter.Address,
-      district: voter.District, local_body_type: 'Grama Panchayat', block: voter.Block, local_body_name: voter.Panchayath, ward: voter.Ward
+      full_name: voter.FullName, 
+      mobile: voter.Mobile, 
+      aadhaar: voter.AadhaarNumber, 
+      address: voter.Address,
+      district: voter.District || '', 
+      local_body_type: voter.LocalBodyType || 'Grama Panchayat', 
+      block: voter.Block || '', 
+      local_body_name: voter.Panchayath || '', 
+      ward: voter.Ward || ''
     });
     setShowModal(true);
     setActiveDropdown(null);
@@ -213,19 +200,23 @@ const Voters = () => {
     try {
       await api.post('/api/admin/voters/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       addToast("Import successful", "success");
-      fetchVoters();
+      initData();
     } catch (err) { addToast("Import failed", "error"); }
     finally { setLoading(false); e.target.value = null; }
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10 px-4 md:px-6">
 
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Voters Directory</h1>
-          <p className="text-slate-400 mt-2 text-sm max-w-lg">Manage registered voters. Add, edit, or verify voter details securely.</p>
+          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 tracking-tight">
+            Voters Directory
+          </h1>
+          <p className="text-slate-400 mt-2 text-lg font-light">
+            Manage registered voters. Add, edit, or verify voter details securely.
+          </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <button onClick={handleExport} className="btn-secondary group"><Download size={18} className="group-hover:-translate-y-0.5 transition-transform" /> <span>Export CSV</span></button>
@@ -276,27 +267,32 @@ const Voters = () => {
   {loading ? (
     <tr>
       <td colSpan="5" className="px-6 py-20 text-center">
-        <Loader2 className="animate-spin inline" /> Loading...
+        <Loader2 className="animate-spin inline" /> Loading application data...
       </td>
     </tr>
   ) : (
     filteredVoters.map((v) => (
       <tr key={v.ID} className="group hover:bg-slate-800/30 transition-all duration-200">
         
-        {/* Identity Column */}
         <td className="px-6 py-4">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-400 border border-indigo-500/20">
-              {v.FullName.charAt(0)}
+              {v.FullName?.charAt(0)}
             </div>
             <div>
-              <div className="font-semibold text-slate-200">{v.FullName}</div>
+              <div className="font-semibold text-slate-200 flex items-center gap-2">
+                {v.FullName}
+                {v.IsBlocked && (
+                  <div className="text-rose-500" title="Access Blocked">
+                    <Ban size={14} />
+                  </div>
+                )}
+              </div>
               <div className="text-xs text-slate-500 font-mono">ID: {v.VoterID}</div>
             </div>
           </div>
         </td>
 
-        {/* Contact Column */}
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
             <Phone size={12} />
@@ -304,11 +300,10 @@ const Voters = () => {
           </div>
         </td>
 
-        {/* Aadhaar Column */}
         <td className="px-6 py-4">
           <button
             onClick={() => openDetailsModal(v)}
-            className="group/btn flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 transition-all text-left w-full sm:w-auto"
+            className="group/btn flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 transition-all text-left"
             title="View Details"
           >
             <CreditCard size={14} className="text-amber-500 group-hover/btn:scale-110 transition-transform" />
@@ -318,7 +313,6 @@ const Voters = () => {
           </button>
         </td>
 
-        {/* Status Column - FIXED: Removed stray spaces before this tag */}
         <td className="px-6 py-4">
           <span
             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
@@ -332,18 +326,17 @@ const Voters = () => {
           </span>
         </td>
 
-        {/* Actions Column */}
         <td className="px-6 py-4 text-right relative">
           <button
             onClick={() => setActiveDropdown(activeDropdown === v.ID ? null : v.ID)}
-            className="p-2 rounded-lg text-slate-500 hover:text-white"
+            className={`p-2 rounded-lg transition-all ${activeDropdown === v.ID ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
           >
             <MoreVertical size={18} />
           </button>
           {activeDropdown === v.ID && (
             <div
               ref={dropdownRef}
-              className="absolute right-10 top-10 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-1.5"
+              className="absolute right-10 top-10 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150"
             >
               <button onClick={() => openDetailsModal(v)} className="dropdown-item">
                 <Eye size={14} className="text-sky-400" /> View Details
@@ -375,7 +368,6 @@ const Voters = () => {
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity" onClick={closeModal} />
 
           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
-            {/* Header */}
             <div className="relative h-24 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 shrink-0 flex items-center justify-between px-6 border-b border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 shadow-inner">
@@ -390,8 +382,6 @@ const Voters = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-
-              {/* SECTION 1: PERSONAL INFO */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700 text-xs font-bold">1</div>
@@ -405,22 +395,15 @@ const Voters = () => {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-slate-400">Mobile Number <span className="text-rose-500">*</span></label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                      <input required type="tel" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} className="input-field pl-10" placeholder="10-digit number" />
-                    </div>
+                    <input required type="tel" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} className="input-field" placeholder="10-digit number" />
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
                     <label className="text-xs font-medium text-slate-400">Aadhaar Number <span className="text-rose-500">*</span></label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                      <input required value={form.aadhaar} onChange={e => setForm({ ...form, aadhaar: e.target.value })} className="input-field pl-10" placeholder="12-digit UIDAI number" />
-                    </div>
+                    <input required value={form.aadhaar} onChange={e => setForm({ ...form, aadhaar: e.target.value })} className="input-field" placeholder="12-digit UIDAI number" />
                   </div>
                 </div>
               </div>
 
-              {/* SECTION 2: JURISDICTION INFO */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700 text-xs font-bold">2</div>
@@ -433,7 +416,7 @@ const Voters = () => {
                     <div className="relative">
                       <select required value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value, block: '', local_body_name: '' })} className="input-field appearance-none">
                         <option value="">Select District</option>
-                        {KERALA_ADMIN_DATA.districts.map(d => <option key={d} value={d}>{d}</option>)}
+                        {adminData.districts?.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
                     </div>
@@ -451,14 +434,13 @@ const Voters = () => {
                     </div>
                   </div>
 
-                  {/* Block Selection (Conditional) */}
                   {form.local_body_type === 'Grama Panchayat' && (
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-slate-400">Block Panchayat <span className="text-rose-500">*</span></label>
                       <div className="relative">
                         <select required value={form.block} onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} className="input-field appearance-none disabled:opacity-50 disabled:cursor-not-allowed" disabled={!form.district}>
                           <option value="">Select Block</option>
-                          {form.district && KERALA_ADMIN_DATA.blocks[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}
+                          {form.district && adminData.blocks?.[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
                       </div>
@@ -478,7 +460,10 @@ const Voters = () => {
 
                   <div className="space-y-1.5 md:col-span-2">
                     <label className="text-xs font-medium text-slate-400">Ward No / Division <span className="text-rose-500">*</span></label>
-                    <input required value={form.ward} onChange={e => setForm({ ...form, ward: e.target.value })} className="input-field" placeholder="e.g. 12" />
+                    <div className="relative">
+                      <input required value={form.ward} onChange={e => setForm({ ...form, ward: e.target.value })} className="input-field pl-10" placeholder="e.g. 12" />
+                      <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    </div>
                   </div>
 
                   <div className="space-y-1.5 md:col-span-2">
@@ -503,8 +488,6 @@ const Voters = () => {
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity duration-300" onClick={() => setShowDetailsModal(false)} />
 
           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-
-            {/* 1. HEADER BANNER */}
             <div className="relative h-28 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 shrink-0">
               <button
                 onClick={() => setShowDetailsModal(false)}
@@ -512,8 +495,6 @@ const Voters = () => {
               >
                 <X size={18} />
               </button>
-
-              {/* FLOATING AVATAR */}
               <div className="absolute -bottom-10 left-6 z-10">
                 <div className="w-24 h-24 rounded-full bg-slate-900 p-1.5 shadow-xl">
                   <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-200 border border-slate-700">
@@ -523,15 +504,13 @@ const Voters = () => {
               </div>
             </div>
 
-            {/* 2. CONTENT BODY */}
             <div className="px-6 pt-12 pb-6 overflow-y-auto custom-scrollbar">
-
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-white tracking-tight">{selectedVoter.FullName}</h2>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded text-xs border border-indigo-500/20 font-mono">
-                      ID: {selectedVoter.VoterID || selectedVoter.voter_id}
+                      ID: {selectedVoter.VoterID}
                     </span>
                   </div>
                 </div>
@@ -546,8 +525,8 @@ const Voters = () => {
                 <div className="bg-slate-800/40 rounded-xl border border-slate-800 p-4 space-y-4">
                   <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2"><CreditCard size={14} /> Identity Proofs</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div><p className="text-xs text-slate-500 mb-1">Mobile</p><p className="text-slate-200 font-mono font-medium">{selectedVoter.Mobile || selectedVoter.mobile}</p></div>
-                    <div><p className="text-xs text-slate-500 mb-1">Aadhaar</p><p className="text-slate-200 font-mono font-medium">{selectedVoter.AadhaarNumber || selectedVoter.aadhaar_number}</p></div>
+                    <div><p className="text-xs text-slate-500 mb-1">Mobile</p><p className="text-slate-200 font-mono font-medium">{selectedVoter.Mobile}</p></div>
+                    <div><p className="text-xs text-slate-500 mb-1">Aadhaar</p><p className="text-slate-200 font-mono font-medium">{selectedVoter.AadhaarNumber}</p></div>
                   </div>
                 </div>
 
@@ -573,7 +552,7 @@ const Voters = () => {
       {/* --- STYLES --- */}
       <style>{`
         .input-field { width: 100%; background-color: rgb(30 41 59); border: 1px solid rgb(51 65 85); color: white; border-radius: 0.75rem; padding: 0.625rem 1rem; outline: none; transition: all 0.2s; }
-        .input-field:focus { border-color: rgb(99 102 241 / 0.5); ring: 2px solid rgb(99 102 241 / 0.2); }
+        .input-field:focus { border-color: rgb(99 102 241 / 0.5); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
         .dropdown-item { width: 100%; text-align: left; padding: 0.625rem 0.75rem; font-size: 0.875rem; border-radius: 0.5rem; transition: all 0.1s; display: flex; align-items: center; gap: 0.5rem; }
         .dropdown-item:hover { background-color: rgb(30 41 59); color: white; }
         .btn-primary { display: flex; align-items: center; gap: 0.5rem; background-color: rgb(79 70 229); color: white; padding: 0.625rem 1.25rem; border-radius: 0.75rem; font-weight: 500; transition: all 0.2s; }

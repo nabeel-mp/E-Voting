@@ -17,6 +17,7 @@ func main() {
 
 	database.ConnectPostgres()
 	database.ConnectMongo()
+	database.SeedKeralaAdminData()
 
 	api.InitializeDefaults()
 

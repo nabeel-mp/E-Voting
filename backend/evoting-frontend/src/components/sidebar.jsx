@@ -63,7 +63,7 @@ const Sidebar = () => {
     ];
 
     const bottomItems = [
-        { title: "Settings", path: "/settings", icon: <Settings size={20} />, req: null },
+        { title: "Settings", path: "/admin/settings", icon: <Settings size={20} />, req: null },
     ];
 
     const canAccess = (req) => {

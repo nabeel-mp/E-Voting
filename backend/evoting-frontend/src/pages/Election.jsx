@@ -7,60 +7,6 @@ import {
   MapPin, Building, ChevronDown, Layers, Search, Hash
 } from 'lucide-react';
 
-// --- KERALA ADMINISTRATIVE DATA ---
-const KERALA_ADMIN_DATA = {
-  districts: [
-    "Thiruvananthapuram", "Kollam", "Pathanamthitta", "Alappuzha", "Kottayam",
-    "Idukki", "Ernakulam", "Thrissur", "Palakkad", "Malappuram",
-    "Kozhikode", "Wayanad", "Kannur", "Kasaragod"
-  ],
-  blocks: {
-    "Malappuram": ["Manjeri", "Malappuram", "Kondotty", "Areekode", "Nilambur", "Wandoor", "Kalikavu", "Perinthalmanna", "Mankada", "Kuttippuram", "Vengara", "Tiroorangadi", "Tanur", "Tirur", "Ponnani", "Perumpadappu"],
-    "Thiruvananthapuram": ["Parassala", "Athiyannoor", "Perunkadavila", "Nemom", "Thiruvananthapuram Rural", "Kazhakoottam", "Nedumangad", "Vellanad", "Vamanapuram", "Chirayinkizhu", "Kilimanoor", "Varkala"],
-    "Kollam": ["Ochira", "Karunagappally", "Sasthamcotta", "Pathanapuram", "Anchal", "Kottarakkara", "Chittumala", "Chavara", "Mukhathala", "Ithikkara", "Chadayamangalam", "Vettikkavala"],
-    "Pathanamthitta": ["Mallappally", "Pulikeezhu", "Koyipram", "Elanthoor", "Ranni", "Konni", "Pandalam", "Parakode"],
-    "Alappuzha": ["Thaikkattusseri", "Pattanakkad", "Kanjikkuzhi", "Aryad", "Ambalappuzha", "Champakkulam", "Veliyanad", "Chengannur", "Harippad", "Mavelikkara", "Bharanikkavu", "Muthukulam"],
-    "Kottayam": ["Vaikom", "Kaduthuruthy", "Ettumanoor", "Uzhavoor", "Lalam", "Erattupetta", "Pampadi", "Pallom", "Madappally", "Vazhoor", "Kanjirappally"],
-    "Idukki": ["Adimali", "Devikulam", "Nedumkandam", "Elemdesom", "Idukki", "Kattappana", "Thodupuzha", "Azhutha"],
-    "Ernakulam": ["Paravur", "Alangad", "Angamaly", "Koovappadi", "Vazhakulam", "Edappally", "Vypeen", "Palluruthy", "Mulanthuruthy", "Vadavucode", "Kothamangalam", "Pampakuda", "Parakkadavu", "Muvattupuzha"],
-    "Thrissur": ["Chavakkad", "Chowwannur", "Vadakkancherry", "Pazhayannoor", "Ollukkara", "Puzhackal", "Mullasseri", "Thalikulam", "Anthikkad", "Cherpu", "Kodakara", "Irinjalakkuda", "Vellangallur", "Mathilakam", "Kodungallur", "Mala", "Chalakkudi"],
-    "Palakkad": ["Thrithala", "Pattambi", "Ottappalam", "Sreekrishnapuram", "Mannarkkad", "Attappady", "Palakkad", "Kuzhalmannam", "Chittoor", "Kollangode", "Nenmara", "Alathur", "Malampuzha"],
-    "Kozhikode": ["Vadakara", "Tuneri", "Kunnummel", "Thodannur", "Meladi", "Perambra", "Balusseri", "Panthalayani", "Chelannur", "Koduvally", "Kunnamangalam", "Kozhikode"],
-    "Wayanad": ["Mananthavady", "Sulthan Bathery", "Kalpetta", "Panamaram"],
-    "Kannur": ["Payyannur", "Kalliasseri", "Taliparamba", "Irikkur", "Kannur", "Edakkad", "Thalassery", "Kuthuparamba", "Panoor", "Iritty", "Peravoor"],
-    "Kasaragod": ["Manjeshwaram", "Karadka", "Kasaragod", "Kanhangad", "Parappa", "Nileshwaram"]
-  },
-  municipalities: {
-    "Malappuram": ["Malappuram", "Manjeri", "Ponnani", "Tirur", "Perinthalmanna", "Nilambur", "Kottakkal", "Valanchery", "Kondotty", "Tanur", "Parappanangadi", "Tirurangadi"],
-    "Thiruvananthapuram": ["Neyyattinkara", "Nedumangad", "Attingal", "Varkala"],
-    "Kollam": ["Punalur", "Karunagappally", "Paravur", "Kottarakkara"],
-    "Pathanamthitta": ["Thiruvalla", "Pathanamthitta", "Adoor", "Pandalam"],
-    "Alappuzha": ["Alappuzha", "Kayamkulam", "Cherthala", "Mavelikkara", "Chengannur", "Haripad"],
-    "Kottayam": ["Kottayam", "Changanassery", "Pala", "Vaikom", "Ettumanoor", "Erattupetta"],
-    "Idukki": ["Thodupuzha", "Kattappana"],
-    "Ernakulam": ["Thrippunithura", "Muvattupuzha", "Kothamangalam", "Perumbavoor", "Aluva", "North Paravur", "Angamaly", "Kalamassery", "Maradu", "Eloor", "Thrikkakara", "Piravom", "Koothattukulam"],
-    "Thrissur": ["Chalakudy", "Kunnamkulam", "Kodungallur", "Chavakkad", "Guruvayoor", "Irinjalakuda", "Wadakkanchery"],
-    "Palakkad": ["Palakkad", "Shornur", "Chittur-Thathamangalam", "Ottappalam", "Mannarkkad", "Pattambi", "Cherpulassery"],
-    "Kozhikode": ["Vatakara", "Koyilandy", "Ramanattukara", "Koduvally", "Mukkam", "Payyoli", "Feroke"],
-    "Wayanad": ["Kalpetta", "Mananthavady", "Sulthan Bathery"],
-    "Kannur": ["Taliparamba", "Payyannur", "Thalassery", "Mattannur", "Koothuparamba", "Anthoor", "Iritty", "Panoor", "Sreekandapuram"],
-    "Kasaragod": ["Kasaragod", "Kanhangad", "Nileshwar"]
-  },
-  corporations: {
-    "Thiruvananthapuram": ["Thiruvananthapuram Corporation"],
-    "Kozhikode": ["Kozhikode Corporation"],
-    "Ernakulam": ["Kochi Corporation"],
-    "Kollam": ["Kollam Corporation"],
-    "Thrissur": ["Thrissur Corporation"],
-    "Kannur": ["Kannur Corporation"]
-  },
-  grama_panchayats: {
-    "Manjeri": ["Thrikkalangode", "Pandikkad", "Edavanna", "Keezhuparamba", "Urangattiri"],
-    "Kondotty": ["Cheekkode", "Cherukavu", "Kondotty", "Pulikkal", "Vazhayur", "Vazhakkad"],
-    "DEFAULT": ["Grama Panchayat 1", "Grama Panchayat 2", "Grama Panchayat 3"]
-  }
-};
-
 const ELECTION_TYPES = [
   "District Panchayat", "Block Panchayat", "Grama Panchayat", "Municipality", "Municipal Corporation"
 ];
@@ -68,6 +14,16 @@ const ELECTION_TYPES = [
 const Elections = () => {
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // --- Dynamic Admin Data State ---
+  const [adminData, setAdminData] = useState({
+    districts: [],
+    blocks: {},
+    municipalities: {},
+    corporations: {},
+    grama_panchayats: {}
+  });
+
   const [showFormModal, setShowFormModal] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ show: false, type: null, data: null });
   const [submitting, setSubmitting] = useState(false);
@@ -85,18 +41,27 @@ const Elections = () => {
     ward: ''
   });
 
-  const fetchElections = async () => {
+  // --- Combined Initial Fetch ---
+  const initData = async () => {
     try {
-      const res = await api.get('/api/admin/elections');
-      if (res.data.success) setElections(res.data.data);
+      setLoading(true);
+      const [electionsRes, adminDataRes] = await Promise.all([
+        api.get('/api/admin/elections'),
+        api.get('/api/common/kerala-data') // Fetches from MongoDB
+      ]);
+
+      if (electionsRes.data.success) setElections(electionsRes.data.data);
+      if (adminDataRes.data.success) setAdminData(adminDataRes.data.data);
+      
     } catch (err) {
       if (err.response?.status === 403) addToast("Forbidden: Access denied.", "error");
-      else addToast("Failed to load elections", "error");
+      else addToast("Failed to load initial data", "error");
+    } finally {
+      setLoading(false);
     }
-    finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchElections(); }, []);
+  useEffect(() => { initData(); }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -120,13 +85,14 @@ const Elections = () => {
     return ['Grama Panchayat', 'Municipality', 'Municipal Corporation'].includes(type);
   };
 
+  // Updated to use dynamic state
   const getLocalBodyList = () => {
     if (!form.district) return [];
-    if (form.election_type === 'Municipality') return KERALA_ADMIN_DATA.municipalities[form.district] || [];
-    if (form.election_type === 'Municipal Corporation') return KERALA_ADMIN_DATA.corporations[form.district] || [];
+    if (form.election_type === 'Municipality') return adminData.municipalities?.[form.district] || [];
+    if (form.election_type === 'Municipal Corporation') return adminData.corporations?.[form.district] || [];
     if (form.election_type === 'Grama Panchayat') {
       if (!form.block) return [];
-      return KERALA_ADMIN_DATA.grama_panchayats[form.block] || KERALA_ADMIN_DATA.grama_panchayats["DEFAULT"];
+      return adminData.grama_panchayats?.[form.block] || [];
     }
     return [];
   };
@@ -175,7 +141,6 @@ const Elections = () => {
       return;
     }
     
-    // Validate Ward Requirement
     if (isWardRequired(form.election_type) && !form.ward.trim()) {
       addToast(`Ward is required for ${form.election_type} elections`, "error");
       return;
@@ -185,10 +150,9 @@ const Elections = () => {
     try {
       const payload = {
         ...form,
-        // Clear irrelevant fields based on type
         block: (['District Panchayat', 'Municipality', 'Municipal Corporation'].includes(form.election_type)) ? '' : form.block,
         local_body_name: (['District Panchayat', 'Block Panchayat'].includes(form.election_type)) ? '' : form.local_body_name,
-        ward: isWardRequired(form.election_type) ? form.ward : '', // Ensure ward is sent only if relevant
+        ward: isWardRequired(form.election_type) ? form.ward : '',
         start_date: new Date(form.start_date).toISOString(),
         end_date: new Date(form.end_date).toISOString()
       };
@@ -200,7 +164,7 @@ const Elections = () => {
         await api.post('/api/admin/elections', payload);
         addToast("Election created successfully!", "success");
       }
-      resetForm(); fetchElections();
+      resetForm(); initData(); // Refresh all
     } catch (err) {
       if (err.response?.status === 403) addToast("Forbidden", "error");
       else addToast(err.response?.data?.error || "Operation Failed", "error");
@@ -213,7 +177,7 @@ const Elections = () => {
     try {
       await api.delete(`/api/admin/elections/${id}`);
       addToast("Election deleted successfully", "success");
-      fetchElections();
+      initData();
       setActiveDropdown(null);
     } catch (err) {
       addToast(err.response?.data?.error || "Failed to delete election", "error");
@@ -247,7 +211,7 @@ const Elections = () => {
         });
         addToast(`Election ${newStatus ? 'resumed' : 'paused'} successfully`, "success");
       }
-      fetchElections();
+      initData();
       setConfirmModal({ show: false, type: null, data: null });
     } catch (err) {
       addToast("Failed to update status", "error");
@@ -282,7 +246,7 @@ const Elections = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-500">
             <Loader2 className="animate-spin text-indigo-500 w-10 h-10" />
-            <p>Loading election data...</p>
+            <p>Loading application data...</p>
           </div>
         ) : elections.length === 0 ? (
           <div className="text-center py-20 text-slate-500 border-2 border-dashed border-slate-800 rounded-3xl bg-slate-900/50">
@@ -309,18 +273,15 @@ const Elections = () => {
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
                 <div className="flex items-start gap-5 w-full">
-                  {/* Icon Box */}
                   <div className={`p-4 rounded-2xl shadow-inner flex-shrink-0 transition-colors duration-300 ${isActiveElection ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'
                     }`}>
                     <Vote size={32} />
                   </div>
 
-                  {/* Content */}
                   <div className="flex-grow">
                     <div className="flex items-center justify-between">
                       <h3 className="text-2xl font-bold text-slate-100 group-hover:text-white transition-colors">{election.title}</h3>
 
-                      {/* Desktop Menu */}
                       <div className="relative">
                         <button
                           onClick={() => setActiveDropdown(activeDropdown === election.ID ? null : election.ID)}
@@ -345,7 +306,6 @@ const Elections = () => {
                       </div>
                     </div>
 
-                    {/* Tags */}
                     <div className="flex flex-wrap items-center gap-2 mt-2 mb-3">
                       <span className="bg-indigo-500/10 text-indigo-300 px-3 py-1 rounded-lg border border-indigo-500/20 text-xs font-semibold flex items-center gap-1.5">
                         <Layers size={12} /> {election.election_type}
@@ -376,7 +336,6 @@ const Elections = () => {
                   </div>
                 </div>
 
-                {/* Status Column */}
                 <div className="flex md:flex-col items-center justify-between md:justify-center gap-4 border-t md:border-t-0 md:border-l border-slate-800 pt-4 md:pt-0 md:pl-6 min-w-[120px]">
                   <span className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 shadow-sm
                         ${isEnded
@@ -424,7 +383,6 @@ const Elections = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="p-8 overflow-y-auto custom-scrollbar space-y-6">
-              {/* Basic Info */}
               <div className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-xs uppercase font-bold text-slate-400 tracking-wider">Election Title <span className="text-red-500">*</span></label>
@@ -441,7 +399,6 @@ const Elections = () => {
                 <h3 className="text-sm font-bold text-indigo-400 flex gap-2 items-center"><Building size={16} /> Jurisdiction Configuration</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* 1. Election Type */}
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-xs uppercase font-bold text-slate-500">Election Level <span className="text-red-500">*</span></label>
                     <div className="relative group">
@@ -452,33 +409,30 @@ const Elections = () => {
                     </div>
                   </div>
 
-                  {/* 2. District (Always Required) */}
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-xs uppercase font-bold text-slate-500">District <span className="text-red-500">*</span></label>
                     <div className="relative group">
                       <select required value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value, block: '', local_body_name: '' })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer hover:border-slate-600">
                         <option value="">-- Select District --</option>
-                        {KERALA_ADMIN_DATA.districts.map(d => <option key={d} value={d}>{d}</option>)}
+                        {adminData.districts?.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                       <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-hover:text-slate-300 transition-colors" size={16} />
                     </div>
                   </div>
 
-                  {/* 3. Block */}
                   {(form.election_type === 'Block Panchayat' || form.election_type === 'Grama Panchayat') && (
                     <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2">
                       <label className="text-xs uppercase font-bold text-slate-500">Block Panchayat <span className="text-red-500">*</span></label>
                       <div className="relative group">
                         <select required value={form.block} onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer disabled:opacity-50" disabled={!form.district}>
                           <option value="">-- Select Block --</option>
-                          {form.district && KERALA_ADMIN_DATA.blocks[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}
+                          {form.district && adminData.blocks?.[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
                       </div>
                     </div>
                   )}
 
-                  {/* 4. Local Body Name */}
                   {(form.election_type === 'Grama Panchayat' || form.election_type === 'Municipality' || form.election_type === 'Municipal Corporation') && (
                     <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2">
                       <label className="text-xs uppercase font-bold text-slate-500">
@@ -495,7 +449,6 @@ const Elections = () => {
                     </div>
                   )}
 
-                  {/* 5. Ward (Conditional Visibility) */}
                   {isWardRequired(form.election_type) && (
                     <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2">
                       <label className="text-xs uppercase font-bold text-slate-500">
@@ -516,7 +469,6 @@ const Elections = () => {
                 </div>
               </div>
 
-              {/* Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="text-xs uppercase font-bold text-slate-400 tracking-wider">Start Date <span className="text-red-500">*</span></label>

@@ -28,6 +28,9 @@ func RegisterRoutes(app *fiber.App) {
 	voterApp.Get("/elections/:id/candidates", GetVoterCandidates)
 	voterApp.Post("/vote", CastVote)
 
+	common := app.Group("/api/common")
+	common.Get("/kerala-data", GetReferenceData)
+
 	// 2. Admin API Routes
 
 	// General Admin Profile
