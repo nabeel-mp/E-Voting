@@ -25,8 +25,7 @@ var (
 )
 
 // VotingSystemABI is the input ABI used to generate the binding from.
-// We define the standard castVote and getVotes methods here.
-const VotingSystemABI = `[{"inputs":[{"internalType":"uint256","name":"electionId","type":"uint256"},{"internalType":"uint256","name":"candidateId","type":"uint256"},{"internalType":"uint256","name":"voterId","type":"uint256"}],"name":"castVote","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"electionId","type":"uint256"},{"internalType":"uint256","name":"candidateId","type":"uint256"}],"name":"getVotes","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`
+const VotingSystemABI = `[{"inputs":[{"internalType":"uint256","name":"_electionId","type":"uint256"},{"internalType":"uint256","name":"_startTime","type":"uint256"},{"internalType":"uint256","name":"_endTime","type":"uint256"}],"name":"createElection","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_electionId","type":"uint256"},{"internalType":"uint256","name":"_candidateId","type":"uint256"},{"internalType":"uint256","name":"_voterId","type":"uint256"}],"name":"castVote","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_electionId","type":"uint256"},{"internalType":"uint256","name":"_candidateId","type":"uint256"}],"name":"getVotes","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_electionId","type":"uint256"},{"internalType":"uint256","name":"_voterId","type":"uint256"}],"name":"checkHasVoted","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"elections","outputs":[{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"bool","name":"exists","type":"bool"}],"stateMutability":"view","type":"function"}]`
 
 // VotingSystem is an auto generated Go binding around an Ethereum contract.
 type VotingSystem struct {
@@ -68,15 +67,20 @@ func bindVotingSystem(address common.Address, caller bind.ContractCaller, transa
 	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
 }
 
+// CreateElection is a paid mutator transaction binding the contract method "createElection"
+func (_VotingSystem *VotingSystemTransactor) CreateElection(opts *bind.TransactOpts, _electionId *big.Int, _startTime *big.Int, _endTime *big.Int) (*types.Transaction, error) {
+	return _VotingSystem.contract.Transact(opts, "createElection", _electionId, _startTime, _endTime)
+}
+
 // CastVote is a paid mutator transaction binding the contract method "castVote"
-func (_VotingSystem *VotingSystemTransactor) CastVote(opts *bind.TransactOpts, electionId *big.Int, candidateId *big.Int, voterId *big.Int) (*types.Transaction, error) {
-	return _VotingSystem.contract.Transact(opts, "castVote", electionId, candidateId, voterId)
+func (_VotingSystem *VotingSystemTransactor) CastVote(opts *bind.TransactOpts, _electionId *big.Int, _candidateId *big.Int, _voterId *big.Int) (*types.Transaction, error) {
+	return _VotingSystem.contract.Transact(opts, "castVote", _electionId, _candidateId, _voterId)
 }
 
 // GetVotes is a free data retrieval call binding the contract method "getVotes"
-func (_VotingSystem *VotingSystemCaller) GetVotes(opts *bind.CallOpts, electionId *big.Int, candidateId *big.Int) (*big.Int, error) {
+func (_VotingSystem *VotingSystemCaller) GetVotes(opts *bind.CallOpts, _electionId *big.Int, _candidateId *big.Int) (*big.Int, error) {
 	var out []interface{}
-	err := _VotingSystem.contract.Call(opts, &out, "getVotes", electionId, candidateId)
+	err := _VotingSystem.contract.Call(opts, &out, "getVotes", _electionId, _candidateId)
 
 	if err != nil {
 		return *new(*big.Int), err

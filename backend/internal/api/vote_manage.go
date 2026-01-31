@@ -1,9 +1,9 @@
 package api
 
 import (
-	"E-voting/internal/blockchain"
 	"E-voting/internal/database"
 	"E-voting/internal/models"
+	"E-voting/internal/service"
 	"E-voting/internal/utils"
 	"crypto/sha256"
 	"encoding/hex"
@@ -180,7 +180,7 @@ func CastVote(c *fiber.Ctx) error {
 	tx.Commit()
 
 	go func() {
-		txHash, err := blockchain.CastVoteOnChain(req.ElectionID, req.CandidateID, voterID)
+		txHash, err := service.CastVoteOnChain(req.ElectionID, req.CandidateID, voterID)
 		if err != nil {
 			fmt.Printf("Blockchain Write failed: %v\n", err)
 		} else {

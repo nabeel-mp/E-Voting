@@ -4,6 +4,7 @@ import (
 	"E-voting/internal/api"
 	"E-voting/internal/config"
 	"E-voting/internal/database"
+	"E-voting/internal/service"
 	"log"
 	"os"
 
@@ -18,6 +19,8 @@ func main() {
 	database.ConnectPostgres()
 	database.ConnectMongo()
 	database.SeedKeralaAdminData()
+
+	service.InitBlockchain()
 
 	api.InitializeDefaults()
 

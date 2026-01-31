@@ -9,6 +9,7 @@ import (
 )
 
 func SeedKeralaAdminData() {
+	log.Println("Checking for Kerala Admin Data...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

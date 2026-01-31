@@ -1,7 +1,6 @@
 package api
 
 import (
-	"E-voting/internal/blockchain"
 	"E-voting/internal/middleware"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
@@ -111,7 +110,7 @@ func RegisterRoutes(app *fiber.App) {
 		elecID, _ := c.ParamsInt("election_id")
 		candID, _ := c.ParamsInt("candidate_id")
 
-		count, err := blockchain.GetVotesFromChain(uint(elecID), uint(candID))
+		count, err := service.GetVotesFromChain(uint(elecID), uint(candID))
 		if err != nil {
 			return utils.Error(c, 500, "Blockchain read error")
 		}
