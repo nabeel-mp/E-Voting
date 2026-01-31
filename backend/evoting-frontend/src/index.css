@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
-body {
-  @apply bg-slate-950 text-slate-200 font-sans;
+/* Add these animation styles */
+@layer utilities {
+  .animate-marquee {
+    animation: marquee 25s linear infinite;
+  }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* Smooth scrolling for the whole page */
+html {
+  scroll-behavior: smooth;
 }
