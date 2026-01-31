@@ -41,26 +41,55 @@ const Elections = () => {
     ward: ''
   });
 
-  // --- Separated Initial Fetch ---
+  // --- ROBUST INITIAL DATA FETCH ---
   const initData = async () => {
     setLoading(true);
     
-    // 1. Fetch Admin Reference Data (Independent)
+    // 1. Fetch Admin Reference Data (Kerala Data)
     try {
-      const adminDataRes = await api.get('/api/common/kerala-data');
-      if (adminDataRes.data.success) {
-        setAdminData(adminDataRes.data.data);
+      const response = await api.get('/api/common/kerala-data');
+      
+      if (response.data && response.data.success) {
+        let payload = response.data.data;
+
+        // --- RECURSIVE FIX: Convert any Key/Value arrays to Objects ---
+        const normalizeData = (data) => {
+          if (Array.isArray(data)) {
+            // Check if it's a Key/Value pair array (MongoDB quirk)
+            if (data.length > 0 && data[0].hasOwnProperty('Key') && data[0].hasOwnProperty('Value')) {
+              return data.reduce((acc, item) => {
+                acc[item.Key] = normalizeData(item.Value); // Recurse
+                return acc;
+              }, {});
+            }
+            // If it's a regular string array (like districts list), return as is
+            return data;
+          }
+          // If it's an object, recurse on its values
+          if (data && typeof data === 'object') {
+            Object.keys(data).forEach(key => {
+              data[key] = normalizeData(data[key]);
+            });
+          }
+          return data;
+        };
+
+        const cleanPayload = normalizeData(payload);
+        
+        if (cleanPayload && cleanPayload.districts) {
+          console.log("Election Page: Admin Data Loaded", Object.keys(cleanPayload));
+          setAdminData(cleanPayload);
+        }
       }
     } catch (err) {
       console.error("Failed to load Kerala admin data", err);
-      // Don't show toast here to avoid spamming if just this fails
     }
 
     // 2. Fetch Elections List
     try {
       const electionsRes = await api.get('/api/admin/elections');
       if (electionsRes.data.success) {
-        setElections(electionsRes.data.data);
+        setElections(electionsRes.data.data || []);
       }
     } catch (err) {
       if (err.response?.status === 403) addToast("Forbidden: Access denied.", "error");
@@ -94,11 +123,19 @@ const Elections = () => {
     return ['Grama Panchayat', 'Municipality', 'Municipal Corporation'].includes(type);
   };
 
-  // Updated to use dynamic state
+  // Safe Navigation using the Normalized Data
   const getLocalBodyList = () => {
     if (!form.district) return [];
-    if (form.election_type === 'Municipality') return adminData.municipalities?.[form.district] || [];
-    if (form.election_type === 'Municipal Corporation') return adminData.corporations?.[form.district] || [];
+    
+    // Ensure data exists before access
+    if (!adminData) return [];
+
+    if (form.election_type === 'Municipality') {
+        return adminData.municipalities?.[form.district] || [];
+    }
+    if (form.election_type === 'Municipal Corporation') {
+        return adminData.corporations?.[form.district] || [];
+    }
     if (form.election_type === 'Grama Panchayat') {
       if (!form.block) return [];
       return adminData.grama_panchayats?.[form.block] || [];
@@ -433,6 +470,7 @@ const Elections = () => {
                     <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2">
                       <label className="text-xs uppercase font-bold text-slate-500">Block Panchayat <span className="text-red-500">*</span></label>
                       <div className="relative group">
+                        {/* FIX: Use blocks map accessed by district key */}
                         <select required value={form.block} onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer disabled:opacity-50" disabled={!form.district}>
                           <option value="">-- Select Block --</option>
                           {form.district && adminData.blocks?.[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
@@ -13,57 +13,196 @@ import {
   ShieldCheck,
   ChevronLeft,
   HelpCircle,
-  Phone
+  Map,
+  Building2,
+  Hash,
+  ChevronDown,
+  Layers
 } from 'lucide-react';
 
 const VoterLogin = () => {
   const [step, setStep] = useState(1); // 1: Creds, 2: OTP
-  const [formData, setFormData] = useState({ voter_id: '', aadhaar: '' });
-  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState('');
   const [serverMsg, setServerMsg] = useState('');
   const navigate = useNavigate();
+
+  // --- Dynamic Admin Data State ---
+  const [adminData, setAdminData] = useState({
+    districts: [],
+    blocks: {},
+    municipalities: {},
+    corporations: {},
+    grama_panchayats: {}
+  });
+
+  // Unified Form State
+  const [formData, setFormData] = useState({
+    district: '',
+    block: '', // Added Block field for Grama Panchayats
+    localBodyType: '',
+    localBodyName: '',
+    wardNo: '',
+    voter_id: '',
+    aadhaar: ''
+  });
+
+  // Dynamic Ward Generator (1-50)
+  const wards = Array.from({length: 50}, (_, i) => i + 1);
+
+  // --- 1. DATA FETCHING (Robust Logic) ---
+  const initData = async () => {
+    setDataLoading(true);
+    try {
+      const response = await api.get('/api/common/kerala-data');
+      
+      if (response.data && response.data.success) {
+        let payload = response.data.data;
+
+        // RECURSIVE FIX: Convert any Key/Value arrays to Objects (Handles MongoDB structure mismatch)
+        const normalizeData = (data) => {
+          if (Array.isArray(data)) {
+            // Check if it's a Key/Value pair array
+            if (data.length > 0 && data[0].hasOwnProperty('Key') && data[0].hasOwnProperty('Value')) {
+              return data.reduce((acc, item) => {
+                acc[item.Key] = normalizeData(item.Value);
+                return acc;
+              }, {});
+            }
+            return data;
+          }
+          if (data && typeof data === 'object') {
+            Object.keys(data).forEach(key => {
+              data[key] = normalizeData(data[key]);
+            });
+          }
+          return data;
+        };
+
+        const cleanPayload = normalizeData(payload);
+        
+        if (cleanPayload && cleanPayload.districts) {
+          console.log("Voter Login: Admin Data Loaded", Object.keys(cleanPayload));
+          setAdminData(cleanPayload);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load Kerala admin data", err);
+      setError("Unable to load election data. Please check your connection.");
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  useEffect(() => { initData(); }, []);
+
+  // --- 2. LOGIC & HANDLERS ---
+
+  // Update form helper
+  const handleChange = (field, value) => {
+    setFormData(prev => {
+      const updates = { [field]: value };
+      
+      // Reset dependent fields when parent changes
+      if (field === 'district') {
+        updates.block = '';
+        updates.localBodyName = '';
+      }
+      if (field === 'localBodyType') {
+        updates.block = '';
+        updates.localBodyName = '';
+      }
+      if (field === 'block') {
+        updates.localBodyName = '';
+      }
+      
+      return { ...prev, ...updates };
+    });
+  };
+
+  // Get list based on selections
+  const getLocalBodyList = () => {
+    if (!formData.district || !adminData) return [];
+
+    if (formData.localBodyType === 'Municipality') {
+      return adminData.municipalities?.[formData.district] || [];
+    }
+    if (formData.localBodyType === 'Municipal Corporation') {
+      return adminData.corporations?.[formData.district] || [];
+    }
+    if (formData.localBodyType === 'Grama Panchayat') {
+      // For GP, we need the block first
+      if (!formData.block) return [];
+      return adminData.grama_panchayats?.[formData.block] || [];
+    }
+    return [];
+  };
 
   const handleInit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
+    if (!formData.district || !formData.localBodyName || !formData.wardNo) {
+        setError("Please select all location details.");
+        setLoading(false);
+        return;
+    }
+
+    if (formData.localBodyType === 'Grama Panchayat' && !formData.block) {
+        setError("Please select your Block Panchayat.");
+        setLoading(false);
+        return;
+    }
+
     try {
-      // Simulation for demo
-      const res = await api.post('/api/auth/voter/login', formData);
+      const payload = {
+        voter_id: formData.voter_id,
+        aadhaar: formData.aadhaar,
+        district: formData.district,
+        block: formData.block, // Send block if available
+        local_body_type: formData.localBodyType,
+        local_body_name: formData.localBodyName,
+        ward_no: formData.wardNo
+      };
+
+      const res = await api.post('/api/auth/voter/login', payload);
+
       if (res.data.success) {
         setServerMsg(res.data.data.message);
         setStep(2);
       }
     } catch (err) {
-      setError(err.response?.data?.error || "Invalid Credentials");
+      setError(err.response?.data?.error || "Details do not match our records.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerify = async (e) => {
+  // OTP State
+  const [otpCode, setOtpCode] = useState('');
+
+  const submitOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
     try {
-      const res = await api.post('/api/auth/voter/verify-otp', { voter_id: formData.voter_id, otp });
-      if (res.data.success) {
-        localStorage.setItem('voter_token', res.data.data.token);
-        navigate('/portal');
-      }
+        const res = await api.post('/api/auth/voter/verify-otp', { voter_id: formData.voter_id, otp: otpCode });
+        if (res.data.success) {
+            localStorage.setItem('voter_token', res.data.data.token);
+            navigate('/portal');
+        }
     } catch (err) {
-      setError(err.response?.data?.error || "Invalid OTP");
+        setError(err.response?.data?.error || "Invalid OTP");
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-slate-800 flex flex-col">
       
-      {/* --- SIMPLIFIED HEADER --- */}
+      {/* --- HEADER --- */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
@@ -84,26 +223,21 @@ const VoterLogin = () => {
         </div>
       </header>
 
-      {/* --- MAIN CONTENT (Split Layout) --- */}
+      {/* --- MAIN CONTENT --- */}
       <main className="flex-grow flex items-center justify-center p-6 md:p-12 relative overflow-hidden">
-        {/* Background Blobs */}
+        
+        {/* Background Decor */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
             <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-emerald-100/40 rounded-full blur-[100px]"></div>
             <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-[100px]"></div>
         </div>
 
-        <div className="w-full max-w-6xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
+        <div className="w-full max-w-6xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col lg:flex-row min-h-[700px]">
           
           {/* LEFT SIDE: Visuals */}
-          <div className="lg:w-1/2 bg-slate-900 relative p-12 text-white flex flex-col justify-between overflow-hidden">
-            <div className="absolute inset-0 opacity-40">
-                {/* <img 
-                    src="https://images.unsplash.com/photo-1540910419868-474947cebacb?q=80&w=2074&auto=format&fit=crop" 
-                    alt="Voting Background" 
-                    className="w-full h-full object-cover"
-                /> */}
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent"></div>
+          <div className="lg:w-5/12 bg-slate-900 relative p-12 text-white flex flex-col justify-between overflow-hidden">
+            <div className="absolute inset-0 opacity-30"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-slate-900/40"></div>
             
             <div className="relative z-10">
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/10 mb-6">
@@ -111,48 +245,48 @@ const VoterLogin = () => {
                     <span className="text-[10px] font-bold uppercase tracking-widest">Identity Verification</span>
                 </div>
                 <h2 className="text-4xl md:text-5xl font-serif font-bold leading-tight mb-4">
-                    Your Vote is <br/><span className="text-emerald-400 italic font-serif">Your Voice.</span>
+                    Locate. <br/>Verify. <br/><span className="text-emerald-400 italic font-serif">Vote.</span>
                 </h2>
-                <p className="text-slate-300 font-light leading-relaxed max-w-sm">
-                    Access the secure voter portal to verify your details, apply for corrections, or download your digital EPIC card.
+                <p className="text-slate-300 font-light leading-relaxed">
+                    To ensure the integrity of the election, we cross-reference your identity with your registered local body and ward details.
                 </p>
             </div>
 
             <div className="relative z-10 mt-12">
                 <div className="flex items-center gap-4 text-xs font-medium text-slate-400 bg-slate-800/50 p-4 rounded-2xl backdrop-blur-sm border border-slate-700">
                     <HelpCircle size={20} className="text-emerald-400" />
-                    <p>Having trouble logging in? <br/><span className="text-white underline cursor-pointer">Contact the BLO Helpdesk</span></p>
+                    <p>Not sure about your Ward?<br/><span className="text-white underline cursor-pointer">Check Draft Electoral Roll</span></p>
                 </div>
             </div>
           </div>
 
           {/* RIGHT SIDE: Form */}
-          <div className="lg:w-1/2 p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-white relative">
-            <div className="max-w-md mx-auto w-full">
+          <div className="lg:w-7/12 p-8 md:p-12 flex flex-col justify-center bg-white relative overflow-y-auto max-h-[90vh] lg:max-h-none">
+            <div className="max-w-lg mx-auto w-full">
                 
-                <div className="mb-10">
-                    <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 text-emerald-600">
-                        <Fingerprint size={32} />
-                    </div>
-                    <h3 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</h3>
-                    <p className="text-slate-500">Please enter your details to authenticate.</p>
+                <div className="mb-8">
+                    <h3 className="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+                        Voter Authentication
+                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    </h3>
+                    <p className="text-sm text-slate-500">Enter your constituency details and ID proof.</p>
                 </div>
 
                 <AnimatePresence mode='wait'>
                     {error && (
                         <motion.div 
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0 }}
-                            className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-center gap-3 text-red-600 text-sm font-bold"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-100 flex items-start gap-3 text-rose-600 text-sm font-bold"
                         >
-                            <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></div>
+                            <div className="mt-0.5"><ShieldCheck size={16} /></div>
                             {error}
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                {/* Step 1: Credentials */}
+                {/* Step 1: Full Form */}
                 {step === 1 && (
                     <motion.form 
                         initial={{ opacity: 0, x: 20 }}
@@ -161,50 +295,130 @@ const VoterLogin = () => {
                         onSubmit={handleInit} 
                         className="space-y-6"
                     >
-                        <div className="space-y-2">
-                            <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">Voter ID </label>
-                            <div className="relative group">
-                                <Vote className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
-                                <input 
-                                    required 
-                                    value={formData.voter_id}
-                                    onChange={e => setFormData({...formData, voter_id: e.target.value.toUpperCase()})}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 font-bold focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal"
-                                    placeholder="VOTE-XXXXXX"
-                                />
+                        {/* SECTION 1: LOCATION DETAILS */}
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
+                            <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest flex items-center gap-2">
+                                <Map size={12}/> Location Details
+                            </p>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* District */}
+                                <div className="relative group">
+                                    <Map className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <select 
+                                        required
+                                        className="appearance-none w-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-8 text-slate-900 text-sm font-semibold focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all cursor-pointer"
+                                        value={formData.district}
+                                        onChange={(e) => handleChange('district', e.target.value)}
+                                        disabled={dataLoading}
+                                    >
+                                        <option value="">{dataLoading ? "Loading..." : "Select District"}</option>
+                                        {adminData.districts.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                </div>
+
+                                {/* Body Type */}
+                                <div className="relative group">
+                                    <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <select 
+                                        required
+                                        className="appearance-none w-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-8 text-slate-900 text-sm font-semibold focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all cursor-pointer"
+                                        value={formData.localBodyType}
+                                        onChange={(e) => handleChange('localBodyType', e.target.value)}
+                                    >
+                                        <option value="">Body Type</option>
+                                        <option value="Grama Panchayat">Grama Panchayat</option>
+                                        <option value="Municipality">Municipality</option>
+                                        <option value="Municipal Corporation">Municipal Corporation</option>
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                </div>
+
+                                {/* Block Panchayat (Only visible if Grama Panchayat is selected) */}
+                                {formData.localBodyType === 'Grama Panchayat' && (
+                                  <div className="relative group md:col-span-2 animate-in fade-in slide-in-from-top-2">
+                                      <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                      <select 
+                                          required
+                                          disabled={!formData.district}
+                                          className="appearance-none w-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-8 text-slate-900 text-sm font-semibold focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all cursor-pointer disabled:bg-slate-100 disabled:text-slate-400"
+                                          value={formData.block}
+                                          onChange={(e) => handleChange('block', e.target.value)}
+                                      >
+                                          <option value="">Select Block Panchayat</option>
+                                          {formData.district && adminData.blocks?.[formData.district]?.map(b => (
+                                            <option key={b} value={b}>{b}</option>
+                                          ))}
+                                      </select>
+                                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                  </div>
+                                )}
+
+                                {/* Local Body Name */}
+                                <div className="relative group md:col-span-2">
+                                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <select 
+                                        required
+                                        disabled={!formData.district}
+                                        className="appearance-none w-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-8 text-slate-900 text-sm font-semibold focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all cursor-pointer disabled:bg-slate-100 disabled:text-slate-400"
+                                        value={formData.localBodyName}
+                                        onChange={(e) => handleChange('localBodyName', e.target.value)}
+                                    >
+                                        <option value="">Select Local Body Name</option>
+                                        {getLocalBodyList().map(name => <option key={name} value={name}>{name}</option>)}
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                </div>
+
+                                {/* Ward Number */}
+                                <div className="relative group md:col-span-2">
+                                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <select 
+                                        required
+                                        className="appearance-none w-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-8 text-slate-900 text-sm font-semibold focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all cursor-pointer"
+                                        value={formData.wardNo}
+                                        onChange={(e) => handleChange('wardNo', e.target.value)}
+                                    >
+                                        <option value="">Select Ward Number</option>
+                                        {wards.map(w => <option key={w} value={w}>Ward {w}</option>)}
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                </div>
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">Aadhaar Number</label>
-                            <div className="relative group">
-                                <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
-                                <input 
-                                    required 
-                                    value={formData.aadhaar}
-                                    onChange={e => setFormData({...formData, aadhaar: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 font-bold focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal"
-                                    placeholder="XXXX XXXX XXXX"
-                                />
+                        {/* SECTION 2: IDENTITY DETAILS */}
+                        <div className="space-y-4">
+                            <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest flex items-center gap-2 px-1">
+                                <Fingerprint size={12}/> Identity Proof
+                            </p>
+                            <div className="grid grid-cols-1 gap-4">
+                                <div className="relative group">
+                                    <Vote className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
+                                    <input 
+                                        required 
+                                        value={formData.voter_id}
+                                        onChange={e => handleChange('voter_id', e.target.value.toUpperCase())}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 font-bold focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                                        placeholder="Voter ID No (e.g. VOTE-XXXXXX)"
+                                    />
+                                </div>
+                                <div className="relative group">
+                                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
+                                    <input 
+                                        required 
+                                        value={formData.aadhaar}
+                                        onChange={e => handleChange('aadhaar', e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 font-bold focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                                        placeholder="Aadhaar Number"
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">Phone Number</label>
-                            <div className="relative group">
-                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
-                                <input 
-                                    required 
-                                    value={formData.aadhaar}
-                                    onChange={e => setFormData({...formData, aadhaar: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 font-bold focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal"
-                                    placeholder="+91 XXXXXXXXXX"
-                                />
-                            </div>
-                        </div>
-
-                        <button disabled={loading} className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold shadow-xl shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 mt-4">
-                            {loading ? <Loader2 className="animate-spin" size={20}/> : <>Proceed to Verify <ArrowRight size={18}/></>}
+                        <button disabled={loading} className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold shadow-xl shadow-emerald-600/20 transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2 mt-4">
+                            {loading ? <Loader2 className="animate-spin" size={20}/> : <>Verify & Send OTP <ArrowRight size={18}/></>}
                         </button>
                     </motion.form>
                 )}
@@ -215,10 +429,10 @@ const VoterLogin = () => {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
-                        onSubmit={handleVerify} 
+                        onSubmit={submitOtp} 
                         className="space-y-6"
                     >
-                        <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-start gap-3">
+                        <div className="bg-emerald-5 border border-emerald-100 p-4 rounded-2xl flex items-start gap-3">
                             <div className="bg-emerald-100 p-1 rounded-full text-emerald-600 mt-0.5">
                                 <CheckCircle2 size={14} />
                             </div>
@@ -229,15 +443,15 @@ const VoterLogin = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">Enter OTP Code</label>
+                            <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">Enter 6-Digit Code</label>
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
                                 <input 
                                     required 
                                     type="text"
                                     maxLength="6"
-                                    value={otp}
-                                    onChange={e => setOtp(e.target.value)}
+                                    value={otpCode}
+                                    onChange={e => setOtpCode(e.target.value)}
                                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 font-black tracking-[0.5em] text-xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-300 placeholder:tracking-normal placeholder:text-base placeholder:font-normal"
                                     placeholder="• • • • • •"
                                 />
@@ -246,18 +460,18 @@ const VoterLogin = () => {
                         
                         <div className="flex gap-4 pt-2">
                             <button type="button" onClick={() => setStep(1)} className="px-6 py-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-2xl font-bold transition-colors">
-                                Back
+                                Edit Details
                             </button>
                             <button disabled={loading} className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold shadow-xl shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2">
-                                {loading ? <Loader2 className="animate-spin" size={20}/> : "Access Portal"}
+                                {loading ? <Loader2 className="animate-spin" size={20}/> : "Login to Portal"}
                             </button>
                         </div>
                     </motion.form>
                 )}
 
-                <div className="mt-10 pt-6 border-t border-slate-100 text-center">
+                <div className="mt-8 pt-6 border-t border-slate-100 text-center">
                     <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-                        Protected by GovAuth 2.0 Secure Standard
+                        State Election Commission, Kerala
                     </p>
                 </div>
             </div>

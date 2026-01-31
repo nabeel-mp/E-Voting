@@ -16,15 +16,16 @@ func GetReferenceData(c *fiber.Ctx) error {
 
 	collection := database.MongoDB.Collection("reference_data")
 
-	var result struct {
-		Data interface{} `bson:"data"`
-	}
-
-	// Fetch the document we seeded earlier
-	err := collection.FindOne(ctx, bson.M{"type": "kerala_admin_data"}).Decode(&result)
+	var document bson.M
+	err := collection.FindOne(ctx, bson.M{"type": "kerala_admin_data"}).Decode(&document)
 	if err != nil {
 		return utils.Error(c, 404, "Reference data not found")
 	}
 
-	return utils.Success(c, result.Data)
+	payload, ok := document["data"].(bson.M)
+	if !ok {
+		return utils.Error(c, 500, "Invalid data structure in database")
+	}
+
+	return utils.Success(c, payload)
 }

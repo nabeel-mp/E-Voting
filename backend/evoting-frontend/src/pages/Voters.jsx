@@ -50,41 +50,58 @@ const Voters = () => {
   const fileInputRef = useRef(null);
 
   /* -------------------------- DATA FETCHING -------------------------- */
-  const initData = async () => {
-    setLoading(true);
-    setErrorMsg(null);
+const initData = async () => {
+  setLoading(true);
+  setErrorMsg(null);
+  
+  try {
+    const response = await api.get('/api/common/kerala-data');
     
-    // 1. Fetch Admin Data (Independent)
-    try {
-      console.log("Fetching Kerala Data...");
-      const adminDataRes = await api.get('/api/common/kerala-data');
+    if (response.data && response.data.success) {
+      let payload = response.data.data;
+
+      const normalizeData = (data) => {
+        if (Array.isArray(data)) {
+          if (data.length > 0 && data[0].hasOwnProperty('Key') && data[0].hasOwnProperty('Value')) {
+            return data.reduce((acc, item) => {
+              acc[item.Key] = normalizeData(item.Value); 
+              return acc;
+            }, {});
+          }
+          return data;
+        }
+        if (data && typeof data === 'object') {
+          Object.keys(data).forEach(key => {
+            data[key] = normalizeData(data[key]);
+          });
+        }
+        return data;
+      };
+
+      const cleanPayload = normalizeData(payload);
       
-      // LOG THE DATA TO CONSOLE FOR DEBUGGING
-      console.log("Kerala Data Response:", adminDataRes);
-
-      if (adminDataRes.success && adminDataRes.data) {
-        setAdminData(adminDataRes.data || {});
-      } else {
-        console.warn("Kerala Data response was success but data was empty");
+      console.log("Cleaned Admin Data:", cleanPayload);
+      
+      if (cleanPayload && cleanPayload.districts) {
+        setAdminData(cleanPayload);
       }
-    } catch (err) {
-      console.error("Failed to load Kerala admin data", err);
     }
+  } catch (err) {
+    console.error("Failed to load admin data", err);
+  }
 
-    // 2. Fetch Voters
-    try {
-      const votersRes = await api.get('/api/admin/voters');
-      if (votersRes.data.success) {
-        setVoters(votersRes.data.data || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch voters", err);
-      setErrorMsg("Failed to load directory data. Please check your connection.");
-    } finally {
-      setLoading(false);
+  // Fetch Voters
+  try {
+    const votersRes = await api.get('/api/admin/voters');
+    if (votersRes.data.success) {
+      setVoters(votersRes.data.data || []);
     }
-  };
-
+  } catch (err) {
+    setErrorMsg("Failed to load directory data.");
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => { initData(); }, []);
 
   useEffect(() => {
@@ -114,12 +131,9 @@ const Voters = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Use Dynamic Admin Data with Safe Navigation
+  // Safe Navigation for Dynamic Admin Data
   const getLocalBodyList = () => {
-    if (!form.district) return [];
-    
-    // Ensure adminData is loaded before accessing properties
-    if (!adminData) return [];
+    if (!form.district || !adminData) return [];
 
     if (form.local_body_type === 'Municipality') {
       return adminData.municipalities?.[form.district] || [];
@@ -148,7 +162,7 @@ const Voters = () => {
         addToast("New voter registered successfully!", "success");
       }
       closeModal();
-      initData(); // Refresh list
+      initData();
     } catch (err) {
       addToast(err.response?.data?.error || "Operation Failed", "error");
     } finally {
@@ -287,100 +301,65 @@ const Voters = () => {
               <tr><th className="px-6 py-4">Identity</th><th className="px-6 py-4">Contact</th><th className="px-6 py-4">Aadhaar</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-  {loading && voters.length === 0 ? (
-    <tr>
-      <td colSpan="5" className="px-6 py-20 text-center">
-        <Loader2 className="animate-spin inline" /> Loading application data...
-      </td>
-    </tr>
-  ) : (
-    filteredVoters.map((v) => (
-      <tr key={v.ID} className="group hover:bg-slate-800/30 transition-all duration-200">
-        
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-400 border border-indigo-500/20">
-              {v.FullName?.charAt(0)}
-            </div>
-            <div>
-              <div className="font-semibold text-slate-200 flex items-center gap-2">
-                {v.FullName}
-                {v.IsBlocked && (
-                  <div className="text-rose-500" title="Access Blocked">
-                    <Ban size={14} />
-                  </div>
-                )}
-              </div>
-              <div className="text-xs text-slate-500 font-mono">ID: {v.VoterID}</div>
-            </div>
-          </div>
-        </td>
-
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
-            <Phone size={12} />
-            <span className="font-mono">{v.Mobile}</span>
-          </div>
-        </td>
-
-        <td className="px-6 py-4">
-          <button
-            onClick={() => openDetailsModal(v)}
-            className="group/btn flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 transition-all text-left"
-            title="View Details"
-          >
-            <CreditCard size={14} className="text-amber-500 group-hover/btn:scale-110 transition-transform" />
-            <span className="font-mono text-xs text-slate-300 group-hover/btn:text-white transition-colors">
-              {v.AadhaarNumber}
-            </span>
-          </button>
-        </td>
-
-        <td className="px-6 py-4">
-          <span
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
-              v.IsVerified
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-            }`}
-          >
-            {v.IsVerified ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-            {v.IsVerified ? 'Verified' : 'Pending'}
-          </span>
-        </td>
-
-        <td className="px-6 py-4 text-right relative">
-          <button
-            onClick={() => setActiveDropdown(activeDropdown === v.ID ? null : v.ID)}
-            className={`p-2 rounded-lg transition-all ${activeDropdown === v.ID ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
-          >
-            <MoreVertical size={18} />
-          </button>
-          {activeDropdown === v.ID && (
-            <div
-              ref={dropdownRef}
-              className="absolute right-10 top-10 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150"
-            >
-              <button onClick={() => openDetailsModal(v)} className="dropdown-item">
-                <Eye size={14} className="text-sky-400" /> View Details
-              </button>
-              <button onClick={() => openEditModal(v)} className="dropdown-item">
-                <Pencil size={14} className="text-indigo-400" /> Edit Profile
-              </button>
-              <div className="h-px bg-slate-800 my-1 mx-1"></div>
-              <button onClick={() => toggleBlockStatus(v)} className="dropdown-item">
-                <Ban size={14} className="text-amber-400" /> {v.IsBlocked ? 'Unblock' : 'Block Access'}
-              </button>
-              <button onClick={() => handleDelete(v.ID)} className="dropdown-item text-rose-400">
-                <Trash2 size={14} /> Delete Voter
-              </button>
-            </div>
-          )}
-        </td>
-      </tr>
-    ))
-  )}
-</tbody>
+              {loading && voters.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-6 py-20 text-center">
+                    <Loader2 className="animate-spin inline" /> Loading application data...
+                  </td>
+                </tr>
+              ) : (
+                filteredVoters.map((v) => (
+                  <tr key={v.ID} className="group hover:bg-slate-800/30 transition-all duration-200">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-400 border border-indigo-500/20">
+                          {v.FullName?.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-slate-200 flex items-center gap-2">
+                            {v.FullName}
+                            {v.IsBlocked && <div className="text-rose-500" title="Access Blocked"><Ban size={14} /></div>}
+                          </div>
+                          <div className="text-xs text-slate-500 font-mono">ID: {v.VoterID}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Phone size={12} />
+                        <span className="font-mono">{v.Mobile}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button onClick={() => openDetailsModal(v)} className="group/btn flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 transition-all text-left">
+                        <CreditCard size={14} className="text-amber-500 group-hover/btn:scale-110 transition-transform" />
+                        <span className="font-mono text-xs text-slate-300 group-hover/btn:text-white transition-colors">{v.AadhaarNumber}</span>
+                      </button>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${v.IsVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                        {v.IsVerified ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+                        {v.IsVerified ? 'Verified' : 'Pending'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right relative">
+                      <button onClick={() => setActiveDropdown(activeDropdown === v.ID ? null : v.ID)} className={`p-2 rounded-lg transition-all ${activeDropdown === v.ID ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}>
+                        <MoreVertical size={18} />
+                      </button>
+                      {activeDropdown === v.ID && (
+                        <div ref={dropdownRef} className="absolute right-10 top-10 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150">
+                          <button onClick={() => openDetailsModal(v)} className="dropdown-item"><Eye size={14} className="text-sky-400" /> View Details</button>
+                          <button onClick={() => openEditModal(v)} className="dropdown-item"><Pencil size={14} className="text-indigo-400" /> Edit Profile</button>
+                          <div className="h-px bg-slate-800 my-1 mx-1"></div>
+                          <button onClick={() => toggleBlockStatus(v)} className="dropdown-item"><Ban size={14} className="text-amber-400" /> {v.IsBlocked ? 'Unblock' : 'Block Access'}</button>
+                          <button onClick={() => handleDelete(v.ID)} className="dropdown-item text-rose-400"><Trash2 size={14} /> Delete Voter</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
           </table>
         </div>
       </div>
@@ -389,13 +368,10 @@ const Voters = () => {
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity" onClick={closeModal} />
-
           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="relative h-24 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 shrink-0 flex items-center justify-between px-6 border-b border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 shadow-inner">
-                  {isEditing ? <Pencil size={24} /> : <User size={24} />}
-                </div>
+                <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 shadow-inner">{isEditing ? <Pencil size={24} /> : <User size={24} />}</div>
                 <div>
                   <h2 className="text-xl font-bold text-white">{isEditing ? 'Update Voter Profile' : 'Register New Voter'}</h2>
                   <p className="text-xs text-slate-400">Fill in mandatory details marked with (*)</p>
@@ -410,7 +386,6 @@ const Voters = () => {
                   <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700 text-xs font-bold">1</div>
                   <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wide">Personal Details</h3>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-slate-400">Full Name <span className="text-rose-500">*</span></label>
@@ -457,18 +432,27 @@ const Voters = () => {
                     </div>
                   </div>
 
-                  {form.local_body_type === 'Grama Panchayat' && (
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-400">Block Panchayat <span className="text-rose-500">*</span></label>
-                      <div className="relative">
-                        <select required value={form.block} onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} className="input-field appearance-none disabled:opacity-50 disabled:cursor-not-allowed" disabled={!form.district}>
-                          <option value="">Select Block</option>
-                          {form.district && adminData?.blocks?.[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
-                      </div>
-                    </div>
-                  )}
+                 {form.local_body_type === 'Grama Panchayat' && (
+  <div className="space-y-1.5">
+    <label className="text-xs font-medium text-slate-400">Block Panchayat *</label>
+    <div className="relative">
+      <select 
+        required 
+        value={form.block} 
+        onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} 
+        className="input-field appearance-none disabled:opacity-50"
+        disabled={!form.district}
+      >
+        <option value="">Select Block</option>
+        {/* LOOKUP: Use the selected district name as a key into the blocks object */}
+        {form.district && adminData?.blocks?.[form.district]?.map(blockName => (
+          <option key={blockName} value={blockName}>{blockName}</option>
+        ))}
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+    </div>
+  </div>
+)}
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-slate-400">Local Body Name <span className="text-rose-500">*</span></label>
@@ -509,41 +493,23 @@ const Voters = () => {
       {showDetailsModal && selectedVoter && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity duration-300" onClick={() => setShowDetailsModal(false)} />
-
           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <div className="relative h-28 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 shrink-0">
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-all backdrop-blur-sm z-10"
-              >
-                <X size={18} />
-              </button>
+              <button onClick={() => setShowDetailsModal(false)} className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-all backdrop-blur-sm z-10"><X size={18} /></button>
               <div className="absolute -bottom-10 left-6 z-10">
                 <div className="w-24 h-24 rounded-full bg-slate-900 p-1.5 shadow-xl">
-                  <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-200 border border-slate-700">
-                    {selectedVoter.FullName?.charAt(0)}
-                  </div>
+                  <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-200 border border-slate-700">{selectedVoter.FullName?.charAt(0)}</div>
                 </div>
               </div>
             </div>
-
             <div className="px-6 pt-12 pb-6 overflow-y-auto custom-scrollbar">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-white tracking-tight">{selectedVoter.FullName}</h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded text-xs border border-indigo-500/20 font-mono">
-                      ID: {selectedVoter.VoterID}
-                    </span>
-                  </div>
+                  <div className="flex items-center gap-2 mt-1"><span className="bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded text-xs border border-indigo-500/20 font-mono">ID: {selectedVoter.VoterID}</span></div>
                 </div>
-                <div className="mt-1">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${selectedVoter.IsVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
-                    {selectedVoter.IsVerified ? 'Verified Account' : 'Verification Pending'}
-                  </span>
-                </div>
+                <div className="mt-1"><span className={`px-3 py-1 rounded-full text-xs font-bold border ${selectedVoter.IsVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>{selectedVoter.IsVerified ? 'Verified Account' : 'Verification Pending'}</span></div>
               </div>
-
               <div className="space-y-6">
                 <div className="bg-slate-800/40 rounded-xl border border-slate-800 p-4 space-y-4">
                   <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2"><CreditCard size={14} /> Identity Proofs</h3>
@@ -552,7 +518,6 @@ const Voters = () => {
                     <div><p className="text-xs text-slate-500 mb-1">Aadhaar</p><p className="text-slate-200 font-mono font-medium">{selectedVoter.AadhaarNumber}</p></div>
                   </div>
                 </div>
-
                 <div className="bg-slate-800/40 rounded-xl border border-slate-800 p-4 space-y-4">
                   <h3 className="text-xs font-bold text-amber-500 uppercase tracking-widest flex items-center gap-2"><MapPin size={14} /> Jurisdiction</h3>
                   <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
