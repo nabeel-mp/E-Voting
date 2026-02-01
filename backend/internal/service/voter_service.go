@@ -43,9 +43,12 @@ func InitiateVoterLogin(voterID, aadhaar string) (string, error) {
 		return "", errors.New("failed to generate OTP")
 	}
 
-	// In production, integrate SMS Gateway here.
-	// For demo, we return it in the message or log it.
-	return "OTP sent successfully (Simulated: " + otp + ")", nil
+	err = utils.SendSms(voter.Mobile, otp)
+	if err != nil {
+		return "", errors.New("failed to send SMS OTP. Please try again later")
+	}
+
+	return "OTP sent successfully to your registered mobile number", nil
 }
 
 func VerifyVoterOTP(voterID, otp string) (string, error) {

@@ -28,6 +28,11 @@ type AppConfig struct {
 		PrivateKey      string
 		ContractAddress string
 	}
+	Twilio struct {
+		AccountSID string
+		AuthToken  string
+		FromNumber string
+	}
 }
 
 var Config AppConfig
@@ -62,6 +67,10 @@ func LoadConfig() {
 	Config.Blockchain.URL = os.Getenv("BLOCKCHAIN_URL")
 	Config.Blockchain.PrivateKey = os.Getenv("BLOCKCHAIN_PRIVATE_KEY")
 	Config.Blockchain.ContractAddress = os.Getenv("BLOCKCHAIN_CONTRACT_ADDRESS")
+
+	Config.Twilio.AccountSID = os.Getenv("TWILIO_ACCOUNT_SID")
+	Config.Twilio.AuthToken = os.Getenv("TWILIO_AUTH_TOKEN")
+	Config.Twilio.FromNumber = os.Getenv("TWILIO_PHONE_NUMBER")
 
 	log.Println("Config loaded")
 }
