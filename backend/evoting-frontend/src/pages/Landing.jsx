@@ -78,7 +78,7 @@ const Landing = () => {
             <Link to="/" className="text-emerald-700">Home</Link>
             <a href="#about" onClick={scrollToAbout} className="hover:text-emerald-700 transition">Commission</a>
             <Link to="/results" className="hover:text-emerald-700 transition">Live Results</Link>
-            <Link to="/voter-login" className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-full hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-900/10">
+            <Link to="/voter/login" className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-full hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-900/10">
               Voter Portal <ArrowUpRight size={14} />
             </Link>
           </nav>

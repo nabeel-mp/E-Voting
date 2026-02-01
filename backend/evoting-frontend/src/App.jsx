@@ -32,7 +32,7 @@ function App() {
             {/* --- Public Routes --- */}
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/voter-login" element={<VoterLogin />} />
+            <Route path="/voter/login" element={<VoterLogin />} />
 
             {/* <Route path="/live-results" element={<PublicResults />} /> */}
 

@@ -40,7 +40,7 @@ const VoterLogin = () => {
   // Unified Form State
   const [formData, setFormData] = useState({
     district: '',
-    block: '', // Added Block field for Grama Panchayats
+    block: '', 
     localBodyType: '',
     localBodyName: '',
     wardNo: '',
@@ -55,15 +55,15 @@ const VoterLogin = () => {
   const initData = async () => {
     setDataLoading(true);
     try {
+      // Connects to your Common_data.go -> GetReferenceData
       const response = await api.get('/api/common/kerala-data');
       
       if (response.data && response.data.success) {
         let payload = response.data.data;
 
-        // RECURSIVE FIX: Convert any Key/Value arrays to Objects (Handles MongoDB structure mismatch)
+        // Recursive Normalizer for complex MongoDB structures
         const normalizeData = (data) => {
           if (Array.isArray(data)) {
-            // Check if it's a Key/Value pair array
             if (data.length > 0 && data[0].hasOwnProperty('Key') && data[0].hasOwnProperty('Value')) {
               return data.reduce((acc, item) => {
                 acc[item.Key] = normalizeData(item.Value);
@@ -83,7 +83,6 @@ const VoterLogin = () => {
         const cleanPayload = normalizeData(payload);
         
         if (cleanPayload && cleanPayload.districts) {
-          console.log("Voter Login: Admin Data Loaded", Object.keys(cleanPayload));
           setAdminData(cleanPayload);
         }
       }
@@ -99,7 +98,6 @@ const VoterLogin = () => {
 
   // --- 2. LOGIC & HANDLERS ---
 
-  // Update form helper
   const handleChange = (field, value) => {
     setFormData(prev => {
       const updates = { [field]: value };
@@ -121,7 +119,6 @@ const VoterLogin = () => {
     });
   };
 
-  // Get list based on selections
   const getLocalBodyList = () => {
     if (!formData.district || !adminData) return [];
 
@@ -132,18 +129,19 @@ const VoterLogin = () => {
       return adminData.corporations?.[formData.district] || [];
     }
     if (formData.localBodyType === 'Grama Panchayat') {
-      // For GP, we need the block first
       if (!formData.block) return [];
       return adminData.grama_panchayats?.[formData.block] || [];
     }
     return [];
   };
 
+  // --- MAIN LOGIN HANDLER ---
   const handleInit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     
+    // Frontend Validation
     if (!formData.district || !formData.localBodyName || !formData.wardNo) {
         setError("Please select all location details.");
         setLoading(false);
@@ -157,16 +155,18 @@ const VoterLogin = () => {
     }
 
     try {
+      // Create Payload matching Go struct `VoterLoginReq`
       const payload = {
         voter_id: formData.voter_id,
         aadhaar: formData.aadhaar,
         district: formData.district,
-        block: formData.block, // Send block if available
-        local_body_type: formData.localBodyType,
-        local_body_name: formData.localBodyName,
-        ward_no: formData.wardNo
+        block: formData.block,
+        local_body_type: formData.localBodyType, // Sent for context
+        local_body_name: formData.localBodyName, // Verified against 'Panchayath' in DB
+        ward_no: String(formData.wardNo) // Ensure string for consistent comparison
       };
 
+      // Calls voter_auth.go -> VoterLogin
       const res = await api.post('/api/auth/voter/login', payload);
 
       if (res.data.success) {
@@ -180,7 +180,7 @@ const VoterLogin = () => {
     }
   };
 
-  // OTP State
+  // --- OTP HANDLER ---
   const [otpCode, setOtpCode] = useState('');
 
   const submitOtp = async (e) => {
@@ -190,7 +190,7 @@ const VoterLogin = () => {
         const res = await api.post('/api/auth/voter/verify-otp', { voter_id: formData.voter_id, otp: otpCode });
         if (res.data.success) {
             localStorage.setItem('voter_token', res.data.data.token);
-            navigate('/portal');
+            navigate('/');
         }
     } catch (err) {
         setError(err.response?.data?.error || "Invalid OTP");

@@ -4,11 +4,12 @@ import (
 	"E-voting/internal/repository"
 	"E-voting/internal/utils"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 )
 
-func InitiateVoterLogin(voterID, aadhaar string) (string, error) {
+func InitiateVoterLogin(voterID, aadhaar, district, block, LocalBodyName, wardNo string) (string, error) {
 	voter, err := repository.FindVoterByID(voterID)
 	if err != nil {
 		return "", errors.New("voter ID not found")
@@ -17,6 +18,24 @@ func InitiateVoterLogin(voterID, aadhaar string) (string, error) {
 	// Verify Aadhaar (Assuming stored exactly as registered)
 	if voter.AadhaarNumber != aadhaar {
 		return "", errors.New("invalid credentials provided")
+	}
+
+	if voter.District != district {
+		return "", errors.New("District does not match voter records")
+	}
+
+	if voter.Panchayath != LocalBodyName {
+		return "", fmt.Errorf("local body name does not match. Registered in: %s", voter.Panchayath)
+	}
+
+	if voter.Block != "" {
+		if voter.Block != block {
+			return "", errors.New("block panchayat does not match voter records")
+		}
+	}
+
+	if fmt.Sprintf("%v", voter.Ward) != fmt.Sprintf("%v", wardNo) {
+		return "", fmt.Errorf("ward number does not match. Registered in Ward: %s", voter.Ward)
 	}
 
 	if voter.IsBlocked {

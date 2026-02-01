@@ -9,8 +9,13 @@ import (
 )
 
 type VoterLoginReq struct {
-	VoterID string `json:"voter_id"`
-	Aadhaar string `json:"aadhaar"`
+	VoterID       string `json:"voter_id"`
+	Aadhaar       string `json:"aadhaar"`
+	District      string `json:"district"`
+	Block         string `json:"block"`
+	LocalBodyType string `json:"local_body_type"`
+	LocalBodyName string `json:"local_body_name"`
+	WardNo        string `json:"ward_no"`
 }
 
 type OTPVerifyReq struct {
@@ -28,9 +33,13 @@ func VoterLogin(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
-	msg, err := service.InitiateVoterLogin(req.VoterID, req.Aadhaar)
+	if req.VoterID == "" || req.Aadhaar == "" || req.District == "" || req.LocalBodyName == "" || req.WardNo == "" {
+		return utils.Error(c, 400, "All fields are required")
+	}
+
+	msg, err := service.InitiateVoterLogin(req.VoterID, req.Aadhaar, req.District, req.Block, req.LocalBodyName, req.WardNo)
 	if err != nil {
-		return utils.Error(c, 401, err.Error())
+		return utils.Error(c, 400, err.Error())
 	}
 
 	return utils.Success(c, fiber.Map{"message": msg})
@@ -44,7 +53,7 @@ func VerifyOTP(c *fiber.Ctx) error {
 
 	token, err := service.VerifyVoterOTP(req.VoterID, req.OTP)
 	if err != nil {
-		return utils.Error(c, 401, err.Error())
+		return utils.Error(c, 400, err.Error())
 	}
 
 	return utils.Success(c, fiber.Map{"token": token})
