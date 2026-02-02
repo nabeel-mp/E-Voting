@@ -17,17 +17,26 @@ import {
   Building2,
   Hash,
   ChevronDown,
-  Layers
+  Layers,
+  Settings
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const VoterLogin = () => {
+  const { user, login, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && user && user.role === 'VOTER') {
+      navigate('/portal', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
   const [step, setStep] = useState(1); // 1: Creds, 2: OTP
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState('');
   const [serverMsg, setServerMsg] = useState('');
-  const navigate = useNavigate();
-
   // --- Dynamic Admin Data State ---
   const [adminData, setAdminData] = useState({
     districts: [],
@@ -174,6 +183,7 @@ const VoterLogin = () => {
         setStep(2);
       }
     } catch (err) {
+      // This displays the error message from the server (e.g. "Details do not match")
       setError(err.response?.data?.error || "Details do not match our records.");
     } finally {
       setLoading(false);
@@ -189,8 +199,8 @@ const VoterLogin = () => {
     try {
         const res = await api.post('/api/auth/voter/verify-otp', { voter_id: formData.voter_id, otp: otpCode });
         if (res.data.success) {
-            localStorage.setItem('voter_token', res.data.data.token);
-            navigate('/');
+            login(res.data.data.token, 'voter'); 
+            navigate('/portal');
         }
     } catch (err) {
         setError(err.response?.data?.error || "Invalid OTP");
@@ -272,6 +282,7 @@ const VoterLogin = () => {
                     <p className="text-sm text-slate-500">Enter your constituency details and ID proof.</p>
                 </div>
 
+                {/* Error Display Area - Matches your request to show any credential error */}
                 <AnimatePresence mode='wait'>
                     {error && (
                         <motion.div 
@@ -469,10 +480,17 @@ const VoterLogin = () => {
                     </motion.form>
                 )}
 
-                <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                {/* Footer with ADMIN LOGIN LINK */}
+                <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-3 text-center">
                     <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
                         State Election Commission, Kerala
                     </p>
+                    
+                    {/* Added Admin Login Navigation */}
+                    <Link to="/login" className="group flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-100 text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-all">
+                        <Settings size={10} className="group-hover:text-emerald-500 transition-colors"/>
+                        <span>Admin Login</span>
+                    </Link>
                 </div>
             </div>
           </div>

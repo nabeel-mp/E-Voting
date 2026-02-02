@@ -106,7 +106,7 @@ const Landing = () => {
               <Link to="/" onClick={() => setIsMenuOpen(false)}>Home</Link>
               <a href="#about" onClick={scrollToAbout}>The Commission</a>
               <Link to="/results" onClick={() => setIsMenuOpen(false)}>Live Results</Link>
-              <Link to="/voter-login" className="text-emerald-600">Voter Portal</Link>
+              <Link to="/voter/login" className="text-emerald-600">Voter Portal</Link>
             </nav>
           </motion.div>
         )}

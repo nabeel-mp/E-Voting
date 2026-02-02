@@ -1,26 +1,51 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: "http://localhost:8080", // Your Go Backend URL
+  baseURL: "http://localhost:8080", 
 });
 
-// Request Interceptor: Attach Token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('admin_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const url = config.url || '';
+
+  if (url.includes('/admin')) {
+    const token = localStorage.getItem('admin_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } 
+  else if (url.includes('/voter')) {
+    const token = localStorage.getItem('voter_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
+  
+
   return config;
 });
 
-// Response Interceptor: Handle Token Expiry
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const url = error.config?.url || '';
+    const isAdminRequest = url.includes('/admin');
+    const isVoterRequest = url.includes('/voter');
+
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('admin_token');
-      window.location.href = '/login';
+      
+      if (isAdminRequest) {
+        localStorage.removeItem('admin_token');
+        window.location.href = '/login'; 
+      } 
+      
+      else if (isVoterRequest) {
+        if (!url.includes('/login')) {
+           localStorage.removeItem('voter_token');
+           window.location.href = '/voter/login'; 
+        }
+      }
     }
+    
     return Promise.reject(error);
   }
 );

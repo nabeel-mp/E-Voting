@@ -10,8 +10,12 @@ const VoterLayout = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
   const handleLogout = () => {
-    logout();
-    navigate('/voter-login');
+    const isConfirmed = window.confirm("Are you sure you want to logout?");
+
+   if (isConfirmed) {
+      logout();
+      navigate('/voter/login');
+    }
   };
 
   return (
@@ -33,7 +37,7 @@ const VoterLayout = () => {
       <header className="bg-white border-b-4 border-emerald-600 shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           {/* Logo Section */}
-          <Link to="/voter-dashboard" className="flex items-center gap-3 group">
+          <Link to="/portal" className="flex items-center gap-3 group">
             <div className="w-12 h-12 bg-white rounded-full border-2 border-slate-100 p-1 shadow-sm group-hover:shadow-md transition-all">
                 {/* Placeholder for State Emblem */}
                 <img 
@@ -51,7 +55,7 @@ const VoterLayout = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             <nav className="flex gap-6 text-sm font-medium text-slate-600">
-              <Link to="/voter-dashboard" className="hover:text-emerald-700 transition-colors">Home</Link>
+              <Link to="/portal" className="hover:text-emerald-700 transition-colors">Home</Link>
               <Link to="/results" className="hover:text-emerald-700 transition-colors">Election Results</Link>
               <a href="#" className="hover:text-emerald-700 transition-colors">Notifications</a>
               <a href="#" className="hover:text-emerald-700 transition-colors">Help</a>
@@ -65,6 +69,9 @@ const VoterLayout = () => {
                   <p className="text-sm font-bold text-slate-800">{user.name || 'Voter'}</p>
                   <p className="text-xs text-slate-500">{user.voterId || 'ID: Verified'}</p>
                 </div>
+                <div className="h-10 w-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700">
+                    <User size={20} />
+                </div>
                 <button 
                   onClick={handleLogout}
                   className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
@@ -74,7 +81,7 @@ const VoterLayout = () => {
                 </button>
               </div>
             ) : (
-              <Link to="/voter-login" className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded hover:bg-emerald-700 transition-colors">
+              <Link to="/voter/login" className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded hover:bg-emerald-700 transition-colors">
                 Login
               </Link>
             )}

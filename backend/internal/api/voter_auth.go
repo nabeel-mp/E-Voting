@@ -4,6 +4,8 @@ import (
 	"E-voting/internal/repository"
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
+	"fmt"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -33,12 +35,21 @@ func VoterLogin(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
+	req.VoterID = strings.TrimSpace(req.VoterID)
+	req.Aadhaar = strings.TrimSpace(req.Aadhaar)
+	req.District = strings.TrimSpace(req.District)
+	req.LocalBodyName = strings.TrimSpace(req.LocalBodyName)
+	req.WardNo = strings.TrimSpace(req.WardNo)
+
 	if req.VoterID == "" || req.Aadhaar == "" || req.District == "" || req.LocalBodyName == "" || req.WardNo == "" {
 		return utils.Error(c, 400, "All fields are required")
 	}
 
+	fmt.Printf("Login Attempt: ID=%s Body=%s Ward=%s\n", req.VoterID, req.LocalBodyName, req.WardNo)
+
 	msg, err := service.InitiateVoterLogin(req.VoterID, req.Aadhaar, req.District, req.Block, req.LocalBodyName, req.WardNo)
 	if err != nil {
+		fmt.Printf(" Login Failed: %s\n", err.Error())
 		return utils.Error(c, 400, err.Error())
 	}
 

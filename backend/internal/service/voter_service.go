@@ -6,8 +6,35 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
+
+func matchLocalBody(dbName, inputName string) bool {
+	db := strings.ToLower(strings.TrimSpace(dbName))
+	input := strings.ToLower(strings.TrimSpace(inputName))
+
+	if db == input {
+		return true
+	}
+	if strings.Contains(input, db) || strings.Contains(db, input) {
+		return true
+	}
+	return false
+}
+
+func matchWard(dbWard interface{}, inputWard string) bool {
+	s1 := fmt.Sprintf("%v", dbWard)
+	s2 := inputWard
+
+	i1, err1 := strconv.Atoi(s1)
+	i2, err2 := strconv.Atoi(s2)
+	if err1 == nil && err2 == nil {
+		return i1 == i2
+	}
+
+	return strings.TrimSpace(s1) == strings.TrimSpace(s2)
+}
 
 func InitiateVoterLogin(voterID, aadhaar, district, block, LocalBodyName, wardNo string) (string, error) {
 	voter, err := repository.FindVoterByID(voterID)
@@ -15,38 +42,38 @@ func InitiateVoterLogin(voterID, aadhaar, district, block, LocalBodyName, wardNo
 		return "", errors.New("voter ID not found")
 	}
 
-	// Verify Aadhaar (Assuming stored exactly as registered)
-	if voter.AadhaarNumber != aadhaar {
+	if strings.TrimSpace(voter.AadhaarNumber) != strings.TrimSpace(aadhaar) {
 		return "", errors.New("invalid credentials provided")
 	}
 
-	if voter.District != district {
-		return "", errors.New("District does not match voter records")
+	if !strings.EqualFold(voter.District, district) {
+		return "", fmt.Errorf("District mismatch. Records say: %s", voter.District)
 	}
 
-	if voter.Panchayath != LocalBodyName {
-		return "", fmt.Errorf("local body name does not match. Registered in: %s", voter.Panchayath)
+	if !matchLocalBody(voter.Panchayath, LocalBodyName) {
+		return "", fmt.Errorf("Location mismatch. Records say: %s", voter.Panchayath)
 	}
 
-	if voter.Block != "" {
-		if voter.Block != block {
-			return "", errors.New("block panchayat does not match voter records")
+	if block != "" {
+		if !strings.EqualFold(voter.Block, block) {
+			return "", errors.New("Block Panchayat mismatch")
 		}
 	}
 
-	if fmt.Sprintf("%v", voter.Ward) != fmt.Sprintf("%v", wardNo) {
-		return "", fmt.Errorf("ward number does not match. Registered in Ward: %s", voter.Ward)
+	if !matchWard(voter.Ward, wardNo) {
+		return "", fmt.Errorf("Ward mismatch. Records say: %v", voter.Ward)
 	}
 
 	if voter.IsBlocked {
-		return "", errors.New("account is blocked. contact admin")
+		return "", errors.New("Account is blocked. Please contact the administrator.")
 	}
 
 	if !voter.IsVerified {
-		return "", errors.New("account pending verification")
+		return "", errors.New("Your account is pending verification.")
 	}
 
-	// Generate OTP
+	// --- OTP Generation ---
+
 	minutesStr := repository.GetSettingValue("otp_validity_duration")
 	minutes, err := strconv.Atoi(minutesStr)
 	if err != nil || minutes <= 0 {
@@ -54,17 +81,18 @@ func InitiateVoterLogin(voterID, aadhaar, district, block, LocalBodyName, wardNo
 	}
 	otp := utils.GenerateOTP()
 
-	// Update Voter with OTP
 	voter.CurrentOTP = otp
 	voter.OTPExpiresAt = time.Now().Add(time.Duration(minutes) * time.Minute)
 
 	if err := repository.UpdateVoterOTP(voter); err != nil {
-		return "", errors.New("failed to generate OTP")
+		return "", errors.New("Failed to generate OTP. Please try again.")
 	}
 
+	// Send SMS (Logs to terminal in Dev mode)
 	err = utils.SendSms(voter.Mobile, otp)
 	if err != nil {
-		return "", errors.New("failed to send SMS OTP. Please try again later")
+		fmt.Printf(" SMS Failed (Dev Mode): OTP is %s\n", otp)
+		return "OTP generated. (Check Console/SMS)", nil
 	}
 
 	return "OTP sent successfully to your registered mobile number", nil

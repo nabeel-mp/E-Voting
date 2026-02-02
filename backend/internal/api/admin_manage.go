@@ -383,19 +383,6 @@ func GetAllVoters(c *fiber.Ctx) error {
 	return utils.Success(c, voters)
 }
 
-// func DeleteVoter(c *fiber.Ctx) error {
-// 	id, err := c.ParamsInt("id")
-// 	if err != nil {
-// 		return utils.Error(c, 400, "Invalid Voter ID")
-// 	}
-
-// 	if err := database.PostgresDB.Delete(&models.Voter{}, id).Error; err != nil {
-// 		return utils.Error(c, 500, "Failed to delete voter")
-// 	}
-
-// 	return utils.Success(c, "Voter deleted successfully")
-// }
-
 func UpdateRoleHandler(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")
 	if err != nil {
@@ -428,26 +415,6 @@ func DeleteRoleHandler(c *fiber.Ctx) error {
 	}
 	return utils.Success(c, "Role deleted successfully")
 }
-
-// func UpdateAdminRoleHandler(c *fiber.Ctx) error {
-// 	type Req struct {
-// 		AdminID uint `json:"admin_id"`
-// 		RoleID  uint `json:"role_id"`
-// 	}
-// 	var req Req
-// 	if err := c.BodyParser(&req); err != nil {
-// 		return utils.Error(c, 400, "Invalid request")
-// 	}
-
-// 	actorID := uint(c.Locals("user_id").(float64))
-// 	actorRole := c.Locals("role").(string)
-
-// 	if err := service.UpdateAdminRole(req.AdminID, req.RoleID, actorID, actorRole); err != nil {
-// 		return utils.Error(c, 400, err.Error())
-// 	}
-
-// 	return utils.Success(c, "Admin role updated successfully")
-// }
 
 func UpdateAdminRoleHandler(c *fiber.Ctx) error {
 	return AssignRolesHandler(c)
