@@ -92,6 +92,15 @@ func UpdateElection(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Election not found")
 	}
 
+	var voteCount int64
+	if err := database.PostgresDB.Model(&models.Vote{}).Where("election_id = ?", election.ID).Count(&voteCount).Error; err != nil {
+		return utils.Error(c, 500, "Failed to check existing votes")
+	}
+
+	if voteCount > 0 {
+		return utils.Error(c, 403, "Cannot edit an election that has already received votes.")
+	}
+
 	var req struct {
 		Title         string    `json:"title"`
 		Description   string    `json:"description"`

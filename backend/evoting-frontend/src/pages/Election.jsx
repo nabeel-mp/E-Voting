@@ -212,8 +212,10 @@ const Elections = () => {
       }
       resetForm(); initData(); // Refresh all
     } catch (err) {
-      if (err.response?.status === 403) addToast("Forbidden", "error");
-      else addToast(err.response?.data?.error || "Operation Failed", "error");
+      const errorMessage = err.response?.data?.error || 
+        (err.response?.status === 403 ? "Forbidden Action" : "Operation Failed");
+      
+      addToast(errorMessage, "error");
     }
     finally { setSubmitting(false); }
   };
@@ -470,7 +472,7 @@ const Elections = () => {
                     <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2">
                       <label className="text-xs uppercase font-bold text-slate-500">Block Panchayat <span className="text-red-500">*</span></label>
                       <div className="relative group">
-                        {/* FIX: Use blocks map accessed by district key */}
+                        {/* Use blocks map accessed by district key */}
                         <select required value={form.block} onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer disabled:opacity-50" disabled={!form.district}>
                           <option value="">-- Select Block --</option>
                           {form.district && adminData.blocks?.[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}

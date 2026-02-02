@@ -18,14 +18,21 @@ type VoteRequest struct {
 	ElectionID  uint `json:"election_id"`
 }
 
+type ElectionWithStatus struct {
+	models.Election
+	HasVoted bool `json:"has_voted"`
+}
+
 func GetVoterElections(c *fiber.Ctx) error {
 	// 1. Get Logged in Voter
 	voterIDFloat, ok := c.Locals("user_id").(float64)
 	if !ok {
 		return utils.Error(c, 401, "Unauthorized")
 	}
+	voterID := uint(voterIDFloat)
+
 	var voter models.Voter
-	if err := database.PostgresDB.First(&voter, uint(voterIDFloat)).Error; err != nil {
+	if err := database.PostgresDB.First(&voter, voterID).Error; err != nil {
 		return utils.Error(c, 401, "Voter details not found")
 	}
 
@@ -38,8 +45,16 @@ func GetVoterElections(c *fiber.Ctx) error {
 		return utils.Error(c, 500, "Failed to fetch elections")
 	}
 
-	// 3. Filter based on 3-Tier Hierarchy
-	var eligibleElections []models.Election
+	participationMap := make(map[uint]bool)
+	var participations []models.ElectionParticipation
+	if err := database.PostgresDB.Where("voter_id = ?", voterID).Find(&participations).Error; err == nil {
+		for _, p := range participations {
+			participationMap[p.ElectionID] = true
+		}
+	}
+
+	// 4. Filter based on 3-Tier Hierarchy & Attach Status
+	var eligibleElections []ElectionWithStatus
 
 	for _, e := range allElections {
 		isEligible := false
@@ -48,11 +63,9 @@ func GetVoterElections(c *fiber.Ctx) error {
 		if e.District == voter.District {
 			switch e.ElectionType {
 			case "District Panchayat":
-				// Matches if District matches
 				isEligible = true
 
 			case "Block Panchayat":
-				// Matches if Block matches
 				if e.Block == voter.Block {
 					isEligible = true
 				}
@@ -80,7 +93,10 @@ func GetVoterElections(c *fiber.Ctx) error {
 		}
 
 		if isEligible {
-			eligibleElections = append(eligibleElections, e)
+			eligibleElections = append(eligibleElections, ElectionWithStatus{
+				Election: e,
+				HasVoted: participationMap[e.ID],
+			})
 		}
 	}
 
@@ -89,8 +105,26 @@ func GetVoterElections(c *fiber.Ctx) error {
 
 func GetVoterCandidates(c *fiber.Ctx) error {
 	electionID := c.Params("id")
-	var candidates []models.Candidate
 
+	// 1. Security Check: Has the user already voted?
+	voterIDFloat, ok := c.Locals("user_id").(float64)
+	if !ok {
+		return utils.Error(c, 401, "Unauthorized")
+	}
+	voterID := uint(voterIDFloat)
+
+	var participationCount int64
+	database.PostgresDB.Model(&models.ElectionParticipation{}).
+		Where("voter_id = ? AND election_id = ?", voterID, electionID).
+		Count(&participationCount)
+
+	// BLOCK ACCESS if already voted
+	if participationCount > 0 {
+		return utils.Error(c, 403, "Access Denied: You have already voted in this election.")
+	}
+
+	// 2. Fetch Candidates
+	var candidates []models.Candidate
 	if err := database.PostgresDB.
 		Preload("Party").
 		Where("election_id = ?", electionID).
