@@ -26,6 +26,7 @@ const Sidebar = () => {
     const { user, logout } = useAuth();
     const location = useLocation();
     const [systemName, setSystemName] = useState("E-Voting");
+    const [systemLogo, setSystemLogo] = useState(null);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
 
     const isSuperAdmin = user?.is_super || user?.role === 'SUPER_ADMIN';
@@ -37,10 +38,13 @@ const Sidebar = () => {
                 const res = await api.get('/api/admin/config');
                 if (res.data.success) {
                     const nameSetting = res.data.data.find(s => s.key === 'system_name');
+                    const logoSetting = res.data.data.find(s => s.key === 'system_logo');
+                    
                     if (nameSetting) setSystemName(nameSetting.value);
+                    if (logoSetting) setSystemLogo(logoSetting.value);
                 }
             } catch (err) {
-                console.error("Failed to load system name");
+                console.error("Failed to load system config");
             }
         };
         fetchConfig();
@@ -85,31 +89,36 @@ const Sidebar = () => {
             {/* Mobile Toggle Button */}
             <button 
                 onClick={() => setIsMobileOpen(!isMobileOpen)}
-                className="lg:hidden fixed top-4 left-4 z-[60] p-2 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-lg"
+                className="lg:hidden fixed top-4 left-4 z-[60] p-2 bg-white border border-slate-200 rounded-lg text-slate-600 shadow-lg"
             >
                 {isMobileOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
             {/* Sidebar Container */}
             <aside className={`
-                fixed lg:static inset-y-0 left-0 z-50 w-72 bg-slate-950 border-r border-slate-800 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out
+                fixed lg:static inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col shadow-2xl lg:shadow-none transition-transform duration-300 ease-in-out
                 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}>
 
-                {/* 1. Header Section */}
-                <div className="h-24 flex items-center px-6 border-b border-slate-800/60 bg-gradient-to-b from-slate-900 to-slate-950">
+                {/* 1. Header Section with National Emblem */}
+                <div className="h-24 flex items-center px-6 border-b border-slate-100 bg-slate-50/50">
                     <div className="flex items-center gap-4 w-full">
-                        <div className="relative group shrink-0">
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
-                            <div className="relative h-10 w-10 bg-slate-900 rounded-xl border border-slate-700 flex items-center justify-center text-indigo-400 shadow-inner">
-                                <Shield size={22} className="transform group-hover:rotate-12 transition-transform duration-300" />
-                            </div>
+                        <div className="shrink-0">
+                            <img 
+                                src={systemLogo ? `http://localhost:8080${systemLogo}` : "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/100px-Emblem_of_India.svg.png"}
+                                alt="National Emblem" 
+                                className="h-10 w-auto object-contain"
+                                onError={(e) => {
+                                    // Fallback if custom logo fails
+                                    e.target.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/100px-Emblem_of_India.svg.png";
+                                }}
+                            />
                         </div>
                         <div className="flex flex-col overflow-hidden">
-                            <h1 className="font-bold text-white text-lg tracking-tight truncate leading-tight">
-                                {systemName}
+                            <h1 className="font-black text-slate-900 text-lg tracking-tight truncate leading-none">
+                                SEC<span className="text-indigo-600">KERALA</span>
                             </h1>
-                            <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">
                                 Admin Portal
                             </span>
                         </div>
@@ -117,12 +126,12 @@ const Sidebar = () => {
                 </div>
 
                 {/* 2. Navigation Section */}
-                <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+                <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
 
                     {/* Main Menu */}
                     <div className="space-y-1">
-                        <p className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span> Main Menu
+                        <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span> Main Menu
                         </p>
                         <nav className="space-y-1">
                             {menuItems.filter(item => canAccess(item.req)).map((item) => (
@@ -132,18 +141,18 @@ const Sidebar = () => {
                                     onClick={() => setIsMobileOpen(false)}
                                     className={`relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 group overflow-hidden ${
                                         isActive(item.path)
-                                        ? 'bg-gradient-to-r from-indigo-600/20 to-purple-600/10 text-white shadow-inner border border-indigo-500/20'
-                                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900/60 border border-transparent'
+                                        ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-500/10'
+                                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                                     }`}
                                 >
                                     {/* Active Indicator */}
                                     {isActive(item.path) && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-indigo-500 rounded-r-full shadow-[0_0_12px_rgba(99,102,241,0.6)] animate-pulse" />
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-indigo-600 rounded-r-full" />
                                     )}
 
                                     {/* Icon */}
                                     <span className={`transition-colors duration-200 ${
-                                        isActive(item.path) ? 'text-indigo-400' : 'text-slate-500 group-hover:text-indigo-300'
+                                        isActive(item.path) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
                                     }`}>
                                         {item.icon}
                                     </span>
@@ -165,8 +174,8 @@ const Sidebar = () => {
 
                     {/* System Menu */}
                     <div className="space-y-1">
-                        <p className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span> System
+                        <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span> System
                         </p>
                         <nav className="space-y-1">
                             {bottomItems.filter(item => canAccess(item.req)).map((item) => (
@@ -176,14 +185,14 @@ const Sidebar = () => {
                                     onClick={() => setIsMobileOpen(false)}
                                     className={`relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 group ${
                                         isActive(item.path)
-                                        ? 'bg-gradient-to-r from-indigo-600/20 to-purple-600/10 text-white shadow-inner border border-indigo-500/20'
-                                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900/60 border border-transparent'
+                                        ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-500/10'
+                                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                                     }`}
                                 >
                                     {isActive(item.path) && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-indigo-500 rounded-r-full shadow-[0_0_12px_rgba(99,102,241,0.6)]" />
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-indigo-600 rounded-r-full" />
                                     )}
-                                    <span className={`transition-colors ${isActive(item.path) ? 'text-indigo-400' : 'text-slate-500 group-hover:text-indigo-300'}`}>
+                                    <span className={`transition-colors ${isActive(item.path) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
                                         {item.icon}
                                     </span>
                                     <span className="font-medium text-sm tracking-wide">
@@ -196,11 +205,11 @@ const Sidebar = () => {
                 </div>
 
                 {/* 3. User Profile Footer */}
-                <div className="p-4 border-t border-slate-800/60 bg-slate-900/40 backdrop-blur-md">
-                    <div className="bg-slate-900/80 rounded-2xl p-3 border border-slate-800 flex items-center justify-between group hover:border-slate-700 hover:bg-slate-800/80 transition-all duration-300 shadow-lg">
+                <div className="p-4 border-t border-slate-200 bg-slate-50/50">
+                    <div className="bg-white rounded-2xl p-3 border border-slate-200 flex items-center justify-between group hover:border-slate-300 hover:shadow-md transition-all duration-300">
                         <div className="flex items-center gap-3 overflow-hidden">
                             {/* Avatar */}
-                            <div className="h-10 w-10 rounded-xl bg-slate-950 border border-slate-700 flex items-center justify-center shadow-inner overflow-hidden shrink-0 relative">
+                            <div className="h-10 w-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 relative">
                                 {user?.avatar ? (
                                     <img
                                         src={`http://localhost:8080${user.avatar}`}
@@ -212,17 +221,17 @@ const Sidebar = () => {
                                         }}
                                     />
                                 ) : null}
-                                <div className={`absolute inset-0 bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white ${user?.avatar ? 'hidden' : 'flex'}`}>
+                                <div className={`absolute inset-0 bg-indigo-50 flex items-center justify-center text-indigo-600 ${user?.avatar ? 'hidden' : 'flex'}`}>
                                     <UserCircle2 size={24} />
                                 </div>
                             </div>
 
                             {/* Details */}
                             <div className="flex flex-col min-w-0">
-                                <span className="text-sm font-bold text-slate-200 truncate block">
+                                <span className="text-sm font-bold text-slate-900 truncate block">
                                     {user?.name || "Administrator"}
                                 </span>
-                                <span className="text-[10px] font-bold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 mt-0.5 inline-block w-fit truncate max-w-[120px]">
+                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 mt-0.5 inline-block w-fit truncate max-w-[120px]">
                                     {isSuperAdmin ? 'SUPER ADMIN' : 'STAFF MEMBER'}
                                 </span>
                             </div>
@@ -231,7 +240,7 @@ const Sidebar = () => {
                         <button
                             onClick={handleLogout}
                             title="Sign Out"
-                            className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all duration-200 hover:rotate-90 transform"
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 hover:rotate-90 transform"
                         >
                             <LogOut size={18} />
                         </button>
@@ -242,7 +251,7 @@ const Sidebar = () => {
             {/* Mobile Overlay */}
             {isMobileOpen && (
                 <div 
-                    className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+                    className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden"
                     onClick={() => setIsMobileOpen(false)}
                 />
             )}

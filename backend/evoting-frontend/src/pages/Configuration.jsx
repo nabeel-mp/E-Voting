@@ -105,16 +105,20 @@ const Configuration = () => {
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 h-[calc(100vh-100px)] flex flex-col p-6 md:p-8">
+    <div className="space-y-8 animate-in fade-in duration-500 h-[calc(100vh-100px)] flex flex-col p-6 md:p-10 bg-[#f8fafc]">
       
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0 border-b border-slate-200 pb-8">
         <div>
-          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 tracking-tight">
-            System Configuration
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full mb-4">
+              <Settings size={14} className="text-indigo-700" />
+              <span className="text-indigo-800 text-[10px] font-black uppercase tracking-widest">Environment Variables</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 leading-tight">
+            System <span className="italic text-slate-400 font-light">Configuration</span>
           </h1>
-          <p className="text-slate-400 mt-2 text-lg font-light">
-            Manage global settings and environmental variables.
+          <p className="text-slate-500 mt-3 text-lg font-light">
+            Manage global settings and environmental parameters.
           </p>
         </div>
         
@@ -122,10 +126,10 @@ const Configuration = () => {
             <button 
                 onClick={fetchSettings}
                 disabled={!hasChanges && !loading}
-                className={`p-3 rounded-xl border border-slate-700 transition-all ${
+                className={`p-3 rounded-xl border transition-all ${
                     hasChanges 
-                    ? 'bg-slate-800 text-white hover:bg-slate-700 shadow-lg' 
-                    : 'bg-slate-900/50 text-slate-500 cursor-not-allowed'
+                    ? 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 shadow-sm' 
+                    : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                 }`}
                 title="Reset Changes"
             >
@@ -137,8 +141,8 @@ const Configuration = () => {
                 disabled={saving || !hasChanges}
                 className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 transform hover:-translate-y-0.5 ${
                     hasChanges
-                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-indigo-500/25'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
                 }`}
             >
                 {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
@@ -149,23 +153,23 @@ const Configuration = () => {
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-indigo-400">
+        <div className="flex-1 flex flex-col items-center justify-center text-indigo-500">
             <Loader2 className="animate-spin mb-4" size={48} />
-            <p className="text-slate-500 text-lg animate-pulse">Loading system configuration...</p>
+            <p className="text-slate-400 text-lg animate-pulse font-medium">Loading system configuration...</p>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pb-10 pr-2">
             {Object.entries(groupedSettings).map(([category, items]) => (
-                <div key={category} className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
+                <div key={category} className="bg-white border border-slate-100 rounded-[2.5rem] shadow-xl shadow-slate-200/50 overflow-hidden">
                     
                     {/* Category Header */}
-                    <div className="px-8 py-5 border-b border-slate-800/60 flex items-center gap-4 bg-slate-900/30">
-                        <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
+                    <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
+                        <div className="p-2.5 bg-white rounded-xl text-indigo-600 border border-slate-200 shadow-sm">
                             {getCategoryIcon(category)}
                         </div>
                         <div>
-                            <h3 className="font-bold text-xl text-slate-100">{category}</h3>
-                            <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Configuration Group</p>
+                            <h3 className="font-bold text-xl text-slate-900 font-serif">{category}</h3>
+                            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Configuration Group</p>
                         </div>
                     </div>
 
@@ -174,26 +178,26 @@ const Configuration = () => {
                         {items.map((setting) => (
                             <div key={setting.key} className="group">
                                 <div className="flex justify-between items-start mb-2">
-                                    <label className="text-sm font-semibold text-slate-300 group-hover:text-indigo-300 transition-colors">
+                                    <label className="text-sm font-bold text-slate-600 group-hover:text-indigo-600 transition-colors">
                                         {formatKey(setting.key)}
                                     </label>
                                     {setting.type === 'boolean' && (
                                         <button 
                                             onClick={() => handleChange(setting.key, setting.value === 'true' ? 'false' : 'true')}
-                                            className={`transition-colors duration-300 ${setting.value === 'true' ? 'text-emerald-400' : 'text-slate-600'}`}
+                                            className={`transition-colors duration-300 ${setting.value === 'true' ? 'text-emerald-500' : 'text-slate-300'}`}
                                         >
-                                            {setting.value === 'true' ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                                            {setting.value === 'true' ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
                                         </button>
                                     )}
                                 </div>
 
                                 {setting.type === 'boolean' ? (
-                                    <div className="flex items-center justify-between bg-slate-950/30 border border-slate-800 rounded-xl p-3 px-4">
-                                        <span className="text-xs text-slate-500">{setting.description}</span>
-                                        <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${
+                                    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3 px-4">
+                                        <span className="text-xs text-slate-500 font-medium">{setting.description}</span>
+                                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase border ${
                                             setting.value === 'true' 
-                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                                            : 'bg-slate-800 text-slate-400 border border-slate-700'
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                            : 'bg-slate-100 text-slate-500 border-slate-200'
                                         }`}>
                                             {setting.value === 'true' ? 'Enabled' : 'Disabled'}
                                         </span>
@@ -204,9 +208,9 @@ const Configuration = () => {
                                             type={setting.type === 'number' ? 'number' : 'text'}
                                             value={setting.value} 
                                             onChange={(e) => handleChange(setting.key, e.target.value)}
-                                            className="w-full bg-slate-950/50 border border-slate-800 text-slate-200 px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder:text-slate-700 font-mono text-sm shadow-inner"
+                                            className="w-full bg-slate-50 border border-slate-200 text-slate-700 px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-400 font-mono text-sm shadow-inner"
                                         />
-                                        <p className="text-xs text-slate-500 mt-2 ml-1">{setting.description}</p>
+                                        <p className="text-xs text-slate-400 mt-2 ml-1 font-medium">{setting.description}</p>
                                     </div>
                                 )}
                             </div>

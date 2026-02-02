@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   Search, Filter, Plus, MoreVertical, User, Phone, CreditCard, X,
   Loader2, CheckCircle2, AlertCircle, Pencil, Ban, ChevronDown,
-  AlertTriangle, Download, Upload, Eye, MapPin, Trash2, Hash
+  AlertTriangle, Download, Upload, Eye, MapPin, Trash2, Hash, Users
 } from 'lucide-react';
 
 const Voters = () => {
@@ -50,58 +50,56 @@ const Voters = () => {
   const fileInputRef = useRef(null);
 
   /* -------------------------- DATA FETCHING -------------------------- */
-const initData = async () => {
-  setLoading(true);
-  setErrorMsg(null);
-  
-  try {
-    const response = await api.get('/api/common/kerala-data');
+  const initData = async () => {
+    setLoading(true);
+    setErrorMsg(null);
     
-    if (response.data && response.data.success) {
-      let payload = response.data.data;
+    try {
+      const response = await api.get('/api/common/kerala-data');
+      
+      if (response.data && response.data.success) {
+        let payload = response.data.data;
 
-      const normalizeData = (data) => {
-        if (Array.isArray(data)) {
-          if (data.length > 0 && data[0].hasOwnProperty('Key') && data[0].hasOwnProperty('Value')) {
-            return data.reduce((acc, item) => {
-              acc[item.Key] = normalizeData(item.Value); 
-              return acc;
-            }, {});
+        const normalizeData = (data) => {
+          if (Array.isArray(data)) {
+            if (data.length > 0 && data[0].hasOwnProperty('Key') && data[0].hasOwnProperty('Value')) {
+              return data.reduce((acc, item) => {
+                acc[item.Key] = normalizeData(item.Value); 
+                return acc;
+              }, {});
+            }
+            return data;
+          }
+          if (data && typeof data === 'object') {
+            Object.keys(data).forEach(key => {
+              data[key] = normalizeData(data[key]);
+            });
           }
           return data;
-        }
-        if (data && typeof data === 'object') {
-          Object.keys(data).forEach(key => {
-            data[key] = normalizeData(data[key]);
-          });
-        }
-        return data;
-      };
+        };
 
-      const cleanPayload = normalizeData(payload);
-      
-      console.log("Cleaned Admin Data:", cleanPayload);
-      
-      if (cleanPayload && cleanPayload.districts) {
-        setAdminData(cleanPayload);
+        const cleanPayload = normalizeData(payload);
+        if (cleanPayload && cleanPayload.districts) {
+          setAdminData(cleanPayload);
+        }
       }
+    } catch (err) {
+      console.error("Failed to load admin data", err);
     }
-  } catch (err) {
-    console.error("Failed to load admin data", err);
-  }
 
-  // Fetch Voters
-  try {
-    const votersRes = await api.get('/api/admin/voters');
-    if (votersRes.data.success) {
-      setVoters(votersRes.data.data || []);
+    // Fetch Voters
+    try {
+      const votersRes = await api.get('/api/admin/voters');
+      if (votersRes.data.success) {
+        setVoters(votersRes.data.data || []);
+      }
+    } catch (err) {
+      setErrorMsg("Failed to load directory data.");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    setErrorMsg("Failed to load directory data.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   useEffect(() => { initData(); }, []);
 
   useEffect(() => {
@@ -131,7 +129,6 @@ const initData = async () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Safe Navigation for Dynamic Admin Data
   const getLocalBodyList = () => {
     if (!form.district || !adminData) return [];
 
@@ -243,49 +240,71 @@ const initData = async () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10 px-4 md:px-6">
+    <div className="space-y-10 animate-in fade-in duration-700 p-6 md:p-10 min-h-screen bg-[#f8fafc]">
 
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0 border-b border-slate-200 pb-8">
         <div>
-          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 tracking-tight">
-            Voters Directory
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full mb-4">
+              <Users size={14} className="text-indigo-700" />
+              <span className="text-indigo-800 text-[10px] font-black uppercase tracking-widest">Registry</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 leading-tight">
+            Voters <span className="italic text-slate-400 font-light">Directory</span>
           </h1>
-          <p className="text-slate-400 mt-2 text-lg font-light">
+          <p className="text-slate-500 mt-3 text-lg font-light">
             Manage registered voters. Add, edit, or verify voter details securely.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button onClick={handleExport} className="btn-secondary group"><Download size={18} className="group-hover:-translate-y-0.5 transition-transform" /> <span>Export CSV</span></button>
+          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-medium transition-all group">
+            <Download size={18} className="group-hover:-translate-y-0.5 transition-transform" /> 
+            <span>Export CSV</span>
+          </button>
+          
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
-          <button onClick={handleImportClick} className="btn-secondary group"><Upload size={18} className="group-hover:-translate-y-0.5 transition-transform" /> <span>Import</span></button>
-          <button onClick={openCreateModal} className="btn-primary shadow-lg shadow-indigo-500/20 active:scale-95"><Plus size={20} /> <span>Register Voter</span></button>
+          
+          <button onClick={handleImportClick} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-medium transition-all group">
+            <Upload size={18} className="group-hover:-translate-y-0.5 transition-transform" /> 
+            <span>Import</span>
+          </button>
+          
+          <button onClick={openCreateModal} className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
+            <Plus size={20} /> 
+            <span>Register Voter</span>
+          </button>
         </div>
       </div>
 
       {/* ERROR */}
       {errorMsg && (
-        <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3 animate-pulse">
+        <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-2xl flex items-center gap-3 animate-pulse">
           <AlertTriangle size={20} /> <span className="font-medium">{errorMsg}</span>
         </div>
       )}
 
       {/* MAIN CARD */}
-      <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col min-h-[600px]">
+      <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-xl shadow-slate-200/50 overflow-hidden flex flex-col min-h-[600px]">
         {/* Toolbar */}
-        <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row items-center gap-4 bg-slate-900/40">
+        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row items-center gap-4 bg-slate-50/50">
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-indigo-400" size={18} />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by ID, Name, or Aadhaar..." className="w-full bg-slate-800/50 border border-slate-700 text-slate-200 pl-11 pr-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-slate-600" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500" size={18} />
+            <input 
+                type="text" 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                placeholder="Search by ID, Name, or Aadhaar..." 
+                className="w-full bg-white border border-slate-200 text-slate-700 pl-12 pr-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all placeholder:text-slate-400 font-medium" 
+            />
           </div>
           <div className="relative" ref={filterRef}>
-            <button onClick={() => setShowFilterMenu(!showFilterMenu)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all font-medium text-sm ${filterStatus !== 'ALL' ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'}`}>
+            <button onClick={() => setShowFilterMenu(!showFilterMenu)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl border transition-all font-bold text-sm ${filterStatus !== 'ALL' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'}`}>
               <Filter size={16} /><span>{filterStatus === 'ALL' ? 'All Status' : filterStatus.charAt(0) + filterStatus.slice(1).toLowerCase()}</span><ChevronDown size={14} className={`transition-transform duration-200 ${showFilterMenu ? 'rotate-180' : ''}`} />
             </button>
             {showFilterMenu && (
-              <div className="absolute right-0 top-14 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 p-1.5 animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute right-0 top-14 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-30 p-2 animate-in fade-in zoom-in-95 duration-100">
                 {['ALL', 'VERIFIED', 'PENDING', 'BLOCKED'].map((status) => (
-                  <button key={status} onClick={() => { setFilterStatus(status); setShowFilterMenu(false); }} className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors flex items-center gap-2 ${filterStatus === status ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+                  <button key={status} onClick={() => { setFilterStatus(status); setShowFilterMenu(false); }} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl transition-colors flex items-center gap-2 font-medium ${filterStatus === status ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
                     {status === 'VERIFIED' && <CheckCircle2 size={14} />}{status === 'BLOCKED' && <Ban size={14} />} {status.charAt(0) + status.slice(1).toLowerCase()}
                   </button>
                 ))}
@@ -296,63 +315,69 @@ const initData = async () => {
 
         {/* Table */}
         <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left text-sm text-slate-400">
-            <thead className="bg-slate-950/50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800/80">
-              <tr><th className="px-6 py-4">Identity</th><th className="px-6 py-4">Contact</th><th className="px-6 py-4">Aadhaar</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Actions</th></tr>
+          <table className="w-full text-left text-sm text-slate-600">
+            <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b border-slate-100">
+              <tr>
+                  <th className="px-8 py-5 tracking-wider">Identity</th>
+                  <th className="px-8 py-5 tracking-wider">Contact</th>
+                  <th className="px-8 py-5 tracking-wider">Aadhaar</th>
+                  <th className="px-8 py-5 tracking-wider">Status</th>
+                  <th className="px-8 py-5 tracking-wider text-right">Actions</th>
+              </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-slate-100">
               {loading && voters.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-20 text-center">
-                    <Loader2 className="animate-spin inline" /> Loading application data...
+                  <td colSpan="5" className="px-6 py-20 text-center text-slate-400">
+                    <Loader2 className="animate-spin inline mr-2 text-indigo-600" /> Loading registry...
                   </td>
                 </tr>
               ) : (
                 filteredVoters.map((v) => (
-                  <tr key={v.ID} className="group hover:bg-slate-800/30 transition-all duration-200">
-                    <td className="px-6 py-4">
+                  <tr key={v.ID} className="group hover:bg-slate-50/80 transition-all duration-200">
+                    <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-400 border border-indigo-500/20">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-sm">
                           {v.FullName?.charAt(0)}
                         </div>
                         <div>
-                          <div className="font-semibold text-slate-200 flex items-center gap-2">
+                          <div className="font-bold text-slate-900 flex items-center gap-2">
                             {v.FullName}
-                            {v.IsBlocked && <div className="text-rose-500" title="Access Blocked"><Ban size={14} /></div>}
+                            {v.IsBlocked && <div className="text-rose-500 bg-rose-50 rounded-full p-0.5" title="Access Blocked"><Ban size={12} /></div>}
                           </div>
-                          <div className="text-xs text-slate-500 font-mono">ID: {v.VoterID}</div>
+                          <div className="text-xs text-slate-400 font-mono mt-0.5">ID: {v.VoterID}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Phone size={12} />
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-2 text-slate-500 font-medium">
+                        <Phone size={14} className="text-slate-400" />
                         <span className="font-mono">{v.Mobile}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <button onClick={() => openDetailsModal(v)} className="group/btn flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 transition-all text-left">
-                        <CreditCard size={14} className="text-amber-500 group-hover/btn:scale-110 transition-transform" />
-                        <span className="font-mono text-xs text-slate-300 group-hover/btn:text-white transition-colors">{v.AadhaarNumber}</span>
-                      </button>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg w-fit">
+                        <CreditCard size={14} className="text-amber-500" />
+                        <span className="font-mono text-xs text-slate-600 font-bold">{v.AadhaarNumber}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${v.IsVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                    <td className="px-8 py-5">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border ${v.IsVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
                         {v.IsVerified ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
                         {v.IsVerified ? 'Verified' : 'Pending'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right relative">
-                      <button onClick={() => setActiveDropdown(activeDropdown === v.ID ? null : v.ID)} className={`p-2 rounded-lg transition-all ${activeDropdown === v.ID ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}>
+                    <td className="px-8 py-5 text-right relative">
+                      <button onClick={() => setActiveDropdown(activeDropdown === v.ID ? null : v.ID)} className={`p-2 rounded-xl transition-all ${activeDropdown === v.ID ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
                         <MoreVertical size={18} />
                       </button>
                       {activeDropdown === v.ID && (
-                        <div ref={dropdownRef} className="absolute right-10 top-10 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150">
-                          <button onClick={() => openDetailsModal(v)} className="dropdown-item"><Eye size={14} className="text-sky-400" /> View Details</button>
-                          <button onClick={() => openEditModal(v)} className="dropdown-item"><Pencil size={14} className="text-indigo-400" /> Edit Profile</button>
-                          <div className="h-px bg-slate-800 my-1 mx-1"></div>
-                          <button onClick={() => toggleBlockStatus(v)} className="dropdown-item"><Ban size={14} className="text-amber-400" /> {v.IsBlocked ? 'Unblock' : 'Block Access'}</button>
-                          <button onClick={() => handleDelete(v.ID)} className="dropdown-item text-rose-400"><Trash2 size={14} /> Delete Voter</button>
+                        <div ref={dropdownRef} className="absolute right-12 top-10 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150">
+                          <button onClick={() => openDetailsModal(v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Eye size={14} className="text-sky-500" /> View Details</button>
+                          <button onClick={() => openEditModal(v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Pencil size={14} className="text-indigo-500" /> Edit Profile</button>
+                          <div className="h-px bg-slate-100 my-1 mx-1"></div>
+                          <button onClick={() => toggleBlockStatus(v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Ban size={14} className="text-amber-500" /> {v.IsBlocked ? 'Unblock' : 'Block Access'}</button>
+                          <button onClick={() => handleDelete(v.ID)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-rose-50 transition-colors flex items-center gap-2 font-medium text-rose-500"><Trash2 size={14} /> Delete Voter</button>
                         </div>
                       )}
                     </td>
@@ -367,122 +392,123 @@ const initData = async () => {
       {/* --- REGISTER / EDIT MODAL --- */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity" onClick={closeModal} />
-          <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
-            <div className="relative h-24 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 shrink-0 flex items-center justify-between px-6 border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 shadow-inner">{isEditing ? <Pencil size={24} /> : <User size={24} />}</div>
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={closeModal} />
+          <div className="relative bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative bg-slate-50 shrink-0 flex items-center justify-between px-8 py-6 border-b border-slate-100">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm text-indigo-600">{isEditing ? <Pencil size={24} /> : <User size={24} />}</div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">{isEditing ? 'Update Voter Profile' : 'Register New Voter'}</h2>
-                  <p className="text-xs text-slate-400">Fill in mandatory details marked with (*)</p>
+                  <h2 className="text-xl font-bold text-slate-900 font-serif">{isEditing ? 'Update Profile' : 'Register Voter'}</h2>
+                  <p className="text-sm text-slate-500">Fill in mandatory details marked with (*)</p>
                 </div>
               </div>
-              <button onClick={closeModal} className="p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-colors backdrop-blur-sm"><X size={18} /></button>
+              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white rounded-full transition-all border border-transparent hover:border-slate-100 hover:shadow-sm"><X size={20} /></button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700 text-xs font-bold">1</div>
-                  <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wide">Personal Details</h3>
+            <form onSubmit={handleSubmit} className="p-8 overflow-y-auto custom-scrollbar space-y-8">
+              <div className="space-y-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 text-xs font-bold">1</div>
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Personal Details</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-400">Full Name <span className="text-rose-500">*</span></label>
-                    <input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} className="input-field" placeholder="e.g. John Doe" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name <span className="text-rose-500">*</span></label>
+                    <input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-slate-400" placeholder="e.g. John Doe" />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-400">Mobile Number <span className="text-rose-500">*</span></label>
-                    <input required type="tel" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} className="input-field" placeholder="10-digit number" />
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mobile Number <span className="text-rose-500">*</span></label>
+                    <input required type="tel" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-slate-400" placeholder="10-digit number" />
                   </div>
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-medium text-slate-400">Aadhaar Number <span className="text-rose-500">*</span></label>
-                    <input required value={form.aadhaar} onChange={e => setForm({ ...form, aadhaar: e.target.value })} className="input-field" placeholder="12-digit UIDAI number" />
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Aadhaar Number <span className="text-rose-500">*</span></label>
+                    <input required value={form.aadhaar} onChange={e => setForm({ ...form, aadhaar: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-slate-400" placeholder="12-digit UIDAI number" />
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-slate-800">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700 text-xs font-bold">2</div>
-                  <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wide">Administrative Jurisdiction</h3>
+              <div className="space-y-5 pt-6 border-t border-slate-100">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 text-xs font-bold">2</div>
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Jurisdiction</h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-400">District <span className="text-rose-500">*</span></label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">District <span className="text-rose-500">*</span></label>
                     <div className="relative">
-                      <select required value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value, block: '', local_body_name: '' })} className="input-field appearance-none">
+                      <select required value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value, block: '', local_body_name: '' })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none font-medium cursor-pointer">
                         <option value="">Select District</option>
                         {adminData?.districts?.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-400">Local Body Type <span className="text-rose-500">*</span></label>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Local Body Type <span className="text-rose-500">*</span></label>
                     <div className="relative">
-                      <select required value={form.local_body_type} onChange={(e) => setForm({ ...form, local_body_type: e.target.value, block: '', local_body_name: '' })} className="input-field appearance-none">
+                      <select required value={form.local_body_type} onChange={(e) => setForm({ ...form, local_body_type: e.target.value, block: '', local_body_name: '' })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none font-medium cursor-pointer">
                         <option value="Grama Panchayat">Grama Panchayat</option>
                         <option value="Municipality">Municipality</option>
                         <option value="Municipal Corporation">Municipal Corporation</option>
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
                   </div>
 
-                 {form.local_body_type === 'Grama Panchayat' && (
-  <div className="space-y-1.5">
-    <label className="text-xs font-medium text-slate-400">Block Panchayat *</label>
-    <div className="relative">
-      <select 
-        required 
-        value={form.block} 
-        onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} 
-        className="input-field appearance-none disabled:opacity-50"
-        disabled={!form.district}
-      >
-        <option value="">Select Block</option>
-        {/* LOOKUP: Use the selected district name as a key into the blocks object */}
-        {form.district && adminData?.blocks?.[form.district]?.map(blockName => (
-          <option key={blockName} value={blockName}>{blockName}</option>
-        ))}
-      </select>
-      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-    </div>
-  </div>
-)}
+                  {form.local_body_type === 'Grama Panchayat' && (
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Block Panchayat *</label>
+                        <div className="relative">
+                        <select 
+                            required 
+                            value={form.block} 
+                            onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none font-medium cursor-pointer disabled:opacity-50"
+                            disabled={!form.district}
+                        >
+                            <option value="">Select Block</option>
+                            {form.district && adminData?.blocks?.[form.district]?.map(blockName => (
+                            <option key={blockName} value={blockName}>{blockName}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        </div>
+                    </div>
+                  )}
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-400">Local Body Name <span className="text-rose-500">*</span></label>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Local Body Name <span className="text-rose-500">*</span></label>
                     <div className="relative">
-                      <select required value={form.local_body_name} onChange={(e) => setForm({ ...form, local_body_name: e.target.value })} className="input-field appearance-none disabled:opacity-50 disabled:cursor-not-allowed" disabled={!form.district}>
+                      <select required value={form.local_body_name} onChange={(e) => setForm({ ...form, local_body_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none font-medium cursor-pointer disabled:opacity-50" disabled={!form.district}>
                         <option value="">Select Name</option>
                         {getLocalBodyList().map(name => <option key={name} value={name}>{name}</option>)}
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-medium text-slate-400">Ward No / Division <span className="text-rose-500">*</span></label>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ward No / Division <span className="text-rose-500">*</span></label>
                     <div className="relative">
-                      <input required value={form.ward} onChange={e => setForm({ ...form, ward: e.target.value })} className="input-field pl-10" placeholder="e.g. 12" />
-                      <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                      <input required value={form.ward} onChange={e => setForm({ ...form, ward: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 pl-10 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-slate-400" placeholder="e.g. 12" />
+                      <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-medium text-slate-400">Full Residential Address <span className="text-rose-500">*</span></label>
-                    <textarea required value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="input-field min-h-[80px]" placeholder="House Name, Street, Post Office..." />
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Residential Address <span className="text-rose-500">*</span></label>
+                    <textarea required value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-slate-400 min-h-[80px] resize-none" placeholder="House Name, Street, Post Office..." />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-3 border-t border-slate-800">
-                <button type="button" onClick={closeModal} className="btn-secondary flex-1 justify-center">Cancel</button>
-                <button type="submit" disabled={submitting} className="btn-primary flex-1 justify-center">{submitting ? <Loader2 className="animate-spin" /> : (isEditing ? 'Save Changes' : 'Register Voter')}</button>
+              <div className="pt-6 flex gap-4 border-t border-slate-100">
+                <button type="button" onClick={closeModal} className="flex-1 py-3.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" disabled={submitting} className="flex-1 py-3.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2">
+                    {submitting ? <Loader2 className="animate-spin" /> : (isEditing ? 'Save Changes' : 'Register Voter')}
+                </button>
               </div>
             </form>
           </div>
@@ -492,43 +518,43 @@ const initData = async () => {
       {/* --- VIEW DETAILS MODAL --- */}
       {showDetailsModal && selectedVoter && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity duration-300" onClick={() => setShowDetailsModal(false)} />
-          <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="relative h-28 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 shrink-0">
-              <button onClick={() => setShowDetailsModal(false)} className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-all backdrop-blur-sm z-10"><X size={18} /></button>
-              <div className="absolute -bottom-10 left-6 z-10">
-                <div className="w-24 h-24 rounded-full bg-slate-900 p-1.5 shadow-xl">
-                  <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-200 border border-slate-700">{selectedVoter.FullName?.charAt(0)}</div>
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300" onClick={() => setShowDetailsModal(false)} />
+          <div className="relative bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="relative h-28 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 shrink-0">
+              <button onClick={() => setShowDetailsModal(false)} className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/30 text-white rounded-full transition-all backdrop-blur-sm z-10"><X size={18} /></button>
+              <div className="absolute -bottom-10 left-8 z-10">
+                <div className="w-24 h-24 rounded-full bg-white p-1.5 shadow-xl">
+                  <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center text-3xl font-bold text-slate-600 border border-slate-200">{selectedVoter.FullName?.charAt(0)}</div>
                 </div>
               </div>
             </div>
-            <div className="px-6 pt-12 pb-6 overflow-y-auto custom-scrollbar">
-              <div className="flex justify-between items-start mb-6">
+            <div className="px-8 pt-14 pb-8 overflow-y-auto custom-scrollbar">
+              <div className="flex justify-between items-start mb-8">
                 <div>
-                  <h2 className="text-2xl font-bold text-white tracking-tight">{selectedVoter.FullName}</h2>
-                  <div className="flex items-center gap-2 mt-1"><span className="bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded text-xs border border-indigo-500/20 font-mono">ID: {selectedVoter.VoterID}</span></div>
+                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight font-serif">{selectedVoter.FullName}</h2>
+                  <div className="flex items-center gap-2 mt-1"><span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-xs border border-indigo-100 font-mono font-medium">ID: {selectedVoter.VoterID}</span></div>
                 </div>
-                <div className="mt-1"><span className={`px-3 py-1 rounded-full text-xs font-bold border ${selectedVoter.IsVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>{selectedVoter.IsVerified ? 'Verified Account' : 'Verification Pending'}</span></div>
+                <div className="mt-1"><span className={`px-3 py-1 rounded-full text-xs font-bold border ${selectedVoter.IsVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{selectedVoter.IsVerified ? 'Verified Account' : 'Verification Pending'}</span></div>
               </div>
               <div className="space-y-6">
-                <div className="bg-slate-800/40 rounded-xl border border-slate-800 p-4 space-y-4">
-                  <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2"><CreditCard size={14} /> Identity Proofs</h3>
+                <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
+                  <h3 className="text-xs font-bold text-indigo-500 uppercase tracking-widest flex items-center gap-2"><CreditCard size={14} /> Identity Proofs</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div><p className="text-xs text-slate-500 mb-1">Mobile</p><p className="text-slate-200 font-mono font-medium">{selectedVoter.Mobile}</p></div>
-                    <div><p className="text-xs text-slate-500 mb-1">Aadhaar</p><p className="text-slate-200 font-mono font-medium">{selectedVoter.AadhaarNumber}</p></div>
+                    <div><p className="text-xs text-slate-400 font-bold uppercase mb-1">Mobile</p><p className="text-slate-700 font-mono font-medium">{selectedVoter.Mobile}</p></div>
+                    <div><p className="text-xs text-slate-400 font-bold uppercase mb-1">Aadhaar</p><p className="text-slate-700 font-mono font-medium">{selectedVoter.AadhaarNumber}</p></div>
                   </div>
                 </div>
-                <div className="bg-slate-800/40 rounded-xl border border-slate-800 p-4 space-y-4">
-                  <h3 className="text-xs font-bold text-amber-500 uppercase tracking-widest flex items-center gap-2"><MapPin size={14} /> Jurisdiction</h3>
-                  <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
-                    <div><p className="text-[10px] text-slate-500 uppercase font-semibold">District</p><p className="text-slate-200 font-medium">{selectedVoter.District || '-'}</p></div>
-                    <div><p className="text-[10px] text-slate-500 uppercase font-semibold">Block / Taluk</p><p className="text-slate-200 font-medium">{selectedVoter.Block || '-'}</p></div>
-                    <div><p className="text-[10px] text-slate-500 uppercase font-semibold">Local Body</p><p className="text-slate-200 font-medium truncate">{selectedVoter.Panchayath || '-'}</p></div>
-                    <div><p className="text-[10px] text-slate-500 uppercase font-semibold">Ward No</p><p className="text-slate-200 font-medium">{selectedVoter.Ward || '-'}</p></div>
+                <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
+                  <h3 className="text-xs font-bold text-amber-600 uppercase tracking-widest flex items-center gap-2"><MapPin size={14} /> Jurisdiction</h3>
+                  <div className="grid grid-cols-2 gap-y-5 gap-x-2 text-sm">
+                    <div><p className="text-[10px] text-slate-400 uppercase font-black">District</p><p className="text-slate-700 font-medium mt-0.5">{selectedVoter.District || '-'}</p></div>
+                    <div><p className="text-[10px] text-slate-400 uppercase font-black">Block / Taluk</p><p className="text-slate-700 font-medium mt-0.5">{selectedVoter.Block || '-'}</p></div>
+                    <div><p className="text-[10px] text-slate-400 uppercase font-black">Local Body</p><p className="text-slate-700 font-medium truncate mt-0.5">{selectedVoter.Panchayath || '-'}</p></div>
+                    <div><p className="text-[10px] text-slate-400 uppercase font-black">Ward No</p><p className="text-slate-700 font-medium mt-0.5">{selectedVoter.Ward || '-'}</p></div>
                   </div>
-                  <div className="pt-3 border-t border-slate-700/50">
-                    <p className="text-xs text-slate-500 mb-1">Permanent Address</p>
-                    <p className="text-slate-300 text-sm leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-slate-800">{selectedVoter.Address || 'No address provided.'}</p>
+                  <div className="pt-4 border-t border-slate-200/60">
+                    <p className="text-xs text-slate-400 uppercase font-black mb-2">Permanent Address</p>
+                    <p className="text-slate-600 text-sm leading-relaxed bg-white p-3 rounded-xl border border-slate-200">{selectedVoter.Address || 'No address provided.'}</p>
                   </div>
                 </div>
               </div>
@@ -536,18 +562,6 @@ const initData = async () => {
           </div>
         </div>
       )}
-
-      {/* --- STYLES --- */}
-      <style>{`
-        .input-field { width: 100%; background-color: rgb(30 41 59); border: 1px solid rgb(51 65 85); color: white; border-radius: 0.75rem; padding: 0.625rem 1rem; outline: none; transition: all 0.2s; }
-        .input-field:focus { border-color: rgb(99 102 241 / 0.5); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
-        .dropdown-item { width: 100%; text-align: left; padding: 0.625rem 0.75rem; font-size: 0.875rem; border-radius: 0.5rem; transition: all 0.1s; display: flex; align-items: center; gap: 0.5rem; }
-        .dropdown-item:hover { background-color: rgb(30 41 59); color: white; }
-        .btn-primary { display: flex; align-items: center; gap: 0.5rem; background-color: rgb(79 70 229); color: white; padding: 0.625rem 1.25rem; border-radius: 0.75rem; font-weight: 500; transition: all 0.2s; }
-        .btn-primary:hover { background-color: rgb(67 56 202); }
-        .btn-secondary { display: flex; align-items: center; gap: 0.5rem; background-color: rgb(30 41 59); color: rgb(226 232 240); border: 1px solid rgb(51 65 85); padding: 0.625rem 1rem; border-radius: 0.75rem; font-weight: 500; transition: all 0.2s; }
-        .btn-secondary:hover { background-color: rgb(51 65 85); }
-      `}</style>
     </div>
   );
 };

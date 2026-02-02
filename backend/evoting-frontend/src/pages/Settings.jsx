@@ -120,15 +120,16 @@ const Settings = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12 p-6 md:p-8">
+    <div className="min-h-screen bg-[#f8fafc] p-6 md:p-10 pb-20">
+        <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-500">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
         <div>
-          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 tracking-tight">
-            Account Settings
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 leading-tight">
+            Account <span className="italic text-slate-400 font-light">Settings</span>
           </h1>
-          <p className="text-slate-400 mt-2 text-lg font-light">
+          <p className="text-slate-500 mt-3 text-lg font-light">
             Manage your administrator profile and security preferences.
           </p>
         </div>
@@ -138,14 +139,14 @@ const Settings = () => {
         
         {/* Left Column: Avatar & Quick Info */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 text-center shadow-2xl relative overflow-hidden group">
+          <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 text-center shadow-xl shadow-slate-200/50 relative overflow-hidden group">
             
             {/* Background Decoration */}
-            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none"></div>
+            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-50 via-white to-white pointer-events-none"></div>
 
             <div className="relative inline-block mb-6">
-              <div className="w-32 h-32 rounded-full bg-slate-950 border-4 border-slate-800 p-1 shadow-2xl relative z-10 mx-auto">
-                <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-slate-900">
+              <div className="w-32 h-32 rounded-full bg-white border-4 border-white shadow-2xl relative z-10 mx-auto">
+                <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-slate-50 border border-slate-100">
                     {user?.avatar ? (
                     <img 
                         src={`http://localhost:8080${user.avatar}`} 
@@ -154,23 +155,23 @@ const Settings = () => {
                         onError={(e) => { e.target.src = ''; }}
                     />
                     ) : (
-                    <span className="text-5xl font-bold text-slate-600 group-hover:text-slate-500 transition-colors">
+                    <span className="text-5xl font-bold text-slate-300 group-hover:text-slate-400 transition-colors">
                         {(user?.name || 'A').charAt(0).toUpperCase()}
                     </span>
                     )}
                 </div>
               </div>
               
-              <label className="absolute bottom-1 right-1 p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full cursor-pointer shadow-lg border-4 border-slate-900 transition-all active:scale-95 z-20">
+              <label className="absolute bottom-1 right-1 p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full cursor-pointer shadow-lg border-4 border-white transition-all active:scale-95 z-20">
                 {loading.avatar ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
                 <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={loading.avatar} />
               </label>
             </div>
 
-            <h2 className="text-2xl font-bold text-white tracking-tight">{user?.name}</h2>
-            <p className="text-slate-400 text-sm mt-1 mb-4">{user?.email}</p>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight font-serif">{user?.name}</h2>
+            <p className="text-slate-500 text-sm mt-1 mb-6 font-medium">{user?.email}</p>
             
-            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${isSuperAdmin ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${isSuperAdmin ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'}`}>
               <ShieldCheck size={12} />
               {isSuperAdmin ? 'Super Admin' : 'Staff Member'}
             </div>
@@ -181,43 +182,43 @@ const Settings = () => {
         <div className="lg:col-span-2 space-y-8">
           
           {/* Profile Form */}
-          <section className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-            <div className="p-6 border-b border-slate-800/60 flex items-center gap-3 bg-slate-900/30">
-               <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
-                  <UserCheck size={20} />
+          <section className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-xl shadow-slate-200/50">
+            <div className="p-8 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
+               <div className="p-3 bg-white rounded-2xl border border-slate-100 text-indigo-600 shadow-sm">
+                  <UserCheck size={24} />
                </div>
                <div>
-                  <h3 className="font-bold text-lg text-white">Profile Information</h3>
-                  <p className="text-xs text-slate-500 font-medium">Update your public profile details</p>
+                  <h3 className="font-bold text-xl text-slate-900 font-serif">Profile Information</h3>
+                  <p className="text-sm text-slate-500">Update your public profile details</p>
                </div>
             </div>
             
             <form onSubmit={handleProfileUpdate} className="p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Full Name</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Full Name</label>
                   <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
                     <input 
                         type="text"
                         required
                         value={profileForm.name}
                         onChange={e => setProfileForm({...profileForm, name: e.target.value})}
-                        className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600"
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-3.5 text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-400 font-medium"
                     />
                   </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Email Address</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Email Address</label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
                     {isSuperAdmin ? (
                         <input 
                             type="email"
                             value={user?.email || ''}
                             disabled
-                            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-slate-500 cursor-not-allowed italic"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3.5 text-slate-500 cursor-not-allowed italic font-medium"
                             title="Super Admin email cannot be changed"
                         />
                     ) : (
@@ -226,18 +227,18 @@ const Settings = () => {
                             required
                             value={profileForm.email}
                             onChange={e => setProfileForm({...profileForm, email: e.target.value})}
-                            className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600"
+                            className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-3.5 text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-400 font-medium"
                         />
                     )}
                   </div>
                 </div>
               </div>
               
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end pt-4 border-t border-slate-100">
                 <button 
                     type="submit"
                     disabled={loading.profile} 
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {loading.profile ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                     Save Changes
@@ -247,33 +248,33 @@ const Settings = () => {
           </section>
 
           {/* Security Form */}
-          <section className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-            <div className="p-6 border-b border-slate-800/60 flex items-center gap-3 bg-slate-900/30">
-               <div className="p-2 bg-rose-500/10 rounded-lg text-rose-400">
-                  <KeyRound size={20} />
+          <section className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-xl shadow-slate-200/50">
+            <div className="p-8 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
+               <div className="p-3 bg-white rounded-2xl border border-slate-100 text-rose-500 shadow-sm">
+                  <KeyRound size={24} />
                </div>
                <div>
-                  <h3 className="font-bold text-lg text-white">Security</h3>
-                  <p className="text-xs text-slate-500 font-medium">Manage your password and authentication</p>
+                  <h3 className="font-bold text-xl text-slate-900 font-serif">Security</h3>
+                  <p className="text-sm text-slate-500">Manage your password and authentication</p>
                </div>
             </div>
             
             <form onSubmit={handlePasswordChange} className="p-8 space-y-6">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Current Password</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Current Password</label>
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-rose-400 transition-colors" size={18} />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-500 transition-colors" size={18} />
                   <input 
                     type={showCurrentPass ? "text" : "password"}
                     required
                     value={passwordForm.current_password}
                     onChange={e => setPasswordForm({...passwordForm, current_password: e.target.value})}
-                    className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-12 pr-12 py-3 text-white focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all placeholder:text-slate-600"
+                    className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-12 py-3.5 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all placeholder:text-slate-400 font-medium"
                   />
                   <button 
                     type="button"
                     onClick={() => setShowCurrentPass(!showCurrentPass)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     {showCurrentPass ? <Eye size={18} /> : <EyeOff size={18} />}
                   </button>
@@ -282,20 +283,20 @@ const Settings = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">New Password</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">New Password</label>
                   <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-rose-400 transition-colors" size={18} />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-500 transition-colors" size={18} />
                     <input 
                       type={showNewPass ? "text" : "password"}
                       required
                       value={passwordForm.new_password}
                       onChange={e => setPasswordForm({...passwordForm, new_password: e.target.value})}
-                      className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-12 pr-12 py-3 text-white focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all placeholder:text-slate-600"
+                      className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-12 py-3.5 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all placeholder:text-slate-400 font-medium"
                     />
                     <button 
                       type="button"
                       onClick={() => setShowNewPass(!showNewPass)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       {showNewPass ? <Eye size={18} /> : <EyeOff size={18} />}
                     </button>
@@ -303,20 +304,20 @@ const Settings = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Confirm Password</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Confirm Password</label>
                   <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-rose-400 transition-colors" size={18} />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-500 transition-colors" size={18} />
                     <input 
                       type={showConfirmPass ? "text" : "password"}
                       required
                       value={passwordForm.confirm_password}
                       onChange={e => setPasswordForm({...passwordForm, confirm_password: e.target.value})}
-                      className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-12 pr-12 py-3 text-white focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all placeholder:text-slate-600"
+                      className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-12 py-3.5 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all placeholder:text-slate-400 font-medium"
                     />
                     <button 
                       type="button"
                       onClick={() => setShowConfirmPass(!showConfirmPass)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       {showConfirmPass ? <Eye size={18} /> : <EyeOff size={18} />}
                     </button>
@@ -324,11 +325,11 @@ const Settings = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end pt-4 border-t border-slate-100">
                 <button 
                     type="submit" 
                     disabled={loading.password} 
-                    className="flex items-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold shadow-lg shadow-rose-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-8 py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold shadow-lg shadow-rose-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {loading.password ? <Loader2 className="animate-spin" size={18} /> : "Update Password"}
                 </button>
@@ -337,6 +338,7 @@ const Settings = () => {
           </section>
 
         </div>
+      </div>
       </div>
     </div>
   );

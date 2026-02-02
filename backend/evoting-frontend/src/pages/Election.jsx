@@ -4,7 +4,8 @@ import { useToast } from '../context/ToastContext';
 import {
   Calendar, Plus, Loader2, Clock, ToggleLeft, ToggleRight, Vote, Lock,
   Pencil, X, MoreVertical, Trash2, AlertTriangle, Ban,
-  MapPin, Building, ChevronDown, Layers, Search, Hash
+  MapPin, Building, ChevronDown, Layers, Search, Hash,
+  Share2, Eye, EyeOff, CheckCircle2, ShieldCheck
 } from 'lucide-react';
 
 const ELECTION_TYPES = [
@@ -45,27 +46,21 @@ const Elections = () => {
   const initData = async () => {
     setLoading(true);
     
-    // 1. Fetch Admin Reference Data (Kerala Data)
     try {
+      // 1. Fetch Admin Reference Data
       const response = await api.get('/api/common/kerala-data');
-      
       if (response.data && response.data.success) {
         let payload = response.data.data;
-
-        // --- RECURSIVE FIX: Convert any Key/Value arrays to Objects ---
         const normalizeData = (data) => {
           if (Array.isArray(data)) {
-            // Check if it's a Key/Value pair array (MongoDB quirk)
             if (data.length > 0 && data[0].hasOwnProperty('Key') && data[0].hasOwnProperty('Value')) {
               return data.reduce((acc, item) => {
-                acc[item.Key] = normalizeData(item.Value); // Recurse
+                acc[item.Key] = normalizeData(item.Value);
                 return acc;
               }, {});
             }
-            // If it's a regular string array (like districts list), return as is
             return data;
           }
-          // If it's an object, recurse on its values
           if (data && typeof data === 'object') {
             Object.keys(data).forEach(key => {
               data[key] = normalizeData(data[key]);
@@ -73,11 +68,8 @@ const Elections = () => {
           }
           return data;
         };
-
         const cleanPayload = normalizeData(payload);
-        
         if (cleanPayload && cleanPayload.districts) {
-          console.log("Election Page: Admin Data Loaded", Object.keys(cleanPayload));
           setAdminData(cleanPayload);
         }
       }
@@ -123,19 +115,10 @@ const Elections = () => {
     return ['Grama Panchayat', 'Municipality', 'Municipal Corporation'].includes(type);
   };
 
-  // Safe Navigation using the Normalized Data
   const getLocalBodyList = () => {
-    if (!form.district) return [];
-    
-    // Ensure data exists before access
-    if (!adminData) return [];
-
-    if (form.election_type === 'Municipality') {
-        return adminData.municipalities?.[form.district] || [];
-    }
-    if (form.election_type === 'Municipal Corporation') {
-        return adminData.corporations?.[form.district] || [];
-    }
+    if (!form.district || !adminData) return [];
+    if (form.election_type === 'Municipality') return adminData.municipalities?.[form.district] || [];
+    if (form.election_type === 'Municipal Corporation') return adminData.corporations?.[form.district] || [];
     if (form.election_type === 'Grama Panchayat') {
       if (!form.block) return [];
       return adminData.grama_panchayats?.[form.block] || [];
@@ -143,7 +126,25 @@ const Elections = () => {
     return [];
   };
 
-  // -- Form Handlers --
+  // -- Action Handlers --
+
+  const handlePublishToggle = async (election) => {
+    setActiveDropdown(null);
+    const isPublishing = !election.is_published;
+    if (!window.confirm(`Are you sure you want to ${isPublishing ? 'PUBLISH' : 'UNPUBLISH'} results for "${election.title}"?`)) return;
+
+    try {
+      await api.post('/api/admin/elections/publish', {
+        election_id: election.ID,
+        publish: isPublishing
+      });
+      addToast(`Results ${isPublishing ? 'Published' : 'Unpublished'} successfully!`, "success");
+      initData();
+    } catch (err) {
+      addToast("Failed to update publish status", "error");
+    }
+  };
+
   const handleStartDateChange = (e) => {
     const newStart = e.target.value;
     setForm(prev => ({
@@ -210,11 +211,10 @@ const Elections = () => {
         await api.post('/api/admin/elections', payload);
         addToast("Election created successfully!", "success");
       }
-      resetForm(); initData(); // Refresh all
+      resetForm(); initData();
     } catch (err) {
       const errorMessage = err.response?.data?.error || 
         (err.response?.status === 403 ? "Forbidden Action" : "Operation Failed");
-      
       addToast(errorMessage, "error");
     }
     finally { setSubmitting(false); }
@@ -269,38 +269,43 @@ const Elections = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 p-4 md:p-6 pb-20">
+    <div className="space-y-10 animate-in fade-in duration-700 p-6 md:p-10 min-h-screen bg-[#f8fafc]">
 
       {/* --- HEADER --- */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
         <div>
-          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-            Election Manager
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full mb-4">
+              <Layers size={14} className="text-indigo-700" />
+              <span className="text-indigo-800 text-[10px] font-black uppercase tracking-widest">Configuration</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 leading-tight">
+            Election <span className="italic text-slate-400 font-light">Manager</span>
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">
+          <p className="text-slate-500 mt-3 text-lg font-light">
             Orchestrate elections across Districts, Municipalities, and Panchayats.
           </p>
         </div>
         <button
           onClick={() => { resetForm(); setShowFormModal(true); }}
-          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/20 transform hover:-translate-y-1 transition-all duration-300"
+          className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transform hover:-translate-y-1 transition-all duration-300 group"
         >
-          <Plus size={20} /> New Election
+          <Plus size={20} className="group-hover:rotate-90 transition-transform"/> New Election
         </button>
       </div>
 
       {/* --- ELECTION GRID --- */}
-      <div className="grid grid-cols-1 gap-5">
+      <div className="grid grid-cols-1 gap-6">
         {loading && elections.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-500">
-            <Loader2 className="animate-spin text-indigo-500 w-10 h-10" />
-            <p>Loading application data...</p>
+            <Loader2 className="animate-spin text-indigo-600 w-10 h-10" />
+            <p className="font-medium">Loading application data...</p>
           </div>
         ) : elections.length === 0 ? (
-          <div className="text-center py-20 text-slate-500 border-2 border-dashed border-slate-800 rounded-3xl bg-slate-900/50">
+          <div className="text-center py-24 text-slate-400 border-2 border-dashed border-slate-200 rounded-[2.5rem] bg-white">
             <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg">No elections found.</p>
-            <button onClick={() => setShowFormModal(true)} className="text-indigo-400 hover:text-indigo-300 font-medium mt-2">Create your first one</button>
+            <p className="text-xl font-serif text-slate-600">No elections found.</p>
+            <p className="text-sm mt-2">Get started by creating a new polling event.</p>
+            <button onClick={() => setShowFormModal(true)} className="text-indigo-600 hover:text-indigo-700 font-bold mt-4 underline decoration-2 underline-offset-4">Create your first one</button>
           </div>
         ) : (
           elections.map((election, idx) => {
@@ -309,44 +314,55 @@ const Elections = () => {
             const canDelete = !election.is_active || isEnded;
             const canStop = !isEnded;
             const isActiveElection = election.is_active && !isEnded;
+            const isPublished = election.is_published;
 
             return (
               <div
                 key={election.ID}
-                className={`group relative bg-gradient-to-br from-slate-900 to-slate-900/80 border p-6 rounded-3xl flex flex-col md:flex-row gap-6 justify-between transition-all duration-300 hover:shadow-2xl hover:scale-[1.005]
+                className={`group relative bg-white border p-6 rounded-[2rem] flex flex-col md:flex-row gap-8 justify-between transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 hover:scale-[1.005]
                 ${isActiveElection
-                    ? 'border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.05)] hover:shadow-emerald-500/10'
-                    : 'border-slate-800 hover:border-slate-700 shadow-xl'
+                  ? 'border-emerald-100 shadow-lg shadow-emerald-50'
+                  : 'border-slate-200 shadow-sm'
                   }`}
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
-                <div className="flex items-start gap-5 w-full">
-                  <div className={`p-4 rounded-2xl shadow-inner flex-shrink-0 transition-colors duration-300 ${isActiveElection ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'
+                <div className="flex items-start gap-6 w-full">
+                  <div className={`p-5 rounded-2xl shadow-sm flex-shrink-0 transition-colors duration-300 ${isActiveElection ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500'
                     }`}>
                     <Vote size={32} />
                   </div>
 
                   <div className="flex-grow">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-2xl font-bold text-slate-100 group-hover:text-white transition-colors">{election.title}</h3>
+                      <div className="flex items-center gap-4">
+                          <h3 className="text-2xl font-bold text-slate-900 group-hover:text-indigo-700 transition-colors font-serif">{election.title}</h3>
+                          
+                          {/* Publish Indicator Badge */}
+                          {isPublished && (
+                             <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-bold uppercase tracking-wider">
+                                 <CheckCircle2 size={12} /> Published
+                             </span>
+                          )}
+                      </div>
 
                       <div className="relative">
                         <button
                           onClick={() => setActiveDropdown(activeDropdown === election.ID ? null : election.ID)}
-                          className={`p-2 rounded-xl transition-all ${activeDropdown === election.ID ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-800 hover:text-white'}`}
+                          className={`p-2 rounded-xl transition-all ${activeDropdown === election.ID ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
                         >
                           <MoreVertical size={20} />
                         </button>
                         {activeDropdown === election.ID && (
-                          <div ref={dropdownRef} className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-200">
-                            <button onClick={() => handleEdit(election)} disabled={!canUpdate} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl flex items-center gap-3 transition-colors ${canUpdate ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-600 cursor-not-allowed'}`}>
+                          <div ref={dropdownRef} className="absolute right-0 mt-2 w-64 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-200">
+                            
+                            <button onClick={() => handleEdit(election)} disabled={!canUpdate} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl flex items-center gap-3 transition-colors ${canUpdate ? 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-600' : 'text-slate-300 cursor-not-allowed'}`}>
                               <Pencil size={16} /> Edit Details {!canUpdate && <Lock size={12} className="ml-auto" />}
                             </button>
-                            <button onClick={() => initiateStatusChange(election, 'stop')} disabled={!canStop} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl flex items-center gap-3 transition-colors ${canStop ? 'text-amber-400 hover:bg-amber-500/10' : 'text-slate-600 cursor-not-allowed'}`}>
+                            <button onClick={() => initiateStatusChange(election, 'stop')} disabled={!canStop} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl flex items-center gap-3 transition-colors ${canStop ? 'text-amber-600 hover:bg-amber-50' : 'text-slate-300 cursor-not-allowed'}`}>
                               <Ban size={16} /> Stop Permanently {!canStop && <Lock size={12} className="ml-auto" />}
                             </button>
-                            <div className="h-px bg-slate-800 my-1.5 mx-2"></div>
-                            <button onClick={() => handleDelete(election.ID)} disabled={!canDelete} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl flex items-center gap-3 transition-colors ${canDelete ? 'text-rose-400 hover:bg-rose-500/10' : 'text-slate-600 cursor-not-allowed'}`}>
+                            <div className="h-px bg-slate-100 my-1.5 mx-2"></div>
+                            <button onClick={() => handleDelete(election.ID)} disabled={!canDelete} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl flex items-center gap-3 transition-colors ${canDelete ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-300 cursor-not-allowed'}`}>
                               <Trash2 size={16} /> Delete {!canDelete && <Lock size={12} className="ml-auto" />}
                             </button>
                           </div>
@@ -354,59 +370,73 @@ const Elections = () => {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 mt-2 mb-3">
-                      <span className="bg-indigo-500/10 text-indigo-300 px-3 py-1 rounded-lg border border-indigo-500/20 text-xs font-semibold flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-2 mt-2 mb-4">
+                      <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg border border-indigo-100 text-xs font-bold flex items-center gap-1.5">
                         <Layers size={12} /> {election.election_type}
                       </span>
                       {election.district && (
-                        <span className="bg-slate-800 text-slate-400 px-3 py-1 rounded-lg border border-slate-700 text-xs flex items-center gap-1.5">
+                        <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-lg border border-slate-200 text-xs flex items-center gap-1.5 font-medium">
                           <MapPin size={12} /> {election.district}
                         </span>
                       )}
                       {election.local_body_name && (
-                        <span className="bg-slate-800 text-slate-400 px-3 py-1 rounded-lg border border-slate-700 text-xs flex items-center gap-1.5">
+                        <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-lg border border-slate-200 text-xs flex items-center gap-1.5 font-medium">
                           <Building size={12} /> {election.local_body_name}
                         </span>
                       )}
                       {election.ward && (
-                        <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-lg border border-emerald-500/20 text-xs font-semibold flex items-center gap-1.5">
+                        <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg border border-emerald-100 text-xs font-bold flex items-center gap-1.5">
                           <Hash size={12} /> Ward {election.ward}
                         </span>
                       )}
                     </div>
 
-                    <p className="text-slate-400 mb-4 leading-relaxed text-sm max-w-2xl">{election.description}</p>
+                    <p className="text-slate-500 mb-6 leading-relaxed text-sm max-w-3xl">{election.description}</p>
 
-                    <div className="flex flex-wrap gap-4 text-xs font-medium font-mono text-slate-500">
-                      <span className="flex items-center gap-2 bg-slate-900/50 px-2 py-1 rounded border border-slate-800"><Calendar size={14} className="text-slate-400" /> {new Date(election.start_date).toLocaleString()}</span>
-                      <span className="flex items-center gap-2 bg-slate-900/50 px-2 py-1 rounded border border-slate-800"><Clock size={14} className="text-slate-400" /> {isEnded ? "Ended" : "Ends"}: {new Date(election.end_date).toLocaleString()}</span>
+                    <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-500 uppercase tracking-wide">
+                      <span className="flex items-center gap-2"><Calendar size={14} className="text-indigo-400" /> {new Date(election.start_date).toLocaleString()}</span>
+                      <span className="flex items-center gap-2"><Clock size={14} className="text-indigo-400" /> {isEnded ? "Ended" : "Ends"}: {new Date(election.end_date).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex md:flex-col items-center justify-between md:justify-center gap-4 border-t md:border-t-0 md:border-l border-slate-800 pt-4 md:pt-0 md:pl-6 min-w-[120px]">
-                  <span className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 shadow-sm
+                <div className="flex md:flex-col items-center justify-between md:justify-center gap-4 border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 min-w-[140px]">
+                  <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border flex items-center gap-2 shadow-sm
                         ${isEnded
-                      ? 'bg-slate-800 border-slate-700 text-slate-400'
+                      ? 'bg-slate-100 border-slate-200 text-slate-500'
                       : election.is_active
-                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                        : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                        ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
+                        : 'bg-rose-50 border-rose-100 text-rose-500'
                     }`}>
-                    <span className={`w-2 h-2 rounded-full ${isEnded ? 'bg-slate-500' : election.is_active ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${isEnded ? 'bg-slate-400' : election.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
                     {isEnded ? "COMPLETED" : (election.is_active ? "LIVE" : "PAUSED")}
                   </span>
 
-                  {!isEnded && (
+                  {/* Toggle Logic / Publish Logic */}
+                  {!isEnded ? (
                     <button
                       onClick={() => initiateStatusChange(election, election.is_active ? 'pause' : 'resume')}
-                      className={`p-3 rounded-xl transition-all duration-300 transform hover:scale-110 shadow-lg
+                      className={`p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-md border
                                 ${election.is_active
-                          ? 'text-emerald-400 hover:bg-emerald-500/10 hover:shadow-emerald-500/20'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                          ? 'bg-white border-emerald-100 text-emerald-500 hover:bg-emerald-50 hover:shadow-emerald-100'
+                          : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                         }`}
                       title={election.is_active ? "Pause Election" : "Resume Election"}
                     >
-                      {election.is_active ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                      {election.is_active ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
+                    </button>
+                  ) : (
+                    // PUBLISH BUTTON FOR COMPLETED ELECTIONS
+                    <button
+                        onClick={() => handlePublishToggle(election)}
+                        className={`p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-md border
+                                ${isPublished
+                            ? 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100'
+                            : 'bg-white border-slate-200 text-slate-400 hover:text-indigo-500 hover:border-indigo-100'
+                        }`}
+                        title={isPublished ? "Results Published (Click to Unpublish)" : "Publish Results Now"}
+                    >
+                        {isPublished ? <Eye size={30} /> : <Share2 size={30} />}
                     </button>
                   )}
                 </div>
@@ -419,65 +449,64 @@ const Elections = () => {
       {/* --- CREATE/EDIT MODAL --- */}
       {showFormModal && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md transition-opacity" onClick={resetForm} />
-          <div className="relative bg-slate-900 border border-slate-800 rounded-t-3xl md:rounded-3xl w-full max-w-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-10 md:slide-in-from-bottom-5 duration-300 flex flex-col max-h-[90vh] md:max-h-[85vh]">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={resetForm} />
+          <div className="relative bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] w-full max-w-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-10 md:slide-in-from-bottom-5 duration-300 flex flex-col max-h-[90vh] md:max-h-[85vh]">
 
-            <div className="px-8 py-5 border-b border-slate-800 flex justify-between items-center bg-slate-900 rounded-t-3xl">
+            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-[2.5rem]">
               <div>
-                <h2 className="text-2xl font-bold text-white tracking-tight">{editingId ? 'Edit Election' : 'Create Election'}</h2>
-                <p className="text-slate-500 text-sm mt-0.5">Fill in the details to configure the voting process.</p>
+                <h2 className="text-2xl font-bold text-slate-900 tracking-tight font-serif">{editingId ? 'Edit Election' : 'Create Election'}</h2>
+                <p className="text-slate-500 text-sm mt-1">Fill in the details to configure the voting process.</p>
               </div>
-              <button onClick={resetForm} className="text-slate-500 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-all"><X size={20} /></button>
+              <button onClick={resetForm} className="text-slate-400 hover:text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 p-2 rounded-full transition-all shadow-sm"><X size={20} /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-8 overflow-y-auto custom-scrollbar space-y-6">
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <label className="text-xs uppercase font-bold text-slate-400 tracking-wider">Election Title <span className="text-red-500">*</span></label>
-                  <input required placeholder="e.g. Annual Grama Panchayat Election 2024" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-white placeholder-slate-600 transition-all outline-none" />
+                  <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">Election Title <span className="text-rose-500">*</span></label>
+                  <input required placeholder="e.g. Annual Grama Panchayat Election 2024" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 placeholder-slate-400 transition-all outline-none font-medium" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs uppercase font-bold text-slate-400 tracking-wider">Description <span className="text-red-500">*</span></label>
-                  <textarea required placeholder="Briefly describe the purpose of this election..." rows="3" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-white placeholder-slate-600 transition-all outline-none resize-none" />
+                  <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">Description <span className="text-rose-500">*</span></label>
+                  <textarea required placeholder="Briefly describe the purpose of this election..." rows="3" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 placeholder-slate-400 transition-all outline-none resize-none font-medium" />
                 </div>
               </div>
 
               {/* JURISDICTION SETTINGS */}
-              <div className="bg-slate-950/50 border border-slate-800/50 rounded-2xl p-5 space-y-5">
-                <h3 className="text-sm font-bold text-indigo-400 flex gap-2 items-center"><Building size={16} /> Jurisdiction Configuration</h3>
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-6 space-y-6">
+                <h3 className="text-sm font-bold text-indigo-700 flex gap-2 items-center"><Building size={16} /> Jurisdiction Configuration</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs uppercase font-bold text-slate-500">Election Level <span className="text-red-500">*</span></label>
+                    <label className="text-xs uppercase font-bold text-slate-500">Election Level <span className="text-rose-500">*</span></label>
                     <div className="relative group">
-                      <select required value={form.election_type} onChange={(e) => setForm({ ...form, election_type: e.target.value, block: '', local_body_name: '', ward: '' })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer hover:border-slate-600">
+                      <select required value={form.election_type} onChange={(e) => setForm({ ...form, election_type: e.target.value, block: '', local_body_name: '', ward: '' })} className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl p-3.5 text-slate-900 appearance-none outline-none transition-all cursor-pointer hover:border-indigo-300 font-medium shadow-sm">
                         {ELECTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-hover:text-slate-300 transition-colors" size={16} />
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-indigo-500 transition-colors" size={16} />
                     </div>
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs uppercase font-bold text-slate-500">District <span className="text-red-500">*</span></label>
+                    <label className="text-xs uppercase font-bold text-slate-500">District <span className="text-rose-500">*</span></label>
                     <div className="relative group">
-                      <select required value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value, block: '', local_body_name: '' })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer hover:border-slate-600">
+                      <select required value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value, block: '', local_body_name: '' })} className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl p-3.5 text-slate-900 appearance-none outline-none transition-all cursor-pointer hover:border-indigo-300 font-medium shadow-sm">
                         <option value="">-- Select District --</option>
                         {adminData.districts?.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-hover:text-slate-300 transition-colors" size={16} />
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-indigo-500 transition-colors" size={16} />
                     </div>
                   </div>
 
                   {(form.election_type === 'Block Panchayat' || form.election_type === 'Grama Panchayat') && (
                     <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2">
-                      <label className="text-xs uppercase font-bold text-slate-500">Block Panchayat <span className="text-red-500">*</span></label>
+                      <label className="text-xs uppercase font-bold text-slate-500">Block Panchayat <span className="text-rose-500">*</span></label>
                       <div className="relative group">
-                        {/* Use blocks map accessed by district key */}
-                        <select required value={form.block} onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer disabled:opacity-50" disabled={!form.district}>
+                        <select required value={form.block} onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl p-3.5 text-slate-900 appearance-none outline-none transition-all cursor-pointer disabled:opacity-50 disabled:bg-slate-100 font-medium shadow-sm" disabled={!form.district}>
                           <option value="">-- Select Block --</option>
                           {form.district && adminData.blocks?.[form.district]?.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                       </div>
                     </div>
                   )}
@@ -486,14 +515,14 @@ const Elections = () => {
                     <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2">
                       <label className="text-xs uppercase font-bold text-slate-500">
                         {form.election_type === 'Grama Panchayat' ? 'Grama Panchayat Name' :
-                          form.election_type === 'Municipality' ? 'Municipality Name' : 'Corporation Name'} <span className="text-red-500">*</span>
+                          form.election_type === 'Municipality' ? 'Municipality Name' : 'Corporation Name'} <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative group">
-                        <select required value={form.local_body_name} onChange={(e) => setForm({ ...form, local_body_name: e.target.value })} className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white appearance-none outline-none transition-all cursor-pointer disabled:opacity-50" disabled={!form.district}>
+                        <select required value={form.local_body_name} onChange={(e) => setForm({ ...form, local_body_name: e.target.value })} className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl p-3.5 text-slate-900 appearance-none outline-none transition-all cursor-pointer disabled:opacity-50 disabled:bg-slate-100 font-medium shadow-sm" disabled={!form.district}>
                           <option value="">-- Select Name --</option>
                           {getLocalBodyList().map(name => <option key={name} value={name}>{name}</option>)}
                         </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                       </div>
                     </div>
                   )}
@@ -501,18 +530,18 @@ const Elections = () => {
                   {isWardRequired(form.election_type) && (
                     <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2">
                       <label className="text-xs uppercase font-bold text-slate-500">
-                        Specific Ward / Division <span className="text-red-500">*</span>
+                        Specific Ward / Division <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
                         <input
                           value={form.ward}
                           onChange={(e) => setForm({ ...form, ward: e.target.value })}
-                          className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-white outline-none transition-all placeholder-slate-600 pl-10"
+                          className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all placeholder-slate-400 pl-10 font-medium shadow-sm"
                           placeholder="e.g. 12"
                         />
-                        <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                        <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       </div>
-                      <p className="text-xs text-slate-500">Only voters registered in this ward will see this election.</p>
+                      <p className="text-xs text-slate-400 mt-1">Only voters registered in this ward will see this election.</p>
                     </div>
                   )}
                 </div>
@@ -520,18 +549,18 @@ const Elections = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <label className="text-xs uppercase font-bold text-slate-400 tracking-wider">Start Date <span className="text-red-500">*</span></label>
-                  <input required type="datetime-local" value={form.start_date} onChange={handleStartDateChange} className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-white outline-none transition-all" />
+                  <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">Start Date <span className="text-rose-500">*</span></label>
+                  <input required type="datetime-local" value={form.start_date} onChange={handleStartDateChange} className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs uppercase font-bold text-slate-400 tracking-wider">End Date <span className="text-red-500">*</span></label>
-                  <input required type="datetime-local" value={form.end_date} onChange={handleEndDateChange} className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-white outline-none transition-all" />
+                  <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">End Date <span className="text-rose-500">*</span></label>
+                  <input required type="datetime-local" value={form.end_date} onChange={handleEndDateChange} className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium" />
                 </div>
               </div>
 
-              <div className="flex gap-4 pt-6 mt-4 border-t border-slate-800">
-                <button type="button" onClick={resetForm} className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition-colors">Cancel</button>
-                <button type="submit" disabled={submitting} className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all transform hover:-translate-y-0.5">
+              <div className="flex gap-4 pt-6 mt-4 border-t border-slate-100">
+                <button type="button" onClick={resetForm} className="flex-1 py-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">Cancel</button>
+                <button type="submit" disabled={submitting} className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all transform hover:-translate-y-0.5">
                   {submitting ? <Loader2 className="animate-spin mx-auto" /> : (editingId ? 'Update Election' : 'Create Election')}
                 </button>
               </div>
@@ -543,20 +572,20 @@ const Elections = () => {
       {/* --- CONFIRMATION MODAL --- */}
       {confirmModal.show && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onClick={() => setConfirmModal({ show: false, type: null, data: null })} />
-          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
-            <div className={`w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center ${confirmModal.type === 'stop' ? 'bg-rose-500/10 text-rose-500' : 'bg-amber-500/10 text-amber-500'}`}>
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setConfirmModal({ show: false, type: null, data: null })} />
+          <div className="relative bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className={`w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center ${confirmModal.type === 'stop' ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'}`}>
               <AlertTriangle size={32} />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-2 capitalize">{confirmModal.type === 'stop' ? 'Stop Permanently?' : `${confirmModal.type} Election?`}</h3>
-            <p className="text-slate-400 mb-8 leading-relaxed text-sm">
+            <h3 className="text-2xl font-bold text-slate-900 mb-2 capitalize font-serif">{confirmModal.type === 'stop' ? 'Stop Permanently?' : `${confirmModal.type} Election?`}</h3>
+            <p className="text-slate-500 mb-8 leading-relaxed text-sm">
               {confirmModal.type === 'stop'
                 ? "This action is irreversible. The election will be closed immediately."
                 : `Are you sure you want to ${confirmModal.type} the election "${confirmModal.data?.title}"?`}
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmModal({ show: false, type: null, data: null })} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition-colors">Cancel</button>
-              <button onClick={executeStatusChange} disabled={submitting} className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg transition-all ${confirmModal.type === 'stop' ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-500/20' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20'}`}>
+              <button onClick={() => setConfirmModal({ show: false, type: null, data: null })} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">Cancel</button>
+              <button onClick={executeStatusChange} disabled={submitting} className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg transition-all ${confirmModal.type === 'stop' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20'}`}>
                 {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Confirm'}
               </button>
             </div>
