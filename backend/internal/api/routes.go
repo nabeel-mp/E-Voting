@@ -21,6 +21,7 @@ func RegisterRoutes(app *fiber.App) {
 	auth.Post("/admin/login", AdminLogin)
 	auth.Post("/voter/login", VoterLogin)
 	auth.Post("/voter/verify-otp", VerifyOTP)
+	auth.Post("/voter/register", RegisterVoter)
 
 	voterApp := app.Group("/api/voter", middleware.PermissionMiddleware(""))
 	voterApp.Get("/elections", GetVoterElections)

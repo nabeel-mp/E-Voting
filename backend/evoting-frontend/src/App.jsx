@@ -22,6 +22,7 @@ import VoterLayout from './components/VoterLayout';
 import VoterDashboard from './pages/VoterDashboard';
 import VotingBooth from './pages/VotingBooth';
 import Landing from './pages/Landing';
+import VoterApply from './pages/VoterApply';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/voter/login" element={<VoterLogin />} />
+            <Route path="/voter/apply" element={<VoterApply />} />
 
             {/* <Route path="/live-results" element={<PublicResults />} /> */}
 

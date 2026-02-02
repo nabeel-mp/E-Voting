@@ -161,7 +161,7 @@ const Landing = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-6">
-                <Link to="/voter-login" className="group px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-2xl font-black transition-all flex items-center justify-center gap-3 text-lg">
+                <Link to="/voter/apply" className="group px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-2xl font-black transition-all flex items-center justify-center gap-3 text-lg">
                   Register to Vote <ChevronRight className="group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link to="/results" className="px-10 py-5 bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-2xl font-bold transition-all text-center">
@@ -224,7 +224,7 @@ const Landing = () => {
                   <p className="text-emerald-100/80 max-w-md">Turned 18? Don't miss out. Apply for your voter ID online in under 5 minutes.</p>
                 </div>
               </div>
-              <Link to="/voter-login" className="px-8 py-4 bg-white text-emerald-700 rounded-full font-black shadow-lg hover:scale-105 transition-all shrink-0">
+              <Link to="/voter/apply" className="px-8 py-4 bg-white text-emerald-700 rounded-full font-black shadow-lg hover:scale-105 transition-all shrink-0">
                 Apply Now
               </Link>
             </motion.div>
