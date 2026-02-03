@@ -30,19 +30,13 @@ func main() {
 
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*", // Allow Vite frontend
+		AllowOrigins: "http://localhost:5173, http://localhost:3000",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 		AllowMethods: "GET, POST, HEAD, PUT, DELETE, PATCH",
 	}))
 
 	app.Static("/uploads", "./uploads")
 	api.RegisterRoutes(app)
-
-	app.Static("/", "./evoting-frontend/dist")
-
-	app.Get("*", func(c *fiber.Ctx) error {
-		return c.SendFile("./evoting-frontend/dist/index.html")
-	})
 
 	log.Printf(" %s running on port %s",
 		config.Config.AppName,

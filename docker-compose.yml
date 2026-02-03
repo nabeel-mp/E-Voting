@@ -1,6 +1,5 @@
-
 services:
-  # Core Data Database (PostgreSQL)
+  # 1. Database Service (PostgreSQL)
   postgres_db:
     image: postgres:15-alpine
     container_name: evoting_postgres
@@ -19,7 +18,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Audit Trail Database (MongoDB)
+  # 2. Audit Database (MongoDB)
   mongo_db:
     image: mongo:latest
     container_name: evoting_mongo
@@ -31,10 +30,10 @@ services:
     volumes:
       - mongo_data:/data/db
 
-  # Backend Go Application
+  # 3. Backend Service (Go)
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: evoting_backend
     restart: always
@@ -42,14 +41,13 @@ services:
       postgres_db:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "8080:8080" # Exposes Backend API to localhost:8080
     environment:
-      APP_NAME: "E-Voting-System"
       APP_PORT: 8080
       APP_ENV: production
       JWT_SECRET: ${JWT_SECRET}
       
-      # Connect using service names as hosts
+      # Connect to Databases via Service Names (Docker Network)
       POSTGRES_HOST: postgres_db
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -59,7 +57,7 @@ services:
       MONGO_URI: "mongodb://mongo_db:27017"
       MONGO_DB: ${MONGO_DB:-evoting_logs}
     volumes:
-      - ./uploads:/root/uploads # Persistent storage for uploaded avatars
+      - ./backend/uploads:/root/uploads
 
 volumes:
   postgres_data:

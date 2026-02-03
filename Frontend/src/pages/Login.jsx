@@ -38,6 +38,7 @@ const Login = () => {
       const res = await api.post('/api/auth/admin/login', { email, password });
       if (res.data.success) {
         addToast("Welcome back, Administrator", "success");
+        localStorage.setItem('admin_token', res.data.data.token);
         login(res.data.data.token);
         navigate('/admin');
       }

@@ -1,44 +1,37 @@
-
 # Stage 1: Build the Go binary
 FROM golang:1.25-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install build dependencies
+# Install git for dependencies
 RUN apk add --no-cache git
 
-# Copy dependency files first to leverage Docker layer caching
+# Copy dependency files
 COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the source code
 COPY . .
 
-# Build the application as a static binary
-# CGO_ENABLED=0 ensures the binary is self-contained and works on minimal images
+# Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o main ./cmd/main.go
 
-# Stage 2: Final minimal image for production
+# Stage 2: Final Production Image
 FROM alpine:latest
 
-# Install runtime dependencies (tzdata for IST time logs used in your code)
+# Install runtime dependencies
 RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /root/
 
-# Copy the compiled binary from the builder stage
+# Copy binary from builder
 COPY --from=builder /app/main .
 
-# Copy assets and frontend build if they are served by Go
-# Based on main.go: app.Static("/", "./evoting-frontend/dist")
-COPY --from=builder /app/evoting-frontend/dist ./evoting-frontend/dist
-
-# Ensure the uploads directory exists for avatars as required by main.go
+# Create uploads directory (Critical for your avatar logic)
 RUN mkdir -p uploads/avatars
 
-# Expose the application port defined in your config
+# Expose the API port
 EXPOSE 8080
 
-# Run the application
+# Run the backend
 CMD ["./main"]

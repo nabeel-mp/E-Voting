@@ -4,10 +4,11 @@ import "time"
 
 type Vote struct {
 	BaseModel
-	ElectionID  uint   `gorm:"not null"`
-	CandidateID uint   `gorm:"not null"`
-	VoteHash    string `gorm:"uniqueIndex;not null"`
-	Timestamp   time.Time
+	ElectionID   uint   `gorm:"not null"`
+	CandidateID  uint   `gorm:"not null"`
+	VoteHash     string `gorm:"uniqueIndex;not null"`
+	BlockchainTx string
+	Timestamp    time.Time
 }
 
 type ElectionParticipation struct {
