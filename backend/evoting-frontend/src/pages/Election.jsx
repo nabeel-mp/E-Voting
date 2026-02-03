@@ -5,7 +5,7 @@ import {
   Calendar, Plus, Loader2, Clock, ToggleLeft, ToggleRight, Vote, Lock,
   Pencil, X, MoreVertical, Trash2, AlertTriangle, Ban,
   MapPin, Building, ChevronDown, Layers, Search, Hash,
-  Share2, Eye, EyeOff, CheckCircle2, ShieldCheck
+  Share2, Eye, CheckCircle2
 } from 'lucide-react';
 
 const ELECTION_TYPES = [
@@ -36,6 +36,9 @@ const Elections = () => {
   const { addToast } = useToast();
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
+  
+  // State to force re-render every minute for live status updates
+  const [, setTick] = useState(0);
 
   const [form, setForm] = useState({
     title: '', description: '', start_date: '', end_date: '',
@@ -97,6 +100,15 @@ const Elections = () => {
 
   useEffect(() => { initData(); }, []);
 
+  // --- Live Status Timer ---
+  // Updates the UI every minute to check if elections have ended
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick(tick => tick + 1);
+    }, 60000); // 1 minute
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -113,6 +125,14 @@ const Elections = () => {
     const date = new Date(isoString);
     const offset = date.getTimezoneOffset() * 60000;
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  // Get current time in 'YYYY-MM-DDTHH:mm' format for min attributes
+  const getCurrentDateTimeLocal = () => {
+    const now = new Date();
+    // Adjust to local timezone
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
   };
 
   const isWardRequired = (type) => {
@@ -174,6 +194,7 @@ const Elections = () => {
     setForm(prev => ({
       ...prev,
       start_date: newStart,
+      // If end date is before new start date, clear end date
       end_date: (prev.end_date && prev.end_date < newStart) ? '' : prev.end_date
     }));
   };
@@ -244,7 +265,6 @@ const Elections = () => {
     finally { setSubmitting(false); }
   };
 
-  // Replaces the old direct handleDelete
   const initiateStatusChange = (election, type) => {
     setActiveDropdown(null);
     setConfirmModal({ show: true, type: type, data: election });
@@ -257,8 +277,8 @@ const Elections = () => {
     setSubmitting(true);
     try {
       if (type === 'delete') {
-         await api.delete(`/api/admin/elections/${data.ID}`);
-         addToast("Election deleted successfully", "success");
+          await api.delete(`/api/admin/elections/${data.ID}`);
+          addToast("Election deleted successfully", "success");
       } 
       else if (type === 'stop') {
         const now = new Date();
@@ -355,11 +375,12 @@ const Elections = () => {
             <p className="text-xl font-serif text-slate-600">No elections found.</p>
             <p className="text-sm mt-2">Try adjusting your search or filters.</p>
             {filterStatus === 'ALL' && !searchTerm && (
-                 <button onClick={() => setShowFormModal(true)} className="text-indigo-600 hover:text-indigo-700 font-bold mt-4 underline decoration-2 underline-offset-4">Create your first one</button>
+                  <button onClick={() => setShowFormModal(true)} className="text-indigo-600 hover:text-indigo-700 font-bold mt-4 underline decoration-2 underline-offset-4">Create your first one</button>
             )}
           </div>
         ) : (
           filteredElections.map((election, idx) => {
+            // Updated dynamically by re-render every minute
             const isEnded = new Date(election.end_date) < new Date();
             const canUpdate = !election.is_active && !isEnded;
             const canDelete = !election.is_active || isEnded;
@@ -602,11 +623,25 @@ const Elections = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">Start Date <span className="text-rose-500">*</span></label>
-                  <input required type="datetime-local" value={form.start_date} onChange={handleStartDateChange} className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium" />
+                  <input 
+                    required 
+                    type="datetime-local" 
+                    value={form.start_date} 
+                    onChange={handleStartDateChange} 
+                    min={getCurrentDateTimeLocal()} // RESTRICTION: Current Time
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">End Date <span className="text-rose-500">*</span></label>
-                  <input required type="datetime-local" value={form.end_date} onChange={handleEndDateChange} className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium" />
+                  <input 
+                    required 
+                    type="datetime-local" 
+                    value={form.end_date} 
+                    onChange={handleEndDateChange} 
+                    min={form.start_date || getCurrentDateTimeLocal()} // RESTRICTION: After Start Date
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium" 
+                  />
                 </div>
               </div>
 

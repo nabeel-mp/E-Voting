@@ -186,7 +186,7 @@ const Landing = () => {
               <div>
                 <h3 className="text-3xl font-bold text-slate-900 mb-3">Check Your Status</h3>
                 <p className="text-slate-500 leading-relaxed mb-6">Verify your inclusion in the 2026 Electoral Roll. Simply enter your EPIC number or name to find your polling booth instantly.</p>
-                <Link to="/voter-login" className="inline-flex items-center gap-2 font-black text-blue-600 text-sm hover:underline">
+                <Link to="/voter/login" className="inline-flex items-center gap-2 font-black text-blue-600 text-sm hover:underline">
                   SEARCH VOTER LIST <ArrowUpRight size={16}/>
                 </Link>
               </div>
@@ -206,7 +206,7 @@ const Landing = () => {
                 <h3 className="text-2xl font-bold mb-4 leading-tight">Locate Your <br/>Polling Station</h3>
                 <p className="text-slate-400 text-sm leading-relaxed mb-8">Get precise directions and officer contact details for your booth.</p>
               </div>
-              <Link to="/voter-login" className="relative z-10 bg-white/10 hover:bg-white/20 transition-all border border-white/10 py-4 rounded-xl text-center font-bold text-sm">
+              <Link to="/voter/login" className="relative z-10 bg-white/10 hover:bg-white/20 transition-all border border-white/10 py-4 rounded-xl text-center font-bold text-sm">
                 Open Maps
               </Link>
             </motion.div>
