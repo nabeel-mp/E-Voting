@@ -77,7 +77,7 @@ const Landing = () => {
           <nav className="hidden md:flex items-center gap-10 font-bold text-[13px] uppercase tracking-wide text-slate-600">
             <Link to="/" className="text-emerald-700">Home</Link>
             <a href="#about" onClick={scrollToAbout} className="hover:text-emerald-700 transition">Commission</a>
-            <Link to="/results" className="hover:text-emerald-700 transition">Live Results</Link>
+            <Link to="/results" className="hover:text-emerald-700 transition">Results</Link>
             <Link to="/voter/login" className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-full hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-900/10">
               Voter Portal <ArrowUpRight size={14} />
             </Link>
@@ -105,7 +105,7 @@ const Landing = () => {
             <nav className="flex flex-col gap-8 text-2xl font-serif font-bold">
               <Link to="/" onClick={() => setIsMenuOpen(false)}>Home</Link>
               <a href="#about" onClick={scrollToAbout}>The Commission</a>
-              <Link to="/results" onClick={() => setIsMenuOpen(false)}>Live Results</Link>
+              <Link to="/results" onClick={() => setIsMenuOpen(false)}>Results</Link>
               <Link to="/voter/login" className="text-emerald-600">Voter Portal</Link>
             </nav>
           </motion.div>
@@ -165,7 +165,7 @@ const Landing = () => {
                   Register to Vote <ChevronRight className="group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link to="/results" className="px-10 py-5 bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-2xl font-bold transition-all text-center">
-                  Live Results
+                  Results
                 </Link>
               </div>
             </motion.div>
@@ -349,7 +349,7 @@ const Landing = () => {
               <h5 className="text-slate-900 font-bold text-sm uppercase tracking-widest mb-6">Quick Portal</h5>
               <ul className="text-sm space-y-4 font-medium">
                 <li><a href="#" className="hover:text-emerald-600 transition">Search Roll</a></li>
-                <li><a href="#" className="hover:text-emerald-600 transition">Live Results</a></li>
+                <li><a href="#" className="hover:text-emerald-600 transition">Results</a></li>
                 <li><a href="#" className="hover:text-emerald-600 transition">Complaint Cell</a></li>
               </ul>
             </div>

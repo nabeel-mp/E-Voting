@@ -269,11 +269,18 @@ func calculateStatus(start, end time.Time, isActive bool) string {
 
 // logAdminAction is a helper to safely extract user info and log
 func logAdminAction(c *fiber.Ctx, action string, targetID uint, details map[string]interface{}) {
-	// Safely type assert with checks to avoid panics
 	userIDFloat, ok1 := c.Locals("user_id").(float64)
 	role, ok2 := c.Locals("role").(string)
 
 	if ok1 && ok2 {
 		service.LogAdminAction(uint(userIDFloat), role, action, targetID, details)
 	}
+}
+
+func GetPublishedElections(c *fiber.Ctx) error {
+	var elections []models.Election
+	if err := database.PostgresDB.Where("is_published = ?", true).Order("end_date desc").Find(&elections).Error; err != nil {
+		return utils.Error(c, 500, "Failed to fetch elections")
+	}
+	return utils.Success(c, elections)
 }

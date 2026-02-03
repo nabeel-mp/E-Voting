@@ -14,7 +14,8 @@ import {
   Search,
   Save,
   Lock,
-  Settings
+  Settings,
+  AlertTriangle
 } from 'lucide-react';
 
 const Roles = () => {
@@ -28,6 +29,9 @@ const Roles = () => {
   const [editingId, setEditingId] = useState(null); 
   const [name, setName] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState([]);
+
+  // --- Confirmation Modal State ---
+  const [confirmModal, setConfirmModal] = useState({ show: false, id: null, name: '' });
 
   const AVAILABLE_PERMISSIONS = [
     { id: 'view_dashboard', label: 'View Dashboard' },
@@ -102,14 +106,26 @@ const Roles = () => {
     setSelectedPermissions([]);
   };
 
-  const handleDelete = async (id) => {
-      if(!window.confirm("Are you sure you want to delete this role? This might affect users assigned to it.")) return;
+  // --- CONFIRMATION HANDLERS ---
+
+  const initiateDelete = (role) => {
+      setConfirmModal({ show: true, id: role.ID, name: role.Name });
+  };
+
+  const executeDelete = async () => {
+      const { id } = confirmModal;
+      if (!id) return;
+
+      setSubmitting(true);
       try {
           await api.delete(`/api/auth/admin/roles/${id}`);
           addToast("Role deleted successfully", "success");
           setRoles(roles.filter(r => r.ID !== id));
+          setConfirmModal({ show: false, id: null, name: '' });
       } catch (err) {
           addToast("Failed to delete role. It might be in use.", "error");
+      } finally {
+          setSubmitting(false);
       }
   };
 
@@ -263,7 +279,7 @@ const Roles = () => {
                                 <Pencil size={16} />
                               </button>
                               <button 
-                                onClick={() => handleDelete(r.ID)}
+                                onClick={() => initiateDelete(r)}
                                 disabled={isSuper}
                                 className={`p-2 rounded-lg border border-transparent transition-all ${
                                   isSuper 
@@ -376,19 +392,42 @@ const Roles = () => {
 
                 <div className="pt-2 border-t border-slate-100">
                   <button 
-                     type="submit" 
-                     disabled={submitting || !name || selectedPermissions.length === 0}
-                     className={`w-full py-4 text-white rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
-                         editingId 
-                         ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-500/20' 
-                         : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20'
-                     }`}
+                      type="submit" 
+                      disabled={submitting || !name || selectedPermissions.length === 0}
+                      className={`w-full py-4 text-white rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
+                          editingId 
+                          ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-500/20' 
+                          : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20'
+                      }`}
                   >
-                     {submitting ? <Loader2 className="animate-spin" size={20} /> : (editingId ? <Save size={20} /> : <Plus size={20} />)}
-                     <span>{editingId ? 'Update Role Configuration' : 'Create Role'}</span>
+                      {submitting ? <Loader2 className="animate-spin" size={20} /> : (editingId ? <Save size={20} /> : <Plus size={20} />)}
+                      <span>{editingId ? 'Update Role Configuration' : 'Create Role'}</span>
                   </button>
                 </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- CONFIRMATION MODAL --- */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setConfirmModal({ show: false, id: null, name: '' })} />
+          <div className="relative bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center bg-rose-50 text-rose-500">
+              <AlertTriangle size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2 capitalize font-serif">Delete Role?</h3>
+            <p className="text-slate-500 mb-8 leading-relaxed text-sm">
+                Are you sure you want to delete <strong>{confirmModal.name}</strong>?
+                <br/>This action cannot be undone and might affect users assigned to this role.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmModal({ show: false, id: null, name: '' })} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">Cancel</button>
+              <button onClick={executeDelete} disabled={submitting} className="flex-1 py-3 text-white rounded-xl font-bold shadow-lg transition-all bg-rose-600 hover:bg-rose-700 shadow-rose-500/20">
+                {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Confirm'}
+              </button>
+            </div>
           </div>
         </div>
       )}

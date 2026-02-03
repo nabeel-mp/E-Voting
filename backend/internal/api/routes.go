@@ -14,6 +14,11 @@ func RegisterRoutes(app *fiber.App) {
 		return utils.Success(c, service.HealthCheck())
 	})
 
+	// --- PUBLIC ROUTES ---
+	public := app.Group("/api/public")
+	public.Get("/elections", GetPublishedElections)
+	public.Get("/results", GetElectionResults)
+
 	// --- API ROUTES ---
 
 	// 1. Auth Routes (Public)

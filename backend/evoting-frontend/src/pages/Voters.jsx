@@ -33,6 +33,10 @@ const Voters = () => {
   // Modals
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  
+  // --- CONFIRMATION MODAL STATE ---
+  const [confirmModal, setConfirmModal] = useState({ show: false, action: null, data: null });
+
   const [selectedVoter, setSelectedVoter] = useState(null);
   const [activeDropdown, setActiveDropdown] = useState(null);
 
@@ -167,29 +171,34 @@ const Voters = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this voter? This action cannot be undone.")) return;
-    try {
-      await api.delete(`/api/admin/voter/${id}`);
-      addToast("Voter deleted successfully", "success");
-      initData();
-      setActiveDropdown(null);
-    } catch (err) { addToast("Failed to delete voter", "error"); }
+  // --- NEW CONFIRMATION HANDLERS ---
+
+  const initiateAction = (action, voter) => {
+    setActiveDropdown(null);
+    setConfirmModal({ show: true, action, data: voter });
   };
 
-  const toggleBlockStatus = async (voter) => {
-    const id = voter.ID;
-    const isBlocked = voter.IsBlocked;
-    if (!window.confirm(`${isBlocked ? "UNBLOCK" : "BLOCK"} access for ${voter.FullName}?`)) return;
+  const executeConfirmAction = async () => {
+    const { action, data } = confirmModal;
+    if (!data) return;
 
-    setActiveDropdown(null);
+    setSubmitting(true);
     try {
-      const endpoint = isBlocked ? "/api/admin/voter/unblock" : "/api/admin/voter/block";
-      await api.post(endpoint, { voter_id: id });
-      addToast(`Voter ${isBlocked ? 'unblocked' : 'blocked'} successfully`, "success");
-      initData();
+        if (action === 'DELETE') {
+            await api.delete(`/api/admin/voter/${data.ID}`);
+            addToast("Voter deleted successfully", "success");
+        } 
+        else if (action === 'BLOCK' || action === 'UNBLOCK') {
+            const endpoint = action === 'UNBLOCK' ? "/api/admin/voter/unblock" : "/api/admin/voter/block";
+            await api.post(endpoint, { voter_id: data.ID });
+            addToast(`Voter ${action === 'UNBLOCK' ? 'unblocked' : 'blocked'} successfully`, "success");
+        }
+        initData();
+        setConfirmModal({ show: false, action: null, data: null });
     } catch (err) {
-      addToast("Failed to update status", "error");
+        addToast(err.response?.data?.error || "Action failed", "error");
+    } finally {
+        setSubmitting(false);
     }
   };
 
@@ -376,8 +385,8 @@ const Voters = () => {
                           <button onClick={() => openDetailsModal(v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Eye size={14} className="text-sky-500" /> View Details</button>
                           <button onClick={() => openEditModal(v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Pencil size={14} className="text-indigo-500" /> Edit Profile</button>
                           <div className="h-px bg-slate-100 my-1 mx-1"></div>
-                          <button onClick={() => toggleBlockStatus(v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Ban size={14} className="text-amber-500" /> {v.IsBlocked ? 'Unblock' : 'Block Access'}</button>
-                          <button onClick={() => handleDelete(v.ID)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-rose-50 transition-colors flex items-center gap-2 font-medium text-rose-500"><Trash2 size={14} /> Delete Voter</button>
+                          <button onClick={() => initiateAction(v.IsBlocked ? 'UNBLOCK' : 'BLOCK', v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Ban size={14} className="text-amber-500" /> {v.IsBlocked ? 'Unblock' : 'Block Access'}</button>
+                          <button onClick={() => initiateAction('DELETE', v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-rose-50 transition-colors flex items-center gap-2 font-medium text-rose-500"><Trash2 size={14} /> Delete Voter</button>
                         </div>
                       )}
                     </td>
@@ -562,6 +571,30 @@ const Voters = () => {
           </div>
         </div>
       )}
+
+      {/* --- CONFIRMATION MODAL --- */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setConfirmModal({ show: false, action: null, data: null })} />
+          <div className="relative bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className={`w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center ${confirmModal.action === 'DELETE' ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'}`}>
+              {confirmModal.action === 'DELETE' ? <Trash2 size={32} /> : <AlertTriangle size={32} />}
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2 capitalize font-serif">{confirmModal.action} Voter?</h3>
+            <p className="text-slate-500 mb-8 leading-relaxed text-sm">
+                Are you sure you want to {confirmModal.action?.toLowerCase()} <strong>{confirmModal.data?.FullName}</strong>? 
+                {confirmModal.action === 'DELETE' && " This action cannot be undone."}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmModal({ show: false, action: null, data: null })} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">Cancel</button>
+              <button onClick={executeConfirmAction} disabled={submitting} className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg transition-all ${confirmModal.action === 'DELETE' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20'}`}>
+                {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

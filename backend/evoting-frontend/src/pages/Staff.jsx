@@ -11,7 +11,9 @@ import {
   Users,
   Search,
   X,
-  LayoutGrid
+  LayoutGrid,
+  Unlock,
+  AlertTriangle
 } from 'lucide-react';
 
 const Staff = () => {
@@ -21,10 +23,18 @@ const Staff = () => {
 
   const [admins, setAdmins] = useState([]);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
+  
+  // Filtering States
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  
+  // State for row actions
+  const [processingId, setProcessingId] = useState(null);
 
-  // State for modal
+  // State for modals
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ show: false, action: null, id: null, email: '' });
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchAdmins = async () => {
     try {
@@ -62,11 +72,81 @@ const Staff = () => {
     }
   };
 
-  const filteredAdmins = admins.filter(admin =>
-    !admin.is_super &&
-    (admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (admin.name && admin.name.toLowerCase().includes(searchTerm.toLowerCase())))
-  );
+  const toggleAvailability = async (id, currentAvailability) => {
+    if (processingId) return;
+    setProcessingId(id);
+
+    // Optimistic Update
+    const previousAdmins = [...admins];
+    setAdmins(admins.map(admin => 
+      admin.id === id ? { ...admin, is_available: !currentAvailability } : admin
+    ));
+
+    try {
+      await api.post('/api/auth/admin/toggle-availability', { admin_id: id });
+      addToast(`Availability updated`, "success");
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to update availability", "error");
+      setAdmins(previousAdmins); 
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // --- CONFIRMATION HANDLERS ---
+
+  const initiateStatusToggle = (admin) => {
+    const action = admin.is_active ? 'BLOCK' : 'UNBLOCK';
+    setConfirmModal({ show: true, action, id: admin.id, email: admin.email });
+  };
+
+  const executeStatusToggle = async () => {
+    const { action, id } = confirmModal;
+    if (!id) return;
+
+    setSubmitting(true);
+    try {
+      const endpoint = action === 'BLOCK' ? "/auth/admin/block" : "/auth/admin/unblock";
+      await api.post(endpoint, { admin_id: id });
+      addToast(`Staff ${action === 'BLOCK' ? 'blocked' : 'unblocked'} successfully`, "success");
+
+      // Update local state
+      setAdmins(admins.map(admin => {
+        if (admin.id === id) {
+            if (action === 'BLOCK') {
+                return { ...admin, is_active: false, is_available: false };
+            }
+            return { ...admin, is_active: true };
+        }
+        return admin;
+      }));
+
+      setConfirmModal({ show: false, action: null, id: null, email: '' });
+    } catch (err) {
+      addToast(`Failed to ${action.toLowerCase()} staff.`, "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const filteredAdmins = admins.filter(admin => {
+    // 1. Exclude Super Admins
+    if (admin.is_super) return false;
+
+    // 2. Search Filter
+    const matchesSearch = 
+      admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (admin.name && admin.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    // 3. Status Filter
+    let matchesStatus = true;
+    if (filterStatus === 'ACTIVE') matchesStatus = admin.is_active === true;
+    if (filterStatus === 'BLOCKED') matchesStatus = admin.is_active === false;
+    if (filterStatus === 'AVAILABLE') matchesStatus = admin.is_active === true && admin.is_available === true;
+
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 h-screen flex flex-col p-6 md:p-10 bg-[#f8fafc]">
@@ -82,13 +162,13 @@ const Staff = () => {
             Staff <span className="italic text-slate-400 font-light">Management</span>
           </h1>
           <p className="text-slate-500 mt-3 text-lg font-light">
-            Oversee administrators and manage system access.
+            Oversee administrators, manage availability, and control access.
           </p>
         </div>
 
         <div className="flex gap-4">
           <Link
-            to="/assign-roles"
+            to="/admin/assign-roles"
             className="flex items-center gap-2 px-5 py-3 bg-white hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-all border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md group"
           >
             <LayoutGrid size={18} className="text-indigo-500 group-hover:text-indigo-600" />
@@ -114,6 +194,7 @@ const Staff = () => {
             <Users size={18} className="text-indigo-500" />
             Staff Directory
           </h3>
+          
           <div className="relative w-full sm:w-80 ml-auto group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
             <input
@@ -124,9 +205,28 @@ const Staff = () => {
               className="w-full bg-white border border-slate-200 text-slate-700 pl-12 pr-4 py-3 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-400 font-medium"
             />
           </div>
+
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
+                {['ALL', 'ACTIVE', 'AVAILABLE', 'BLOCKED'].map((status) => (
+                    <button
+                        key={status}
+                        onClick={() => setFilterStatus(status)}
+                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-300 whitespace-nowrap ${
+                            filterStatus === status 
+                            ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' 
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                        }`}
+                    >
+                        {status === 'ALL' && 'All'}
+                        {status === 'ACTIVE' && 'Active'}
+                        {status === 'AVAILABLE' && 'Available'}
+                        {status === 'BLOCKED' && 'Blocked'}
+                    </button>
+                ))}
+            </div>
         </div>
 
-        {/* Scrollable Table - REDUCED & CLEANER */}
+        {/* Scrollable Table */}
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500 tracking-wider border-b border-slate-100 sticky top-0 z-10 shadow-sm">
@@ -135,17 +235,18 @@ const Staff = () => {
                 <th className="px-6 py-5">Roles</th>
                 <th className="px-6 py-5 text-center">Availability</th>
                 <th className="px-6 py-5 text-center">Status</th>
+                <th className="px-8 py-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loadingAdmins ? (
-                <tr><td colSpan="4" className="px-6 py-20 text-center"><div className="flex flex-col items-center gap-3"><Loader2 className="animate-spin text-indigo-600 w-8 h-8" /><span className="text-slate-400 font-medium">Loading staff list...</span></div></td></tr>
+                <tr><td colSpan="5" className="px-6 py-20 text-center"><div className="flex flex-col items-center gap-3"><Loader2 className="animate-spin text-indigo-600 w-8 h-8" /><span className="text-slate-400 font-medium">Loading staff list...</span></div></td></tr>
               ) : filteredAdmins.length === 0 ? (
-                <tr><td colSpan="4" className="px-6 py-20 text-center text-slate-400 font-medium">No staff members found matching your search.</td></tr>
+                <tr><td colSpan="5" className="px-6 py-20 text-center text-slate-400 font-medium">No staff members found matching your search.</td></tr>
               ) : (
                 filteredAdmins.map(admin => {
-                  // Determine if availability is active
                   const showAvailable = admin.is_available && admin.is_active;
+                  const isToggleDisabled = processingId === admin.id || !admin.is_active;
 
                   return (
                     <tr key={admin.id} className={`group transition-colors ${admin.is_active ? 'hover:bg-slate-50' : 'bg-rose-50/30 hover:bg-rose-50/50'}`}>
@@ -158,7 +259,7 @@ const Staff = () => {
                           </div>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900 text-base">{admin.email}</span>
-                            <span className="text-xs text-slate-400 font-medium">Joined {new Date(admin.created).toLocaleDateString()}</span>
+                            <span className="text-xs text-slate-400 font-medium">ID: #{admin.id}</span>
                           </div>
                         </div>
                       </td>
@@ -176,19 +277,21 @@ const Staff = () => {
                         </div>
                       </td>
 
-                      {/* Availability - Static Display (No onClick) */}
+                      {/* Availability - INTERACTIVE TOGGLE */}
                       <td className="px-6 py-5 text-center">
-                        <div
-                          title={showAvailable ? "Available" : "Unavailable"}
-                          className={`relative inline-flex h-5 w-9 items-center cursor-not-allowed rounded-full transition-colors border ${
-                            showAvailable ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'
-                          } cursor-default`}
+                        <button
+                          onClick={() => toggleAvailability(admin.id, admin.is_available)}
+                          disabled={isToggleDisabled}
+                          title={!admin.is_active ? "Blocked" : "Toggle Availability"}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                            showAvailable ? 'bg-emerald-500' : 'bg-slate-200'
+                          } ${isToggleDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           <span className={`${
-                              showAvailable ? 'translate-x-4' : 'translate-x-0.5'
-                            } inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform`} 
+                              showAvailable ? 'translate-x-6' : 'translate-x-1'
+                            } inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200`} 
                           />
-                        </div>
+                        </button>
                       </td>
 
                       {/* Status - Minimal Badge */}
@@ -200,6 +303,22 @@ const Staff = () => {
                         }`}>
                           {admin.is_active ? 'Active' : 'Blocked'}
                         </span>
+                      </td>
+
+                      {/* Actions - BLOCK/UNBLOCK BUTTON */}
+                      <td className="px-8 py-5 text-right">
+                          <button 
+                            onClick={() => initiateStatusToggle(admin)}
+                            disabled={processingId === admin.id}
+                            title={admin.is_active ? "Block User" : "Unblock User"}
+                            className={`p-2.5 rounded-xl transition-all shadow-sm border inline-flex items-center justify-center ${
+                              admin.is_active 
+                              ? 'bg-white text-slate-400 border-slate-200 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200' 
+                              : 'bg-white text-rose-500 border-rose-100 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200'
+                            } ${processingId === admin.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            {admin.is_active ? <Lock size={18} /> : <Unlock size={18} />}
+                          </button>
                       </td>
 
                     </tr>
@@ -275,6 +394,29 @@ const Staff = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- CONFIRMATION MODAL --- */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setConfirmModal({ show: false, action: null, id: null, email: '' })} />
+          <div className="relative bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className={`w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center ${confirmModal.action === 'BLOCK' ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'}`}>
+              <AlertTriangle size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2 capitalize font-serif">{confirmModal.action === 'BLOCK' ? 'Block Access?' : 'Unblock Access?'}</h3>
+            <p className="text-slate-500 mb-8 leading-relaxed text-sm">
+                Are you sure you want to {confirmModal.action?.toLowerCase()} <strong>{confirmModal.email}</strong>?
+                {confirmModal.action === 'BLOCK' && " They will no longer be able to log in."}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmModal({ show: false, action: null, id: null, email: '' })} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">Cancel</button>
+              <button onClick={executeStatusToggle} disabled={submitting} className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg transition-all ${confirmModal.action === 'BLOCK' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'}`}>
+                {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Confirm'}
+              </button>
+            </div>
           </div>
         </div>
       )}

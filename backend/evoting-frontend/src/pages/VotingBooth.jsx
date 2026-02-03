@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { Loader2, AlertTriangle, CheckCircle2, Lock, Vote, Ban } from 'lucide-react';
+import { Loader2, CheckCircle2, Lock, Vote, Ban } from 'lucide-react';
 
 const VotingBooth = () => {
   const { id } = useParams();
@@ -11,7 +11,7 @@ const VotingBooth = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
-  const [alreadyVoted, setAlreadyVoted] = useState(false); // New state for access control
+  const [alreadyVoted, setAlreadyVoted] = useState(false); 
 
   // --- AUDIO HELPER: EVM Beep Sound ---
   const playBeep = () => {
@@ -59,8 +59,8 @@ const VotingBooth = () => {
 
   const castVote = async () => {
     if(!selectedCandidate) return;
-    if(!window.confirm(`Confirm vote for ${selectedCandidate.full_name}? This cannot be changed.`)) return;
-
+    
+    // Removed window.confirm to allow direct action
     setSubmitting(true);
     
     try {
@@ -70,10 +70,10 @@ const VotingBooth = () => {
         });
 
         if(res.data.success) {
-            // 1. Play EVM Beep
+            // 1. Play EVM Beep immediately on success
             playBeep();
 
-            // 2. Freeze for 2 seconds (simulating machine process)
+            // 2. Freeze for 2 seconds (simulating machine process) before showing receipt
             setTimeout(() => {
                 setSuccess(res.data.data);
                 setSubmitting(false);
@@ -112,7 +112,7 @@ const VotingBooth = () => {
                   <CheckCircle2 size={48} className="text-emerald-400" />
               </div>
               <h1 className="text-3xl font-bold text-slate-900 mb-2">Vote Cast Successfully!</h1>
-              <p className="text-slate-500 mb-8">Your vote has been recorded </p>
+              <p className="text-slate-500 mb-8">Your vote has been recorded securely.</p>
               
               <button onClick={() => navigate('/portal')} className="px-8 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-colors">
                   Return to Dashboard
@@ -201,7 +201,7 @@ const VotingBooth = () => {
                     </>
                 ) : (
                     <>
-                        <Vote /> Confirm Vote
+                        <Vote /> Cast Vote
                     </>
                 )} 
               </button>

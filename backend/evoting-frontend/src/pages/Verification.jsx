@@ -15,18 +15,23 @@ import {
   AlertOctagon,
   Calendar,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 
 const Verification = () => {
   const [pendingVoters, setPendingVoters] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal States
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedVoter, setSelectedVoter] = useState(null);
+  
+  // Confirmation State
+  const [confirmModal, setConfirmModal] = useState({ show: false, action: null, data: null });
+  const [submitting, setSubmitting] = useState(false);
 
   const { addToast } = useToast();
 
@@ -48,41 +53,39 @@ const Verification = () => {
 
   useEffect(() => { fetchPendingVoters(); }, []);
 
-  const handleVerify = async (voter) => {
-    const targetId = voter.ID || voter.id;
-    if (!targetId) return;
+  // --- CONFIRMATION HANDLERS ---
 
-    if (!window.confirm(`Verify and approve ${voter.FullName}?`)) return;
-    
-    setProcessingId(targetId);
-    try {
-        await api.post('/api/admin/voter/verify', { voter_id: targetId });
-        setPendingVoters(prev => prev.filter(v => (v.ID !== targetId && v.id !== targetId)));
-        addToast("Voter verified successfully", "success");
-        setShowDetailsModal(false);
-    } catch (err) {
-        addToast(err.response?.data?.error || "Operation failed", "error");
-    } finally {
-        setProcessingId(null);
-    }
+  const initiateAction = (action, voter) => {
+    setConfirmModal({ show: true, action, data: voter });
   };
 
-  const handleReject = async (voter) => {
-    const targetId = voter.ID || voter.id;
+  const executeConfirmAction = async () => {
+    const { action, data } = confirmModal;
+    const targetId = data?.ID || data?.id;
     if (!targetId) return;
 
-    if (!window.confirm(`Are you sure you want to REJECT ${voter.FullName}?`)) return;
-    
-    setProcessingId(targetId);
+    setSubmitting(true);
     try {
+      if (action === 'VERIFY') {
+        await api.post('/api/admin/voter/verify', { voter_id: targetId });
+        addToast("Voter verified successfully", "success");
+      } 
+      else if (action === 'REJECT') {
         await api.post('/api/admin/voter/reject', { voter_id: targetId });
-        setPendingVoters(prev => prev.filter(v => (v.ID !== targetId && v.id !== targetId)));
         addToast("Voter request rejected", "info");
-        setShowDetailsModal(false);
+      }
+
+      // Update Local State
+      setPendingVoters(prev => prev.filter(v => (v.ID !== targetId && v.id !== targetId)));
+      
+      // Close Modals
+      setConfirmModal({ show: false, action: null, data: null });
+      setShowDetailsModal(false);
+      
     } catch (err) {
-        addToast(err.response?.data?.error || "Operation failed", "error");
+      addToast(err.response?.data?.error || "Operation failed", "error");
     } finally {
-        setProcessingId(null);
+      setSubmitting(false);
     }
   };
 
@@ -239,17 +242,15 @@ const Verification = () => {
                                             View Details
                                         </button>
                                         <button 
-                                            onClick={() => handleVerify(v)}
-                                            disabled={processingId === (v.ID || v.id)}
-                                            className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all border border-emerald-100 hover:border-emerald-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                            onClick={() => initiateAction('VERIFY', v)}
+                                            className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all border border-emerald-100 hover:border-emerald-600 active:scale-95 shadow-sm"
                                             title="Approve"
                                         >
-                                            {processingId === (v.ID || v.id) ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                                            <Check size={18} />
                                         </button>
                                         <button 
-                                            onClick={() => handleReject(v)}
-                                            disabled={processingId === (v.ID || v.id)}
-                                            className="p-2 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all border border-rose-100 hover:border-rose-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                            onClick={() => initiateAction('REJECT', v)}
+                                            className="p-2 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all border border-rose-100 hover:border-rose-200 active:scale-95 shadow-sm"
                                             title="Reject"
                                         >
                                             <X size={18} />
@@ -368,8 +369,7 @@ const Verification = () => {
             {/* Action Footer */}
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-4 shrink-0">
                 <button 
-                    onClick={() => handleReject(selectedVoter)}
-                    disabled={processingId}
+                    onClick={() => initiateAction('REJECT', selectedVoter)}
                     className="flex-1 flex items-center justify-center gap-2 bg-white hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 text-slate-500 border border-slate-200 py-3.5 rounded-xl font-bold transition-all disabled:opacity-50 group shadow-sm"
                 >
                     <AlertOctagon size={18} className="group-hover:scale-110 transition-transform" /> 
@@ -377,24 +377,46 @@ const Verification = () => {
                 </button>
                 
                 <button 
-                    onClick={() => handleVerify(selectedVoter)}
-                    disabled={processingId}
+                    onClick={() => initiateAction('VERIFY', selectedVoter)}
                     className="flex-[2] flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-200 active:scale-[0.98] transition-all disabled:opacity-50 transform hover:-translate-y-0.5"
                 >
-                    {processingId === (selectedVoter.ID || selectedVoter.id) ? (
-                        <Loader2 className="animate-spin" size={20} />
-                    ) : (
-                        <>
-                            <span>Verify & Approve</span>
-                            <ChevronRight size={18} className="opacity-60" />
-                        </>
-                    )}
+                    <span>Verify & Approve</span>
+                    <ChevronRight size={18} className="opacity-60" />
                 </button>
             </div>
 
           </div>
         </div>
       )}
+
+      {/* --- CONFIRMATION MODAL --- */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setConfirmModal({ show: false, action: null, data: null })} />
+          <div className="relative bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            
+            <div className={`w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center ${confirmModal.action === 'REJECT' ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'}`}>
+              {confirmModal.action === 'REJECT' ? <AlertTriangle size={32} /> : <CheckCircle2 size={32} />}
+            </div>
+            
+            <h3 className="text-2xl font-bold text-slate-900 mb-2 capitalize font-serif">{confirmModal.action === 'VERIFY' ? 'Approve' : 'Reject'} Application?</h3>
+            
+            <p className="text-slate-500 mb-8 leading-relaxed text-sm">
+                Are you sure you want to {confirmModal.action === 'VERIFY' ? 'verify' : 'reject'} <strong>{confirmModal.data?.FullName}</strong>?
+                {confirmModal.action === 'REJECT' && " The user will need to re-apply."}
+            </p>
+            
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmModal({ show: false, action: null, data: null })} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">Cancel</button>
+              <button onClick={executeConfirmAction} disabled={submitting} className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg transition-all ${confirmModal.action === 'REJECT' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'}`}>
+                {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Confirm'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

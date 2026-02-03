@@ -5,8 +5,6 @@ import {
   ShieldAlert, 
   ShieldCheck, 
   Search, 
-  Lock, 
-  Unlock,
   Loader2,
   ListFilter,
   Shield,
@@ -16,9 +14,8 @@ import {
 const SystemAdmins = () => {
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState(null);
   const { addToast } = useToast();
-  
+   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL'); 
 
@@ -36,60 +33,6 @@ const SystemAdmins = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const toggleAvailability = async (id, currentAvailability) => {
-    if (processingId) return;
-    setProcessingId(id);
-
-    // Optimistic Update
-    const previousAdmins = [...admins];
-    setAdmins(admins.map(admin => 
-      admin.id === id ? { ...admin, is_available: !currentAvailability } : admin
-    ));
-
-    try {
-      await api.post('/api/auth/admin/toggle-availability', { admin_id: id });
-      addToast(`Availability updated`, "success");
-    } catch (err) {
-      console.error(err);
-      addToast("Failed to update availability", "error");
-      setAdmins(previousAdmins); 
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const toggleStatus = async (id, currentStatus) => {
-    if (processingId) return;
-
-    const action = currentStatus ? "BLOCK" : "UNBLOCK";
-    if(!window.confirm(`Are you sure you want to ${action} this administrator?`)) return;
-
-    setProcessingId(id);
-    
-    // Optimistic Update: If blocking, also set availability to false
-    const previousAdmins = [...admins];
-    setAdmins(admins.map(admin => {
-        if (admin.id === id) {
-            if (currentStatus) {
-                return { ...admin, is_active: false, is_available: false };
-            }
-            return { ...admin, is_active: true };
-        }
-        return admin;
-    }));
-
-    try {
-      const endpoint = currentStatus ? "/auth/admin/block" : "/auth/admin/unblock";
-      await api.post(endpoint, { admin_id: id });
-      addToast(`Admin ${currentStatus ? 'blocked' : 'unblocked'}`, "success");
-    } catch (err) {
-      addToast(`Failed to ${action.toLowerCase()} admin.`, "error");
-      setAdmins(previousAdmins);
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
   const filteredAdmins = admins.filter(admin => {
     const rolesString = Array.isArray(admin.roles) ? admin.roles.join(' ') : (admin.role_name || '');
     
@@ -98,15 +41,18 @@ const SystemAdmins = () => {
         rolesString.toLowerCase().includes(searchTerm.toLowerCase()) ||
         admin.id.toString().includes(searchTerm)
     );
+    
     let matchesStatus = true;
     if (filterStatus === 'ACTIVE') matchesStatus = admin.is_active === true;
     if (filterStatus === 'BLOCKED') matchesStatus = admin.is_active === false;
+    if (filterStatus === 'AVAILABLE') matchesStatus = admin.is_active === true && admin.is_available === true;
+    
     return matchesSearch && matchesStatus;
   });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 h-[calc(100vh-100px)] flex flex-col p-6 md:p-10 bg-[#f8fafc]">
-      
+       
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0 border-b border-slate-200 pb-8">
         <div>
@@ -118,7 +64,7 @@ const SystemAdmins = () => {
             System <span className="italic text-slate-400 font-light">Administrators</span>
           </h1>
           <p className="text-slate-500 mt-3 text-lg font-light">
-            Monitor and manage privileged access accounts.
+            Directory of all privileged access accounts.
           </p>
         </div>
         
@@ -163,12 +109,12 @@ const SystemAdmins = () => {
                />
             </div>
             
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-                {['ALL', 'ACTIVE', 'BLOCKED'].map((status) => (
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
+                {['ALL', 'ACTIVE', 'AVAILABLE', 'BLOCKED'].map((status) => (
                     <button
                         key={status}
                         onClick={() => setFilterStatus(status)}
-                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-300 ${
+                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-300 whitespace-nowrap ${
                             filterStatus === status 
                             ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' 
                             : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
@@ -176,13 +122,14 @@ const SystemAdmins = () => {
                     >
                         {status === 'ALL' && 'All'}
                         {status === 'ACTIVE' && 'Active'}
+                        {status === 'AVAILABLE' && 'Available'}
                         {status === 'BLOCKED' && 'Blocked'}
                     </button>
                 ))}
             </div>
         </div>
 
-        {/* Scrollable Table - REDUCED */}
+        {/* Scrollable Table */}
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500 tracking-wider border-b border-slate-100 sticky top-0 z-10 shadow-sm">
@@ -191,13 +138,12 @@ const SystemAdmins = () => {
                 <th className="px-6 py-5">Roles</th>
                 <th className="px-6 py-5 text-center">Availability</th>
                 <th className="px-6 py-5 text-center">Status</th>
-                <th className="px-8 py-5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                    <td colSpan="5" className="px-6 py-20 text-center">
+                    <td colSpan="4" className="px-6 py-20 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <Loader2 className="animate-spin text-indigo-600 w-8 h-8" />
                         <span className="text-slate-400 font-medium animate-pulse">Loading admins...</span>
@@ -206,7 +152,7 @@ const SystemAdmins = () => {
                 </tr>
               ) : filteredAdmins.length === 0 ? (
                 <tr>
-                    <td colSpan="5" className="px-6 py-20 text-center text-slate-400 font-medium">
+                    <td colSpan="4" className="px-6 py-20 text-center text-slate-400 font-medium">
                         <div className="flex flex-col items-center gap-3 opacity-60">
                           <ListFilter size={32} />
                           <p>No admins found matching your criteria.</p>
@@ -216,7 +162,6 @@ const SystemAdmins = () => {
               ) : (
                 filteredAdmins.map((admin) => {
                   const showAvailable = admin.is_available && admin.is_active;
-                  const isToggleDisabled = processingId === admin.id || !admin.is_active || admin.is_super;
 
                   return (
                     <tr key={admin.id} className={`group transition-colors ${admin.is_active ? 'hover:bg-slate-50' : 'bg-rose-50/30 hover:bg-rose-50/50'}`}>
@@ -263,58 +208,30 @@ const SystemAdmins = () => {
                         </div>
                       </td>
 
-                      {/* Availability - Toggle Only */}
+                      {/* Availability - Static Indicator (Read Only) */}
                       <td className="px-6 py-5 text-center">
-                        <button
-                          onClick={() => toggleAvailability(admin.id, admin.is_available)}
-                          disabled={isToggleDisabled}
-                          title={admin.is_super ? "Super Admin" : (!admin.is_active ? "Blocked" : "Toggle Availability")}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                            showAvailable ? 'bg-emerald-500' : 'bg-slate-200'
-                          } ${isToggleDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        <div
+                          title={showAvailable ? "Available" : "Unavailable"}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors border cursor-not-allowed ${
+                            showAvailable ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'
+                          } cursor-default`}
                         >
                           <span className={`${
-                              showAvailable ? 'translate-x-6' : 'translate-x-1'
-                            } inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200`} 
+                              showAvailable ? 'translate-x-4' : 'translate-x-0.5'
+                            } inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform`} 
                           />
-                        </button>
+                        </div>
                       </td>
 
                       {/* Status - Minimal Badge */}
                       <td className="px-6 py-5 text-center">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
-                             admin.is_active 
-                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                             : 'bg-rose-50 text-rose-700 border-rose-200'
-                          }`}>
-                               {admin.is_active ? 'Active' : 'Blocked'}
-                          </span>
-                      </td>
-
-                      {/* Action - Icon Only */}
-                      <td className="px-8 py-5 text-right">
-                        {!admin.is_super ? (
-                          <button 
-                            onClick={() => toggleStatus(admin.id, admin.is_active)}
-                            disabled={processingId === admin.id}
-                            title={admin.is_active ? "Block User" : "Unblock User"}
-                            className={`p-2.5 rounded-xl transition-all shadow-sm border ${
                               admin.is_active 
-                              ? 'bg-white text-slate-400 border-slate-200 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200' 
-                              : 'bg-white text-rose-500 border-rose-100 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200'
-                            } ${processingId === admin.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                             {processingId === admin.id ? (
-                               <Loader2 size={18} className="animate-spin" /> 
-                             ) : (
-                               admin.is_active ? <Lock size={18} /> : <Unlock size={18} />
-                             )}
-                          </button>
-                        ) : (
-                          <div className="flex justify-end pr-2 opacity-30 cursor-not-allowed text-slate-400">
-                             <ShieldCheck size={20} />
-                          </div>
-                        )}
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                           }`}>
+                                {admin.is_active ? 'Active' : 'Blocked'}
+                          </span>
                       </td>
 
                     </tr>

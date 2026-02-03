@@ -4,7 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { 
   Plus, Search, Flag, User, FileText, MoreVertical, 
   Loader2, X, Upload, Filter, Pencil, Trash2, Calendar, Lock, Eye, CheckCircle, Users,
-  ChevronDown
+  ChevronDown, AlertTriangle
 } from 'lucide-react';
 
 const Candidates = () => {
@@ -20,6 +20,9 @@ const Candidates = () => {
   // --- View Details Modal State ---
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+
+  // --- Confirmation Modal State ---
+  const [confirmModal, setConfirmModal] = useState({ show: false, type: null, id: null, name: '' });
 
   const [submitting, setSubmitting] = useState(false);
   
@@ -139,14 +142,37 @@ const Candidates = () => {
       setShowPartyModal(true);
   };
 
-  const handleDeleteParty = async (id) => {
-      if(!window.confirm("Delete this party? Action allowed only if no candidates are linked.")) return;
+  // --- CONFIRMATION HANDLERS ---
+
+  const initiateDelete = (type, item) => {
+      setActiveDropdown(null);
+      setConfirmModal({ 
+          show: true, 
+          type: type, 
+          id: getId(item), 
+          name: type === 'PARTY' ? item.name : item.full_name 
+      });
+  };
+
+  const executeDelete = async () => {
+      const { type, id } = confirmModal;
+      if (!id) return;
+
+      setSubmitting(true);
       try {
-          await api.delete(`/api/admin/parties/${id}`);
-          addToast("Party deleted successfully", "success");
+          if (type === 'PARTY') {
+              await api.delete(`/api/admin/parties/${id}`);
+              addToast("Party deleted successfully", "success");
+          } else if (type === 'CANDIDATE') {
+              await api.delete(`/api/admin/candidates/${id}`);
+              addToast("Candidate deleted successfully", "success");
+          }
           fetchData();
+          setConfirmModal({ show: false, type: null, id: null, name: '' });
       } catch (err) {
-          addToast(err.response?.data?.error || "Failed to delete party", "error");
+          addToast(err.response?.data?.error || "Failed to delete item", "error");
+      } finally {
+          setSubmitting(false);
       }
   };
 
@@ -208,18 +234,6 @@ const Candidates = () => {
       setCandidatePhotoPreview(c.photo || c.Photo ? getLogoUrl(c.photo || c.Photo) : null);
       setShowCandidateModal(true);
       setActiveDropdown(null);
-  };
-
-  const handleDeleteCandidate = async (id) => {
-      if(!window.confirm("Are you sure? This cannot be undone.")) return;
-      try {
-          await api.delete(`/api/admin/candidates/${id}`);
-          addToast("Candidate deleted successfully", "success");
-          fetchData();
-          setActiveDropdown(null);
-      } catch (err) {
-          addToast(err.response?.data?.error || "Failed to delete candidate", "error");
-      }
   };
 
   const closeCandidateModal = () => {
@@ -290,7 +304,7 @@ const Candidates = () => {
              
              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button onClick={() => handleEditParty(p)} className="p-2 bg-white text-slate-400 hover:text-indigo-600 rounded-full shadow-sm hover:shadow border border-slate-100 transition-all"><Pencil size={14} /></button>
-                <button onClick={() => handleDeleteParty(partyId)} className="p-2 bg-white text-slate-400 hover:text-rose-500 rounded-full shadow-sm hover:shadow border border-slate-100 transition-all"><Trash2 size={14} /></button>
+                <button onClick={() => initiateDelete('PARTY', p)} className="p-2 bg-white text-slate-400 hover:text-rose-500 rounded-full shadow-sm hover:shadow border border-slate-100 transition-all"><Trash2 size={14} /></button>
              </div>
            </div>
         )})}
@@ -372,7 +386,7 @@ const Candidates = () => {
                        <div className="flex items-center gap-3">
                            {c.party?.logo ? (
                                <div className="w-8 h-8 rounded bg-white p-0.5 flex items-center justify-center border border-slate-200 shadow-sm">
-                                   <img src={getLogoUrl(c.party.logo)} className="max-w-full max-h-full object-contain" />
+                                    <img src={getLogoUrl(c.party.logo)} className="max-w-full max-h-full object-contain" />
                                </div>
                            ) : (
                                <div className="w-8 h-8 rounded bg-slate-50 flex items-center justify-center border border-slate-200"><Flag size={14} className="text-slate-400" /></div>
@@ -409,40 +423,40 @@ const Candidates = () => {
                            <div ref={dropdownRef} className="absolute right-12 top-10 w-52 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                                <div className="p-1.5 space-y-0.5">
                                    <button 
-                                       onClick={() => openViewModal(c)} 
-                                       className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-3 transition-colors text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg group/btn font-medium"
+                                           onClick={() => openViewModal(c)} 
+                                           className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-3 transition-colors text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg group/btn font-medium"
                                    >
-                                       <Eye size={16} className="text-sky-500" /> 
-                                       <span>View Profile</span>
+                                           <Eye size={16} className="text-sky-500" /> 
+                                           <span>View Profile</span>
                                    </button>
 
                                    <div className="h-px bg-slate-100 my-1 mx-1"></div>
 
                                    <button 
-                                       onClick={() => handleEditCandidate(c)} 
-                                       disabled={isLocked}
-                                       className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-3 transition-colors rounded-lg font-medium ${
-                                           isLocked 
-                                           ? 'text-slate-400 cursor-not-allowed' 
-                                           : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
-                                       }`}
+                                           onClick={() => handleEditCandidate(c)} 
+                                           disabled={isLocked}
+                                           className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-3 transition-colors rounded-lg font-medium ${
+                                               isLocked 
+                                               ? 'text-slate-400 cursor-not-allowed' 
+                                               : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
+                                           }`}
                                    >
-                                       <Pencil size={16} className={isLocked ? 'opacity-50' : 'text-indigo-500'} /> 
-                                       <span>Edit Details</span>
-                                       {isLocked && <Lock size={12} className="ml-auto text-slate-400" />}
+                                           <Pencil size={16} className={isLocked ? 'opacity-50' : 'text-indigo-500'} /> 
+                                           <span>Edit Details</span>
+                                           {isLocked && <Lock size={12} className="ml-auto text-slate-400" />}
                                    </button>
                                    
                                    <button 
-                                       onClick={() => handleDeleteCandidate(cId)} 
-                                       disabled={isLocked}
-                                       className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-3 transition-colors rounded-lg font-medium ${
-                                           isLocked 
-                                           ? 'text-slate-400 cursor-not-allowed' 
-                                           : 'text-rose-600 hover:bg-rose-50'
-                                       }`}
+                                           onClick={() => initiateDelete('CANDIDATE', c)} 
+                                           disabled={isLocked}
+                                           className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-3 transition-colors rounded-lg font-medium ${
+                                               isLocked 
+                                               ? 'text-slate-400 cursor-not-allowed' 
+                                               : 'text-rose-600 hover:bg-rose-50'
+                                           }`}
                                    >
-                                       <Trash2 size={16} /> 
-                                       <span>Delete</span>
+                                           <Trash2 size={16} /> 
+                                           <span>Delete</span>
                                    </button>
                                </div>
                            </div>
@@ -674,6 +688,30 @@ const Candidates = () => {
                  </form>
               </div>
            </div>
+        </div>
+      )}
+
+      {/* --- CONFIRMATION MODAL --- */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setConfirmModal({ show: false, type: null, id: null, name: '' })} />
+          <div className="relative bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center bg-rose-50 text-rose-500">
+              <AlertTriangle size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2 capitalize font-serif">Delete {confirmModal.type === 'PARTY' ? 'Party' : 'Candidate'}?</h3>
+            <p className="text-slate-500 mb-8 leading-relaxed text-sm">
+                Are you sure you want to delete <strong>{confirmModal.name}</strong>? 
+                {confirmModal.type === 'PARTY' && " This is only possible if no candidates are linked."}
+                <br/>This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmModal({ show: false, type: null, id: null, name: '' })} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">Cancel</button>
+              <button onClick={executeDelete} disabled={submitting} className="flex-1 py-3 text-white rounded-xl font-bold shadow-lg transition-all bg-rose-600 hover:bg-rose-700 shadow-rose-500/20">
+                {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Confirm'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

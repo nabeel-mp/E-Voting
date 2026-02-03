@@ -7,7 +7,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const url = config.url || '';
 
-  if (url.includes('/admin')) {
+  if (url.includes('/admin') || url.includes("/audit")) {
     const token = localStorage.getItem('admin_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
