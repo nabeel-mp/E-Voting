@@ -87,6 +87,10 @@ func UpdateVoter(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Voter not found")
 	}
 
+	if voter.IsVerified {
+		return utils.Error(c, 403, "Cannot edit a verified voter profile.")
+	}
+
 	var req RegisterVoterRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.Error(c, 400, "Invalid body")

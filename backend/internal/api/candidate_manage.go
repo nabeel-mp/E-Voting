@@ -52,7 +52,6 @@ func UpdateParty(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Party not found")
 	}
 
-	// SAFETY CHECK: Cannot update if used in an ACTIVE Election
 	var activeCount int64
 	database.PostgresDB.Table("candidates").
 		Joins("JOIN elections ON elections.id = candidates.election_id").
@@ -92,7 +91,6 @@ func DeleteParty(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Party not found")
 	}
 
-	// SAFETY CHECK: Cannot delete if ANY candidates exist (Integrity)
 	var count int64
 	database.PostgresDB.Model(&models.Candidate{}).Where("party_id = ?", party.ID).Count(&count)
 	if count > 0 {
@@ -166,7 +164,6 @@ func CreateCandidate(c *fiber.Ctx) error {
 
 func ListCandidates(c *fiber.Ctx) error {
 	var candidates []models.Candidate
-	// Preload Party info for display
 	database.PostgresDB.Preload("Party").Find(&candidates)
 	return utils.Success(c, candidates)
 }
@@ -204,7 +201,6 @@ func UpdateCandidate(c *fiber.Ctx) error {
 		}
 	}
 
-	// Handle Photo Update
 	file, err := c.FormFile("photo")
 	if err == nil {
 		filename := fmt.Sprintf("candidate_%d_%d%s", candidate.ElectionID, time.Now().UnixNano(), filepath.Ext(file.Filename))
@@ -234,14 +230,12 @@ func DeleteCandidate(c *fiber.Ctx) error {
 		return utils.Error(c, 404, "Candidate not found")
 	}
 
-	// SAFETY CHECK 1: Votes Cast?
 	var voteCount int64
 	database.PostgresDB.Model(&models.Vote{}).Where("candidate_id = ?", id).Count(&voteCount)
 	if voteCount > 0 {
 		return utils.Error(c, 403, "Cannot delete candidate: Votes have already been cast.")
 	}
 
-	// SAFETY CHECK 2: Active Election?
 	var election models.Election
 	if err := database.PostgresDB.First(&election, candidate.ElectionID).Error; err == nil {
 		if election.IsActive && time.Now().Before(election.EndDate) {

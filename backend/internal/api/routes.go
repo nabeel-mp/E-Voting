@@ -45,6 +45,9 @@ func RegisterRoutes(app *fiber.App) {
 	adminAPI.Put("/change-password", ChangePassword)
 	adminAPI.Post("/upload-avatar", UploadAvatar)
 	adminAPI.Put("/notifications", UpdateNotifications)
+	adminAPI.Get("/elections", ListElections)
+	adminAPI.Get("/config", GetSystemSettings)
+	adminAPI.Get("/election-results", GetElectionResults)
 
 	// Voter Management
 	voterListMgmt := app.Group("/api/admin", middleware.PermissionMiddleware("manage_voters"))
@@ -59,15 +62,12 @@ func RegisterRoutes(app *fiber.App) {
 	voterMgmt.Post("/voter/unblock", UnblockVoter)
 	voterMgmt.Post("/voters/import", ImportVotersCSV)
 
-	voterMgmt.Post("/voter/verify", middleware.PermissionMiddleware("SUPER_ADMIN"), VerifyVoter)
-	voterMgmt.Post("/voter/reject", middleware.PermissionMiddleware("SUPER_ADMIN"), RejectVoter)
-
-	// Results (Requires 'view_results' permission)
-	resultsAPI := app.Group("/api/admin", middleware.PermissionMiddleware("view_results"))
-	resultsAPI.Get("/election-results", GetElectionResults)
+	verifyMgmt := app.Group("/api/admin", middleware.PermissionMiddleware("verify_voter"))
+	verifyMgmt.Post("/voter/verify", VerifyVoter)
+	verifyMgmt.Post("/voter/reject", RejectVoter)
 
 	// Candidates & Parties (Super Admin)
-	candidateAPI := app.Group("/api/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
+	candidateAPI := app.Group("/api/admin", middleware.PermissionMiddleware("manage_candidates"))
 	candidateAPI.Post("/parties", CreateParty)
 	candidateAPI.Get("/parties", ListParties)
 	candidateAPI.Put("/parties/:id", UpdateParty)
@@ -77,16 +77,14 @@ func RegisterRoutes(app *fiber.App) {
 	candidateAPI.Put("/candidates/:id", UpdateCandidate)
 	candidateAPI.Delete("/candidates/:id", DeleteCandidate)
 
-	electionAPI := app.Group("/api/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
+	electionAPI := app.Group("/api/admin", middleware.PermissionMiddleware("manage_elections"))
 	electionAPI.Post("/elections", CreateElection)
 	electionAPI.Put("/elections/:id", UpdateElection)
-	electionAPI.Get("/elections", ListElections)
 	electionAPI.Delete("/elections/:id", DeleteElection)
 	electionAPI.Post("/elections/status", ToggleElectionStatus)
 	electionAPI.Post("/elections/publish", ToggleElectionPublish)
 
 	// Staff & Role Management (Super Admin & 'manage_admins')
-	// Mapped to match existing frontend AJAX calls
 	staffMgmt := app.Group("/api/auth/admin", middleware.PermissionMiddleware("manage_admins"))
 	staffMgmt.Post("/create-sub-admin", CreateSubAdmin)
 	staffMgmt.Get("/roles", ListRolesHandler)
@@ -94,11 +92,9 @@ func RegisterRoutes(app *fiber.App) {
 	staffMgmt.Put("/roles/:id", UpdateRoleHandler)
 	staffMgmt.Delete("/roles/:id", DeleteRoleHandler)
 	staffMgmt.Post("/toggle-availability", ToggleAvailabilityHandler)
-
 	staffMgmt.Post("/assign-roles", AssignRolesHandler)
 
 	// Admin List & Block (Matching admin.html legacy route)
-	// admin.html calls /auth/admin/list.
 	superAdminLegacy := app.Group("/auth/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
 	superAdminLegacy.Get("/list", ListAdmins)
 	superAdminLegacy.Post("/block", BlockSubAdmin)
@@ -107,7 +103,6 @@ func RegisterRoutes(app *fiber.App) {
 
 	// Audit Logs
 	app.Get("/api/audit/logs", middleware.PermissionMiddleware("SUPER_ADMIN"), GetAuditLogs)
-	app.Get("/api/admin/config", middleware.PermissionMiddleware(""), GetSystemSettings)
 	app.Post("/api/admin/config", middleware.PermissionMiddleware("SUPER_ADMIN"), UpdateSystemSettings)
 
 	bc := app.Group("/api/blockchain")

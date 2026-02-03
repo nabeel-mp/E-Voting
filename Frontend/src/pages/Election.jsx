@@ -15,7 +15,7 @@ const ELECTION_TYPES = [
 const Elections = () => {
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // --- Filtering State ---
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
@@ -36,7 +36,7 @@ const Elections = () => {
   const { addToast } = useToast();
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
-  
+
   // State to force re-render every minute for live status updates
   const [, setTick] = useState(0);
 
@@ -52,7 +52,7 @@ const Elections = () => {
   // --- ROBUST INITIAL DATA FETCH ---
   const initData = async () => {
     setLoading(true);
-    
+
     try {
       // 1. Fetch Admin Reference Data
       const response = await api.get('/api/common/kerala-data');
@@ -151,9 +151,10 @@ const Elections = () => {
   };
 
   // -- Filtering Logic --
+  const now = new Date();
   const filteredElections = elections.filter(election => {
-    const isEnded = new Date(election.end_date) < new Date();
-    
+    const isEnded = new Date(election.end_date) < now;
+
     // Status Logic
     let statusMatch = true;
     if (filterStatus === 'LIVE') statusMatch = election.is_active && !isEnded;
@@ -161,8 +162,8 @@ const Elections = () => {
     if (filterStatus === 'COMPLETED') statusMatch = isEnded;
 
     // Search Logic
-    const searchMatch = 
-      !searchTerm || 
+    const searchMatch =
+      !searchTerm ||
       election.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       election.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (election.district && election.district.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -232,7 +233,7 @@ const Elections = () => {
       addToast("End Date must be strictly after Start Date", "warning");
       return;
     }
-    
+
     if (isWardRequired(form.election_type) && !form.ward.trim()) {
       addToast(`Ward is required for ${form.election_type} elections`, "error");
       return;
@@ -258,7 +259,7 @@ const Elections = () => {
       }
       resetForm(); initData();
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 
+      const errorMessage = err.response?.data?.error ||
         (err.response?.status === 403 ? "Forbidden Action" : "Operation Failed");
       addToast(errorMessage, "error");
     }
@@ -277,18 +278,25 @@ const Elections = () => {
     setSubmitting(true);
     try {
       if (type === 'delete') {
-          await api.delete(`/api/admin/elections/${data.ID}`);
-          addToast("Election deleted successfully", "success");
-      } 
+        await api.delete(`/api/admin/elections/${data.ID}`);
+        addToast("Election deleted successfully", "success");
+      }
       else if (type === 'stop') {
         const now = new Date();
         await api.put(`/api/admin/elections/${data.ID}`, {
-          ...data,
+          title: data.title,
+          description: data.description,
+          start_date: data.start_date,
           end_date: now.toISOString(),
+          election_type: data.election_type,
+          district: data.district,
+          block: data.block,
+          local_body_name: data.local_body_name,
+          ward: data.ward,
           is_active: false
         });
         addToast("Election stopped permanently.", "success");
-      } 
+      }
       else {
         const newStatus = type === 'resume';
         await api.post('/api/admin/elections/status', {
@@ -314,8 +322,8 @@ const Elections = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full mb-4">
-              <Layers size={14} className="text-indigo-700" />
-              <span className="text-indigo-800 text-[10px] font-black uppercase tracking-widest">Configuration</span>
+            <Layers size={14} className="text-indigo-700" />
+            <span className="text-indigo-800 text-[10px] font-black uppercase tracking-widest">Configuration</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 leading-tight">
             Election <span className="italic text-slate-400 font-light">Manager</span>
@@ -328,7 +336,7 @@ const Elections = () => {
           onClick={() => { resetForm(); setShowFormModal(true); }}
           className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transform hover:-translate-y-1 transition-all duration-300 group"
         >
-          <Plus size={20} className="group-hover:rotate-90 transition-transform"/> New Election
+          <Plus size={20} className="group-hover:rotate-90 transition-transform" /> New Election
         </button>
       </div>
 
@@ -336,29 +344,28 @@ const Elections = () => {
       <div className="flex flex-col md:flex-row items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
         <div className="relative w-full md:w-96 group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search elections..." 
+            placeholder="Search elections..."
             className="w-full bg-slate-50 border border-slate-200 text-slate-700 pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-400 font-medium"
           />
         </div>
-        
+
         <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto w-full md:w-auto">
-            {['ALL', 'LIVE', 'PAUSED', 'COMPLETED'].map((status) => (
-                <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
-                    className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-300 whitespace-nowrap ${
-                        filterStatus === status 
-                        ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' 
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                    }`}
-                >
-                    {status}
-                </button>
-            ))}
+          {['ALL', 'LIVE', 'PAUSED', 'COMPLETED'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-300 whitespace-nowrap ${filterStatus === status
+                ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                }`}
+            >
+              {status}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -375,7 +382,7 @@ const Elections = () => {
             <p className="text-xl font-serif text-slate-600">No elections found.</p>
             <p className="text-sm mt-2">Try adjusting your search or filters.</p>
             {filterStatus === 'ALL' && !searchTerm && (
-                  <button onClick={() => setShowFormModal(true)} className="text-indigo-600 hover:text-indigo-700 font-bold mt-4 underline decoration-2 underline-offset-4">Create your first one</button>
+              <button onClick={() => setShowFormModal(true)} className="text-indigo-600 hover:text-indigo-700 font-bold mt-4 underline decoration-2 underline-offset-4">Create your first one</button>
             )}
           </div>
         ) : (
@@ -393,8 +400,8 @@ const Elections = () => {
                 key={election.ID}
                 className={`group relative bg-white border p-6 rounded-[2rem] flex flex-col md:flex-row gap-8 justify-between transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 hover:scale-[1.005]
                 ${isActiveElection
-                  ? 'border-emerald-100 shadow-lg shadow-emerald-50'
-                  : 'border-slate-200 shadow-sm'
+                    ? 'border-emerald-100 shadow-lg shadow-emerald-50'
+                    : 'border-slate-200 shadow-sm'
                   }`}
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
@@ -407,14 +414,14 @@ const Elections = () => {
                   <div className="flex-grow">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                          <h3 className="text-2xl font-bold text-slate-900 group-hover:text-indigo-700 transition-colors font-serif">{election.title}</h3>
-                          
-                          {/* Publish Indicator Badge */}
-                          {isPublished && (
-                             <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-bold uppercase tracking-wider">
-                                  <CheckCircle2 size={12} /> Published
-                             </span>
-                          )}
+                        <h3 className="text-2xl font-bold text-slate-900 group-hover:text-indigo-700 transition-colors font-serif">{election.title}</h3>
+
+                        {/* Publish Indicator Badge */}
+                        {isPublished && (
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-bold uppercase tracking-wider">
+                            <CheckCircle2 size={12} /> Published
+                          </span>
+                        )}
                       </div>
 
                       <div className="relative">
@@ -426,7 +433,7 @@ const Elections = () => {
                         </button>
                         {activeDropdown === election.ID && (
                           <div ref={dropdownRef} className="absolute right-0 mt-2 w-64 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-200">
-                            
+
                             <button onClick={() => handleEdit(election)} disabled={!canUpdate} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl flex items-center gap-3 transition-colors ${canUpdate ? 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-600' : 'text-slate-300 cursor-not-allowed'}`}>
                               <Pencil size={16} /> Edit Details {!canUpdate && <Lock size={12} className="ml-auto" />}
                             </button>
@@ -501,15 +508,15 @@ const Elections = () => {
                   ) : (
                     // PUBLISH BUTTON FOR COMPLETED ELECTIONS
                     <button
-                        onClick={() => handlePublishToggle(election)}
-                        className={`p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-md border
+                      onClick={() => handlePublishToggle(election)}
+                      className={`p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-md border
                                 ${isPublished
-                            ? 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100'
-                            : 'bg-white border-slate-200 text-slate-400 hover:text-indigo-500 hover:border-indigo-100'
+                          ? 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100'
+                          : 'bg-white border-slate-200 text-slate-400 hover:text-indigo-500 hover:border-indigo-100'
                         }`}
-                        title={isPublished ? "Results Published (Click to Unpublish)" : "Publish Results Now"}
+                      title={isPublished ? "Results Published (Click to Unpublish)" : "Publish Results Now"}
                     >
-                        {isPublished ? <Eye size={30} /> : <Share2 size={30} />}
+                      {isPublished ? <Eye size={30} /> : <Share2 size={30} />}
                     </button>
                   )}
                 </div>
@@ -623,24 +630,24 @@ const Elections = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">Start Date <span className="text-rose-500">*</span></label>
-                  <input 
-                    required 
-                    type="datetime-local" 
-                    value={form.start_date} 
-                    onChange={handleStartDateChange} 
+                  <input
+                    required
+                    type="datetime-local"
+                    value={form.start_date}
+                    onChange={handleStartDateChange}
                     min={getCurrentDateTimeLocal()} // RESTRICTION: Current Time
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium" 
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">End Date <span className="text-rose-500">*</span></label>
-                  <input 
-                    required 
-                    type="datetime-local" 
-                    value={form.end_date} 
-                    onChange={handleEndDateChange} 
+                  <input
+                    required
+                    type="datetime-local"
+                    value={form.end_date}
+                    onChange={handleEndDateChange}
                     min={form.start_date || getCurrentDateTimeLocal()} // RESTRICTION: After Start Date
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium" 
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium"
                   />
                 </div>
               </div>
@@ -664,8 +671,11 @@ const Elections = () => {
             <div className={`w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center ${confirmModal.type === 'stop' || confirmModal.type === 'delete' ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'}`}>
               <AlertTriangle size={32} />
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-2 capitalize font-serif">
-                {confirmModal.type === 'stop' ? 'Stop Permanently?' : `${confirmModal.type} Election?`}
+            <h3 className="text-2xl font-bold text-slate-900 mb-2 font-serif">
+              {confirmModal.type === 'stop'
+                ? 'Stop Permanently?'
+                : `${confirmModal.type?.charAt(0).toUpperCase() + confirmModal.type?.slice(1)} Election?`
+              }
             </h3>
             <p className="text-slate-500 mb-8 leading-relaxed text-sm">
               {confirmModal.type === 'stop'

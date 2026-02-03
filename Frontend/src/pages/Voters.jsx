@@ -33,7 +33,7 @@ const Voters = () => {
   // Modals
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  
+
   // --- CONFIRMATION MODAL STATE ---
   const [confirmModal, setConfirmModal] = useState({ show: false, action: null, data: null });
 
@@ -57,10 +57,10 @@ const Voters = () => {
   const initData = async () => {
     setLoading(true);
     setErrorMsg(null);
-    
+
     try {
       const response = await api.get('/api/common/kerala-data');
-      
+
       if (response.data && response.data.success) {
         let payload = response.data.data;
 
@@ -68,7 +68,7 @@ const Voters = () => {
           if (Array.isArray(data)) {
             if (data.length > 0 && data[0].hasOwnProperty('Key') && data[0].hasOwnProperty('Value')) {
               return data.reduce((acc, item) => {
-                acc[item.Key] = normalizeData(item.Value); 
+                acc[item.Key] = normalizeData(item.Value);
                 return acc;
               }, {});
             }
@@ -184,21 +184,21 @@ const Voters = () => {
 
     setSubmitting(true);
     try {
-        if (action === 'DELETE') {
-            await api.delete(`/api/admin/voter/${data.ID}`);
-            addToast("Voter deleted successfully", "success");
-        } 
-        else if (action === 'BLOCK' || action === 'UNBLOCK') {
-            const endpoint = action === 'UNBLOCK' ? "/api/admin/voter/unblock" : "/api/admin/voter/block";
-            await api.post(endpoint, { voter_id: data.ID });
-            addToast(`Voter ${action === 'UNBLOCK' ? 'unblocked' : 'blocked'} successfully`, "success");
-        }
-        initData();
-        setConfirmModal({ show: false, action: null, data: null });
+      if (action === 'DELETE') {
+        await api.delete(`/api/admin/voter/${data.ID}`);
+        addToast("Voter deleted successfully", "success");
+      }
+      else if (action === 'BLOCK' || action === 'UNBLOCK') {
+        const endpoint = action === 'UNBLOCK' ? "/api/admin/voter/unblock" : "/api/admin/voter/block";
+        await api.post(endpoint, { voter_id: data.ID });
+        addToast(`Voter ${action === 'UNBLOCK' ? 'unblocked' : 'blocked'} successfully`, "success");
+      }
+      initData();
+      setConfirmModal({ show: false, action: null, data: null });
     } catch (err) {
-        addToast(err.response?.data?.error || "Action failed", "error");
+      addToast(err.response?.data?.error || "Action failed", "error");
     } finally {
-        setSubmitting(false);
+      setSubmitting(false);
     }
   };
 
@@ -212,17 +212,22 @@ const Voters = () => {
   };
 
   const openEditModal = (voter) => {
+    if (voter.IsVerified) {
+      addToast("Cannot edit a verified voter. Profile is locked.", "error");
+      setActiveDropdown(null);
+      return;
+    }
     setIsEditing(true);
     setSelectedVoter(voter);
     setForm({
-      full_name: voter.FullName, 
-      mobile: voter.Mobile, 
-      aadhaar: voter.AadhaarNumber, 
+      full_name: voter.FullName,
+      mobile: voter.Mobile,
+      aadhaar: voter.AadhaarNumber,
       address: voter.Address,
-      district: voter.District || '', 
-      local_body_type: voter.LocalBodyType || 'Grama Panchayat', 
-      block: voter.Block || '', 
-      local_body_name: voter.Panchayath || '', 
+      district: voter.District || '',
+      local_body_type: voter.LocalBodyType || 'Grama Panchayat',
+      block: voter.Block || '',
+      local_body_name: voter.Panchayath || '',
       ward: voter.Ward || ''
     });
     setShowModal(true);
@@ -255,8 +260,8 @@ const Voters = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0 border-b border-slate-200 pb-8">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full mb-4">
-              <Users size={14} className="text-indigo-700" />
-              <span className="text-indigo-800 text-[10px] font-black uppercase tracking-widest">Registry</span>
+            <Users size={14} className="text-indigo-700" />
+            <span className="text-indigo-800 text-[10px] font-black uppercase tracking-widest">Registry</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 leading-tight">
             Voters <span className="italic text-slate-400 font-light">Directory</span>
@@ -267,19 +272,19 @@ const Voters = () => {
         </div>
         <div className="flex flex-wrap gap-3">
           <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-medium transition-all group">
-            <Download size={18} className="group-hover:-translate-y-0.5 transition-transform" /> 
+            <Download size={18} className="group-hover:-translate-y-0.5 transition-transform" />
             <span>Export CSV</span>
           </button>
-          
+
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
-          
+
           <button onClick={handleImportClick} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-medium transition-all group">
-            <Upload size={18} className="group-hover:-translate-y-0.5 transition-transform" /> 
+            <Upload size={18} className="group-hover:-translate-y-0.5 transition-transform" />
             <span>Import</span>
           </button>
-          
+
           <button onClick={openCreateModal} className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
-            <Plus size={20} /> 
+            <Plus size={20} />
             <span>Register Voter</span>
           </button>
         </div>
@@ -298,12 +303,12 @@ const Voters = () => {
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row items-center gap-4 bg-slate-50/50">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500" size={18} />
-            <input 
-                type="text" 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-                placeholder="Search by ID, Name, or Aadhaar..." 
-                className="w-full bg-white border border-slate-200 text-slate-700 pl-12 pr-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all placeholder:text-slate-400 font-medium" 
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by ID, Name, or Aadhaar..."
+              className="w-full bg-white border border-slate-200 text-slate-700 pl-12 pr-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all placeholder:text-slate-400 font-medium"
             />
           </div>
           <div className="relative" ref={filterRef}>
@@ -327,11 +332,11 @@ const Voters = () => {
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b border-slate-100">
               <tr>
-                  <th className="px-8 py-5 tracking-wider">Identity</th>
-                  <th className="px-8 py-5 tracking-wider">Contact</th>
-                  <th className="px-8 py-5 tracking-wider">Aadhaar</th>
-                  <th className="px-8 py-5 tracking-wider">Status</th>
-                  <th className="px-8 py-5 tracking-wider text-right">Actions</th>
+                <th className="px-8 py-5 tracking-wider">Identity</th>
+                <th className="px-8 py-5 tracking-wider">Contact</th>
+                <th className="px-8 py-5 tracking-wider">Aadhaar</th>
+                <th className="px-8 py-5 tracking-wider">Status</th>
+                <th className="px-8 py-5 tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -383,8 +388,14 @@ const Voters = () => {
                       {activeDropdown === v.ID && (
                         <div ref={dropdownRef} className="absolute right-12 top-10 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150">
                           <button onClick={() => openDetailsModal(v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Eye size={14} className="text-sky-500" /> View Details</button>
-                          <button onClick={() => openEditModal(v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Pencil size={14} className="text-indigo-500" /> Edit Profile</button>
-                          <div className="h-px bg-slate-100 my-1 mx-1"></div>
+                          <button
+                            onClick={() => openEditModal(v)}
+                            disabled={v.IsVerified}
+                            className={`w-full text-left px-3 py-2.5 text-sm rounded-xl transition-colors flex items-center gap-2 font-medium ${v.IsVerified ? 'text-slate-300 cursor-not-allowed' : 'text-slate-600 hover:bg-slate-50'}`}
+                            title={v.IsVerified ? "Cannot edit verified voter" : "Edit Profile"}
+                          >
+                            <Pencil size={14} className={v.IsVerified ? "text-slate-300" : "text-indigo-500"} /> Edit Profile
+                          </button>                          <div className="h-px bg-slate-100 my-1 mx-1"></div>
                           <button onClick={() => initiateAction(v.IsBlocked ? 'UNBLOCK' : 'BLOCK', v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 font-medium text-slate-600"><Ban size={14} className="text-amber-500" /> {v.IsBlocked ? 'Unblock' : 'Block Access'}</button>
                           <button onClick={() => initiateAction('DELETE', v)} className="w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-rose-50 transition-colors flex items-center gap-2 font-medium text-rose-500"><Trash2 size={14} /> Delete Voter</button>
                         </div>
@@ -468,22 +479,22 @@ const Voters = () => {
 
                   {form.local_body_type === 'Grama Panchayat' && (
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Block Panchayat *</label>
-                        <div className="relative">
-                        <select 
-                            required 
-                            value={form.block} 
-                            onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })} 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none font-medium cursor-pointer disabled:opacity-50"
-                            disabled={!form.district}
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Block Panchayat *</label>
+                      <div className="relative">
+                        <select
+                          required
+                          value={form.block}
+                          onChange={(e) => setForm({ ...form, block: e.target.value, local_body_name: '' })}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none font-medium cursor-pointer disabled:opacity-50"
+                          disabled={!form.district}
                         >
-                            <option value="">Select Block</option>
-                            {form.district && adminData?.blocks?.[form.district]?.map(blockName => (
+                          <option value="">Select Block</option>
+                          {form.district && adminData?.blocks?.[form.district]?.map(blockName => (
                             <option key={blockName} value={blockName}>{blockName}</option>
-                            ))}
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -516,7 +527,7 @@ const Voters = () => {
               <div className="pt-6 flex gap-4 border-t border-slate-100">
                 <button type="button" onClick={closeModal} className="flex-1 py-3.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors">Cancel</button>
                 <button type="submit" disabled={submitting} className="flex-1 py-3.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2">
-                    {submitting ? <Loader2 className="animate-spin" /> : (isEditing ? 'Save Changes' : 'Register Voter')}
+                  {submitting ? <Loader2 className="animate-spin" /> : (isEditing ? 'Save Changes' : 'Register Voter')}
                 </button>
               </div>
             </form>
@@ -582,8 +593,8 @@ const Voters = () => {
             </div>
             <h3 className="text-2xl font-bold text-slate-900 mb-2 capitalize font-serif">{confirmModal.action} Voter?</h3>
             <p className="text-slate-500 mb-8 leading-relaxed text-sm">
-                Are you sure you want to {confirmModal.action?.toLowerCase()} <strong>{confirmModal.data?.FullName}</strong>? 
-                {confirmModal.action === 'DELETE' && " This action cannot be undone."}
+              Are you sure you want to {confirmModal.action?.toLowerCase()} <strong>{confirmModal.data?.FullName}</strong>?
+              {confirmModal.action === 'DELETE' && " This action cannot be undone."}
             </p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmModal({ show: false, action: null, data: null })} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">Cancel</button>

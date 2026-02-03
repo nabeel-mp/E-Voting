@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -213,15 +214,23 @@ func CastVote(c *fiber.Ctx) error {
 
 	tx.Commit()
 
-	go func() {
-		txHash, err := service.CastVoteOnChain(req.ElectionID, req.CandidateID, voterID)
+	go func(eID, cID, vID uint, vHash string) {
+		txHash, err := service.CastVoteOnChain(eID, cID, vID)
 		if err != nil {
 			fmt.Printf("Blockchain Write failed: %v\n", err)
-		} else {
-			fmt.Printf("Vote written to blockchain! Tx Hash: %s\n", txHash)
-			database.PostgresDB.Model(&models.Vote{}).Where("vote_hash = ?", voteHashStr).Update("blockchain_tx", txHash)
+			return
 		}
-	}()
+		fmt.Printf("Vote written to blockchain! Tx Hash: %s\n", txHash)
+
+		if err := database.PostgresDB.Model(&models.Vote{}).
+			Where("vote_hash = ?", voteHashStr).
+			Update("blockchain_tx", txHash).Error; err != nil {
+			log.Printf("Failed to save txhash %s to DB: %v", txHash, err)
+		} else {
+			log.Printf("Vote Record updated with txhash")
+		}
+
+	}(req.ElectionID, req.CandidateID, voterID, voteHashStr)
 
 	return utils.Success(c, fiber.Map{
 		"message":           "Vote cast successfully",
