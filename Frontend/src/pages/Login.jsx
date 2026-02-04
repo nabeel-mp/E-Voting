@@ -30,24 +30,40 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevents the browser from reloading the page
     setLoading(true);
     setError('');
     
     try {
       const res = await api.post('/api/auth/admin/login', { email, password });
+      
+      // 1. Explicitly check for success flag
       if (res.data.success) {
         addToast("Welcome back, Administrator", "success");
         localStorage.setItem('admin_token', res.data.data.token);
         login(res.data.data.token);
+        
+        // 2. Redirect ONLY happens here (Success path)
         navigate('/admin');
+      } else {
+        // 3. Handle case where server responds (200 OK) but login failed
+        // This prevents "doing nothing" and shows the error instead
+        setError(res.data.message || 'Login failed. Please check credentials.');
       }
     } catch (err) {
-      if (!err.response) {
-         const msg = 'Unable to reach server. Please check your connection.';
-         setError(msg);
+      console.error("Login Error:", err);
+      
+      // 4. Handle 4xx/5xx Errors explicitly without redirecting
+      if (err.response) {
+         // Server responded with an error code (e.g., 401, 403)
+         // We capture 'error' OR 'message' fields to be safe
+         setError(err.response.data.error || err.response.data.message || 'Login failed. Please check credentials.');
+      } else if (err.request) {
+         // Network error (Server unreachable)
+         setError('Unable to reach server. Please check your connection.');
       } else {
-         setError(err.response?.data?.error || 'Login failed. Please check credentials.');
+         // Unexpected error
+         setError('An unexpected error occurred during login.');
       }
     } finally {
       setLoading(false);
@@ -81,7 +97,7 @@ const Login = () => {
       {/* --- MAIN CONTENT --- */}
       <main className="flex-grow flex items-center justify-center p-6 md:p-12 relative overflow-hidden">
         
-        {/* Background Decor (Indigo/Violet theme for Admin) */}
+        {/* Background Decor */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
             <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-indigo-100/40 rounded-full blur-[100px]"></div>
             <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-violet-100/40 rounded-full blur-[100px]"></div>
@@ -91,7 +107,6 @@ const Login = () => {
           
           {/* LEFT SIDE: Visuals */}
           <div className="lg:w-5/12 bg-slate-900 relative p-12 text-white flex flex-col justify-between overflow-hidden">
-            {/* Abstract bg effects */}
             <div className="absolute inset-0 opacity-30"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-slate-900/40"></div>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/20 rounded-full blur-[80px]"></div>
@@ -135,7 +150,7 @@ const Login = () => {
                     <p className="text-sm text-slate-500">Please enter your official credentials to continue.</p>
                 </div>
 
-                {/* Error Display */}
+                {/* Error Display - Animated */}
                 <AnimatePresence mode='wait'>
                     {error && (
                         <motion.div 

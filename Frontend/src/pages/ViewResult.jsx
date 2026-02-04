@@ -11,7 +11,8 @@ import {
   X,
   Award,
   Vote,
-  Filter
+  Filter,
+  Users // Added Users icon for the tie state
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -30,11 +31,15 @@ const VoterResults = () => {
   const [loading, setLoading] = useState(true);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [showWinnerPopup, setShowWinnerPopup] = useState(false);
+  
+  // Winner & Tie States
   const [winner, setWinner] = useState(null);
+  const [isTie, setIsTie] = useState(false);
+  const [tiedCandidates, setTiedCandidates] = useState([]);
   
   // Search States
-  const [resultSearchTerm, setResultSearchTerm] = useState(''); // Search inside results (candidates)
-  const [electionSearchTerm, setElectionSearchTerm] = useState(''); // Search for elections
+  const [resultSearchTerm, setResultSearchTerm] = useState(''); 
+  const [electionSearchTerm, setElectionSearchTerm] = useState(''); 
 
   const resultsRef = useRef(null);
 
@@ -77,14 +82,31 @@ const VoterResults = () => {
         const sorted = (res.data.data || []).sort((a, b) => b.vote_count - a.vote_count);
         setResults(sorted);
         
+        // --- NEW TIE DETECTION LOGIC ---
         if (sorted.length > 0 && sorted[0].vote_count > 0) {
-           setWinner(sorted[0]);
+           const maxVotes = sorted[0].vote_count;
+           // Filter all candidates who have the maxVotes
+           const ties = sorted.filter(r => r.vote_count === maxVotes);
+
+           if (ties.length > 1) {
+               // It is a tie
+               setIsTie(true);
+               setTiedCandidates(ties);
+               setWinner(null);
+           } else {
+               // Single winner
+               setIsTie(false);
+               setTiedCandidates([]);
+               setWinner(sorted[0]);
+           }
+
            setTimeout(() => {
                setShowWinnerPopup(true);
                triggerConfetti();
            }, 800);
         } else {
            setWinner(null);
+           setIsTie(false);
         }
       }
     } catch (err) {
@@ -138,7 +160,7 @@ const VoterResults = () => {
     datasets: [{
       label: 'Votes Cast',
       data: filteredResults.map(d => d.vote_count),
-      backgroundColor: filteredResults.map(d => d.candidate_name === leadingCandidate?.candidate_name ? '#4f46e5' : '#cbd5e1'),
+      backgroundColor: filteredResults.map(d => d.vote_count === (isTie ? tiedCandidates[0]?.vote_count : leadingCandidate?.vote_count) ? '#4f46e5' : '#cbd5e1'),
       borderRadius: 4,
       barThickness: 'flex',
       maxBarThickness: 40,
@@ -147,7 +169,7 @@ const VoterResults = () => {
 
   const chartOptions = {
     responsive: true,
-    maintainAspectRatio: false, // Vital for resizing
+    maintainAspectRatio: false, 
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -174,9 +196,9 @@ const VoterResults = () => {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans text-slate-900 relative">
       
-      {/* --- Winner Popup (Unchanged logic, but now party_logo works) --- */}
+      {/* --- Winner / Tie Popup --- */}
       <AnimatePresence>
-        {showWinnerPopup && winner && (
+        {showWinnerPopup && (winner || isTie) && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 px-6">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -191,35 +213,89 @@ const VoterResults = () => {
                   <X size={18} />
                </button>
 
-               <div className="bg-indigo-600 p-6 text-center text-white relative">
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center shadow-lg mb-3 p-2 overflow-hidden">
-                      {winner.party_logo ? (
-                          <img 
-                            src={`http://localhost:8080${winner.party_logo}`} 
-                            alt={winner.party_name} 
-                            className="w-full h-full object-contain"
-                          />
-                      ) : (
-                          <Trophy size={32} className="text-amber-500" />
-                      )}
-                  </motion.div>
-                  <h2 className="text-xl font-bold">Winner Declared!</h2>
-                  <p className="text-indigo-200 text-xs font-medium uppercase tracking-wider mt-1">{winner.election_title}</p>
+               {/* --- POPUP HEADER --- */}
+               <div className={`${isTie ? 'bg-amber-500' : 'bg-indigo-600'} p-6 text-center text-white relative transition-colors duration-300`}>
+                  
+                  {isTie ? (
+                      // --- TIE STATE HEADER ---
+                      <div className="flex justify-center -space-x-3 mb-3">
+                          {tiedCandidates.map((candidate, idx) => (
+                             <motion.div 
+                                key={idx}
+                                initial={{ scale: 0 }} 
+                                animate={{ scale: 1 }} 
+                                transition={{ delay: idx * 0.1 }}
+                                className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg overflow-hidden border-4 border-amber-400 z-10"
+                             >
+                                  {candidate.party_logo ? (
+                                      <img 
+                                        src={`http://localhost:8080${candidate.party_logo}`} 
+                                        alt={candidate.party_name} 
+                                        className="w-full h-full object-contain"
+                                      />
+                                  ) : (
+                                      <Users size={24} className="text-amber-500" />
+                                  )}
+                             </motion.div>
+                          ))}
+                      </div>
+                  ) : (
+                      // --- WINNER STATE HEADER ---
+                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center shadow-lg mb-3 p-2 overflow-hidden">
+                          {winner.party_logo ? (
+                              <img 
+                                src={`http://localhost:8080${winner.party_logo}`} 
+                                alt={winner.party_name} 
+                                className="w-full h-full object-contain"
+                              />
+                          ) : (
+                              <Trophy size={32} className="text-amber-500" />
+                          )}
+                      </motion.div>
+                  )}
+
+                  <h2 className="text-xl font-bold">{isTie ? "Votes Equaled!" : "Winner Declared!"}</h2>
+                  <p className={`${isTie ? 'text-amber-100' : 'text-indigo-200'} text-xs font-medium uppercase tracking-wider mt-1`}>
+                    {isTie ? tiedCandidates[0].election_title : winner.election_title}
+                  </p>
                </div>
-               {/* ... (rest of winner popup content) ... */}
+
+               {/* --- POPUP BODY --- */}
                <div className="p-6 text-center space-y-4">
-                  <div>
-                      <h3 className="text-2xl font-bold text-slate-900">{winner.candidate_name}</h3>
-                      <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold mt-2">
-                          <Award size={14} /> {winner.party_name}
+                  {isTie ? (
+                      // --- TIE BODY ---
+                      <div className="space-y-3">
+                          <p className="text-slate-500 text-sm font-medium">Top candidates are tied with <span className="text-slate-900 font-bold">{tiedCandidates[0].vote_count}</span> votes each.</p>
+                          <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-2">
+                             {tiedCandidates.map((c, i) => (
+                                <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div className="text-left flex items-center gap-3">
+                                        <div className="font-bold text-slate-900 text-sm">{c.candidate_name}</div>
+                                    </div>
+                                    <div className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
+                                        {c.party_name}
+                                    </div>
+                                </div>
+                             ))}
+                          </div>
                       </div>
-                  </div>
-                  <div className="flex gap-3 justify-center">
-                      <div className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">Votes</div>
-                          <div className="text-lg font-bold text-slate-900">{winner.vote_count.toLocaleString()}</div>
-                      </div>
-                  </div>
+                  ) : (
+                      // --- WINNER BODY ---
+                      <>
+                        <div>
+                            <h3 className="text-2xl font-bold text-slate-900">{winner.candidate_name}</h3>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold mt-2">
+                                <Award size={14} /> {winner.party_name}
+                            </div>
+                        </div>
+                        <div className="flex gap-3 justify-center">
+                            <div className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase">Votes</div>
+                                <div className="text-lg font-bold text-slate-900">{winner.vote_count.toLocaleString()}</div>
+                            </div>
+                        </div>
+                      </>
+                  )}
                </div>
             </motion.div>
           </div>
@@ -300,6 +376,7 @@ const VoterResults = () => {
                         <h2 className="text-2xl font-bold text-slate-900 font-serif mb-2">{selectedElection.title}</h2>
                         <div className="flex flex-wrap gap-2">
                             <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200">{selectedElection.election_type}</span>
+                            {isTie && <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-600 text-xs font-bold border border-amber-200">Tie Result</span>}
                         </div>
                     </div>
                     <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -320,7 +397,6 @@ const VoterResults = () => {
                             <h3 className="font-bold text-slate-900">Vote Analytics</h3>
                         </div>
                         
-                        {/* FIX: Use strict h-80 instead of flex/min-h to ensure ChartJS renders */}
                         <div className="w-full h-80 relative"> 
                             {resultsLoading ? (
                                 <div className="absolute inset-0 flex items-center justify-center text-slate-400"><Loader2 className="animate-spin" /></div>
@@ -370,13 +446,12 @@ const VoterResults = () => {
                                         <tr><td colSpan="3" className="px-6 py-12 text-center text-slate-400">No candidates found</td></tr>
                                     ) : (
                                         filteredResults.map((r, i) => (
-                                            <tr key={i} className={`hover:bg-slate-50 transition-colors`}>
+                                            <tr key={i} className={`hover:bg-slate-50 transition-colors ${isTie && i < tiedCandidates.length ? 'bg-amber-50/50' : ''}`}>
                                                 <td className="px-6 py-4">
-                                                    <span className={`w-6 h-6 flex items-center justify-center rounded-md font-bold text-xs ${i < 3 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>{i + 1}</span>
+                                                    <span className={`w-6 h-6 flex items-center justify-center rounded-md font-bold text-xs ${i < (isTie ? tiedCandidates.length : 3) ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>{i + 1}</span>
                                                 </td>
                                                 <td className="px-4 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        {/* Logo in Table Row */}
                                                         {r.party_logo && (
                                                             <img 
                                                                 src={`http://localhost:8080${r.party_logo}`} 

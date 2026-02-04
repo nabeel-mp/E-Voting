@@ -78,6 +78,10 @@ func AdminLogin(email, password string) (string, []string, *models.Admin, error)
 		return "", nil, nil, errors.New("invalid credentials")
 	}
 
+	if !admin.IsAvailable {
+		return "", nil, nil, errors.New("your account is currently set to unavailable")
+	}
+
 	var roleNames []string
 	permSet := make(map[string]bool)
 

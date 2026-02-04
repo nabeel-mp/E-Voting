@@ -35,8 +35,10 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       
       if (isAdminRequest) {
-        localStorage.removeItem('admin_token');
-        window.location.href = '/login'; 
+        if (!url.includes('/login')) { 
+            localStorage.removeItem('admin_token');
+            window.location.href = '/login'; 
+        }
       } 
       
       else if (isVoterRequest) {
