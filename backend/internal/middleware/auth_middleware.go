@@ -5,6 +5,7 @@ import (
 	"E-voting/internal/database"
 	"E-voting/internal/models"
 	"E-voting/internal/utils"
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -54,15 +55,27 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 			if requiredPermission != "VOTER" && requiredPermission != "" {
 				return utils.Error(c, 403, "Voters cannot access admin routes")
 			}
+
+			if requiredPermission != "VOTER" && requiredPermission != "" {
+				return utils.Error(c, 403, "Voters cannot access restricted routes")
+			}
+
 			return c.Next()
 		}
 
 		// 3. Admin Logic
 		var admin models.Admin
-		// UPDATED: Preload "Roles" (Plural) to match the new Many-to-Many model
 		if err := database.PostgresDB.Preload("Roles").First(&admin, userID).Error; err != nil {
 			return utils.Error(c, 401, "Admin account not found")
 		}
+
+		fmt.Println("--- DEBUG MIDDLEWARE ---")
+		fmt.Printf("User ID: %d | Requesting: %s\n", admin.ID, requiredPermission)
+		fmt.Printf("Admin Roles Count: %d\n", len(admin.Roles))
+
+		// if strings.HasPrefix(c.Path(), "/api/admin") && role == "VOTER" {
+		// 	return utils.Error(c, 403, "Access Denied")
+		// }
 
 		if !admin.IsActive {
 			return utils.Error(c, 403, "Account has been deactivated")
@@ -72,15 +85,28 @@ func PermissionMiddleware(requiredPermission string) fiber.Handler {
 			return c.Next()
 		}
 
-		// Check specific permission if required
+		if requiredPermission == "SUPER_ADMIN" {
+			return utils.Error(c, 403, "Super Admin privilege required")
+		}
+
 		if requiredPermission != "" {
 			hasPermission := false
 
-			// Iterate over all assigned roles
 			for _, r := range admin.Roles {
-				// Check if permission exists in this role OR if role has 'all'
-				if r.Permissions == "all" || strings.Contains(","+r.Permissions+",", ","+requiredPermission+",") {
-					hasPermission = true
+
+				fmt.Printf("DEBUG: Role: %s | DB Perms: %s | Required: %s\n", r.Name, r.Permissions, requiredPermission)
+				permissions := strings.Split(r.Permissions, ",")
+
+				for _, p := range permissions {
+					p = strings.TrimSpace(p)
+
+					if p == "all" || p == requiredPermission {
+						hasPermission = true
+						break
+					}
+				}
+
+				if hasPermission {
 					break
 				}
 			}

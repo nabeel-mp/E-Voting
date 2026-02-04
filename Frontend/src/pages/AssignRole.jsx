@@ -48,9 +48,13 @@ const AssignRoles = () => {
 
   const openAssignModal = (admin) => {
     setSelectedAdmin(admin);
-    // Determine pre-selected role IDs based on role names
+    const adminRoles = admin.roles || admin.Roles || [];
     const currentRoleIds = roles
-      .filter(r => admin.roles && admin.roles.includes(r.Name))
+      .filter(r => {return adminRoles.some(ar => 
+        (typeof ar === 'string' && ar === r.Name) || 
+        (typeof ar === 'object' && ar.Name === r.Name)
+      );
+    })
       .map(r => r.ID);
         
     setSelectedRoleIds(currentRoleIds);

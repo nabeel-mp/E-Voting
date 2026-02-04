@@ -69,12 +69,14 @@ func RegisterRoutes(app *fiber.App) {
 	verifyMgmt.Post("/voter/verify", VerifyVoter)
 	verifyMgmt.Post("/voter/reject", RejectVoter)
 
+	partyAPI := app.Group("/api/admin", middleware.PermissionMiddleware("manage_parties"))
+	partyAPI.Post("/parties", CreateParty)
+	partyAPI.Get("/parties", ListParties)
+	partyAPI.Put("/parties/:id", UpdateParty)
+	partyAPI.Delete("/parties/:id", DeleteParty)
+
 	// Candidates & Parties (Super Admin)
 	candidateAPI := app.Group("/api/admin", middleware.PermissionMiddleware("manage_candidates"))
-	candidateAPI.Post("/parties", CreateParty)
-	candidateAPI.Get("/parties", ListParties)
-	candidateAPI.Put("/parties/:id", UpdateParty)
-	candidateAPI.Delete("/parties/:id", DeleteParty)
 	candidateAPI.Post("/candidates", CreateCandidate)
 	candidateAPI.Get("/candidates", ListCandidates)
 	candidateAPI.Put("/candidates/:id", UpdateCandidate)

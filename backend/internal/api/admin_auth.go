@@ -18,12 +18,26 @@ func AdminLogin(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
-	token, err := service.AdminLogin(req.Email, req.Password)
+	token, permissions, admin, err := service.AdminLogin(req.Email, req.Password)
 	if err != nil {
 		return utils.Error(c, 401, err.Error())
 	}
 
+	roleLabel := "STAFF"
+	if admin.IsSuper {
+		roleLabel = "SUPER_ADMIN"
+	}
+
 	return utils.Success(c, fiber.Map{
 		"token": token,
+		"user": fiber.Map{
+			"id":          admin.ID,
+			"name":        admin.Name,
+			"email":       admin.Email,
+			"avatar":      admin.Avatar,
+			"is_super":    admin.IsSuper,
+			"role":        roleLabel,
+			"permissions": permissions,
+		},
 	})
 }

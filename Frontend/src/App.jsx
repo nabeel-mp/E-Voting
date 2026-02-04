@@ -14,7 +14,7 @@ import Layout from './components/layout';
 import Roles from './pages/Role';
 import Elections from './pages/Election';
 import Verification from './pages/Verification';
-import AssignRoles from './pages/AssignROle';
+import AssignRoles from './pages/AssignRole';
 import Configuration from './pages/Configuration';
 import { ToastProvider } from './context/ToastContext';
 import VoterLogin from './pages/VoterLogin';

@@ -68,14 +68,14 @@ func CreateSubAdmin(
 	return nil
 }
 
-func AdminLogin(email, password string) (string, error) {
+func AdminLogin(email, password string) (string, []string, *models.Admin, error) {
 	var admin models.Admin
 	if err := database.PostgresDB.Preload("Roles").Where("email = ?", email).First(&admin).Error; err != nil {
-		return "", errors.New("invalid credentials")
+		return "", nil, nil, errors.New("invalid credentials")
 	}
 
 	if !utils.CheckPassword(password, admin.Password) {
-		return "", errors.New("invalid credentials")
+		return "", nil, nil, errors.New("invalid credentials")
 	}
 
 	var roleNames []string
@@ -101,10 +101,10 @@ func AdminLogin(email, password string) (string, error) {
 
 	token, err := utils.GenerateJWT(admin.ID, roleNameStr, permStr, admin.IsSuper, admin.Name, admin.Email, admin.Avatar)
 	if err != nil {
-		return "", err
+		return "", nil, nil, err
 	}
 
-	return token, nil
+	return token, aggregatedPerms, &admin, nil
 }
 
 func SetAdminStatus(targetID uint, requesterID uint, status bool) error {

@@ -39,7 +39,7 @@ const Sidebar = () => {
                 if (res.data.success) {
                     const nameSetting = res.data.data.find(s => s.key === 'system_name');
                     const logoSetting = res.data.data.find(s => s.key === 'system_logo');
-                    
+
                     if (nameSetting) setSystemName(nameSetting.value);
                     if (logoSetting) setSystemLogo(logoSetting.value);
                 }
@@ -53,17 +53,17 @@ const Sidebar = () => {
     // Menu Configuration - UPDATED REQUESTS
     const menuItems = [
         { title: "Overview", path: "/admin", icon: <LayoutDashboard size={20} />, req: null },
-        { title: "Elections", path: "/admin/elections", icon: <Calendar size={20} />, req: "manage_elections" }, 
-        { title: "Voters List", path: "/admin/voters", icon: <Users size={20} />, req: "manage_voters" }, 
-        { title: "Verification", path: "/admin/verification", icon: <UserCheck size={20} />, req: "verify_voter" }, 
-        { title: "Candidates", path: "/admin/candidates", icon: <Vote size={20} />, req: "manage_candidates" }, 
-        { title: "Results", path: "/admin/results", icon: <BarChart3 size={20} />, req: null }, 
-        { title: "Manage Roles", path: "/admin/roles", icon: <ShieldCheck size={20} />, req: "manage_admins" }, 
-        { title: "Manage Staff", path: "/admin/staff", icon: <UserCog size={20} />, req: "manage_admins" }, 
-        { title: "Assign Roles", path: "/admin/assign-roles", icon: <Shield size={20} />, req: "manage_admins" }, 
-        { title: "System Admins", path: "/admin/admins", icon: <Shield size={20} />, req: "SUPER_ADMIN" }, 
-        { title: "Audit Logs", path: "/admin/audit", icon: <ScrollText size={20} />, req: "SUPER_ADMIN" }, 
-        { title: "Configuration", path: "/admin/configuration", icon: <Sliders size={20} />, req: null }, 
+        { title: "Elections", path: "/admin/elections", icon: <Calendar size={20} />, req: "manage_elections" },
+        { title: "Voters List", path: "/admin/voters", icon: <Users size={20} />, req: "manage_voters" },
+        { title: "Verification", path: "/admin/verification", icon: <UserCheck size={20} />, req: "verify_voter" },
+        { title: "Candidates", path: "/admin/candidates", icon: <Vote size={20} />, req: "manage_candidates" },
+        { title: "Results", path: "/admin/results", icon: <BarChart3 size={20} />, req: null },
+        { title: "Manage Roles", path: "/admin/roles", icon: <ShieldCheck size={20} />, req: "manage_admins" },
+        { title: "Manage Staff", path: "/admin/staff", icon: <UserCog size={20} />, req: "manage_admins" },
+        { title: "Assign Roles", path: "/admin/assign-roles", icon: <Shield size={20} />, req: "manage_admins" },
+        { title: "System Admins", path: "/admin/admins", icon: <Shield size={20} />, req: "SUPER_ADMIN" },
+        { title: "Audit Logs", path: "/admin/audit", icon: <ScrollText size={20} />, req: "SUPER_ADMIN" },
+        { title: "Configuration", path: "/admin/configuration", icon: <Sliders size={20} />, req: null },
     ];
 
     const bottomItems = [
@@ -72,8 +72,14 @@ const Sidebar = () => {
 
     const canAccess = (req) => {
         if (!req) return true;
-        if (isSuperAdmin) return true;
-        return permissions.includes(req);
+        if (isSuperAdmin || user?.role === 'SUPER_ADMIN') return true;
+        if (Array.isArray(user?.permissions)) {
+            return user.permissions.includes(req);
+        }
+        if (typeof user?.permissions === 'string') {
+            return user.permissions.split(',').map(p => p.trim()).includes(req);
+        }
+        return false
     };
 
     const isActive = (path) => location.pathname === path;
@@ -87,7 +93,7 @@ const Sidebar = () => {
     return (
         <>
             {/* Mobile Toggle Button */}
-            <button 
+            <button
                 onClick={() => setIsMobileOpen(!isMobileOpen)}
                 className="lg:hidden fixed top-4 left-4 z-[60] p-2 bg-white border border-slate-200 rounded-lg text-slate-600 shadow-lg"
             >
@@ -104,9 +110,9 @@ const Sidebar = () => {
                 <div className="h-24 flex items-center px-6 border-b border-slate-100 bg-slate-50/50">
                     <div className="flex items-center gap-4 w-full">
                         <div className="shrink-0">
-                            <img 
+                            <img
                                 src={systemLogo ? `http://localhost:8080${systemLogo}` : "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/100px-Emblem_of_India.svg.png"}
-                                alt="National Emblem" 
+                                alt="National Emblem"
                                 className="h-10 w-auto object-contain"
                                 onError={(e) => {
                                     // Fallback if custom logo fails
@@ -139,11 +145,10 @@ const Sidebar = () => {
                                     key={item.path}
                                     to={item.path}
                                     onClick={() => setIsMobileOpen(false)}
-                                    className={`relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 group overflow-hidden ${
-                                        isActive(item.path)
+                                    className={`relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 group overflow-hidden ${isActive(item.path)
                                         ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-500/10'
                                         : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
-                                    }`}
+                                        }`}
                                 >
                                     {/* Active Indicator */}
                                     {isActive(item.path) && (
@@ -151,9 +156,8 @@ const Sidebar = () => {
                                     )}
 
                                     {/* Icon */}
-                                    <span className={`transition-colors duration-200 ${
-                                        isActive(item.path) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
-                                    }`}>
+                                    <span className={`transition-colors duration-200 ${isActive(item.path) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                                        }`}>
                                         {item.icon}
                                     </span>
 
@@ -162,11 +166,10 @@ const Sidebar = () => {
                                     </span>
 
                                     {/* Hover Arrow */}
-                                    <ChevronRight size={14} className={`ml-auto transition-all duration-300 ${
-                                        isActive(item.path) 
-                                        ? 'opacity-100 text-indigo-500 translate-x-0' 
+                                    <ChevronRight size={14} className={`ml-auto transition-all duration-300 ${isActive(item.path)
+                                        ? 'opacity-100 text-indigo-500 translate-x-0'
                                         : 'opacity-0 -translate-x-2 group-hover:translate-x-0 group-hover:opacity-50'
-                                    }`} />
+                                        }`} />
                                 </Link>
                             ))}
                         </nav>
@@ -183,11 +186,10 @@ const Sidebar = () => {
                                     key={item.path}
                                     to={item.path}
                                     onClick={() => setIsMobileOpen(false)}
-                                    className={`relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 group ${
-                                        isActive(item.path)
+                                    className={`relative flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 group ${isActive(item.path)
                                         ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-500/10'
                                         : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
-                                    }`}
+                                        }`}
                                 >
                                     {isActive(item.path) && (
                                         <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-indigo-600 rounded-r-full" />
@@ -250,7 +252,7 @@ const Sidebar = () => {
 
             {/* Mobile Overlay */}
             {isMobileOpen && (
-                <div 
+                <div
                     className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden"
                     onClick={() => setIsMobileOpen(false)}
                 />

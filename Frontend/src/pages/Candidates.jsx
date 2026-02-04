@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, {useEffect, useState, useRef } from 'react';
 import api from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   Plus, Search, Flag, User, FileText, MoreVertical, 
   Loader2, X, Upload, Filter, Pencil, Trash2, Calendar, Lock, Eye, CheckCircle, Users,
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 
 const Candidates = () => {
+  const { user } = useAuth();
   const [candidates, setCandidates] = useState([]);
   const [parties, setParties] = useState([]);
   const [elections, setElections] = useState([]); 
@@ -54,25 +56,43 @@ const Candidates = () => {
       return `${baseURL}${path}`;
   };
 
+  useEffect(() => {
+    console.log("Current User Permissions:", user?.permissions);
+    fetchData(); 
+}, []);
+
   const getId = (item) => item.id || item.ID;
 
   const fetchData = async () => {
+    setLoading(true);
+
+    // 1. Fetch Elections (Usually accessible to all staff)
     try {
-      setLoading(true);
-      const [cRes, pRes, eRes] = await Promise.all([
-        api.get('/api/admin/candidates'),
-        api.get('/api/admin/parties'),
-        api.get('/api/admin/elections') 
-      ]);
-      if (cRes.data.success) setCandidates(cRes.data.data);
-      if (pRes.data.success) setParties(pRes.data.data);
+      const eRes = await api.get('/api/admin/elections');
       if (eRes.data.success) setElections(eRes.data.data);
     } catch (err) {
-      console.error(err);
-      addToast("Failed to load data", "error");
-    } finally {
-      setLoading(false);
+      console.warn("Failed to load elections", err);
     }
+
+    // 2. Fetch Candidates (Protected by 'manage_candidates')
+    try {
+      const cRes = await api.get('/api/admin/candidates');
+      if (cRes.data.success) setCandidates(cRes.data.data);
+    } catch (err) {
+      console.error("Candidates Access Denied", err);
+      // Optional: Show a specific toast only if you want to alert the user
+      if (err.response?.status === 403) addToast("No permission to view candidates", "error");
+    }
+
+    // 3. Fetch Parties (Protected by 'manage_parties')
+    try {
+      const pRes = await api.get('/api/admin/parties');
+      if (pRes.data.success) setParties(pRes.data.data);
+    } catch (err) {
+      console.error("Parties Access Denied", err);
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
