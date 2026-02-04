@@ -34,19 +34,13 @@ const Roles = () => {
   const [confirmModal, setConfirmModal] = useState({ show: false, id: null, name: '' });
 
   const AVAILABLE_PERMISSIONS = [
-    // { id: 'view_dashboard', label: 'View Dashboard' },
     { id: 'manage_elections', label: 'Manage Elections' },
     { id: 'manage_voters', label: 'View Voters List' },
     { id: 'register_voter', label: 'Manage Voters (Full)' },
     { id: 'verify_voter', label: 'Verify Voters' },
     { id: 'manage_candidates', label: 'Manage Candidates' },
     { id: 'manage_parties', label: 'Manage Parties' },
-    { id: 'view_results', label: 'View Unpublished Results' },
     { id: 'manage_admins', label: 'Manage Staff & Roles' },
-    // { id: 'manage_roles', label: 'Manage Roles' },
-    // { id: 'manage_system_admins', label: 'System Admins' },
-    // { id: 'view_audit_logs', label: 'View Audit Logs' },
-    // { id: 'manage_settings', label: 'System Settings' }
   ];
 
   const fetchRoles = async () => {

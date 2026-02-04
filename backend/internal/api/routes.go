@@ -28,6 +28,7 @@ func RegisterRoutes(app *fiber.App) {
 	auth.Post("/voter/verify-otp", VerifyOTP)
 	auth.Post("/voter/register", RegisterVoter)
 
+	// Voter App Routes
 	voterApp := app.Group("/api/voter", middleware.PermissionMiddleware(""))
 	voterApp.Get("/elections", GetVoterElections)
 	voterApp.Get("/elections/:id/candidates", GetVoterCandidates)
@@ -37,59 +38,62 @@ func RegisterRoutes(app *fiber.App) {
 	common.Get("/kerala-data", GetReferenceData)
 
 	// 2. Admin API Routes
-
-	// General Admin Profile
+	// We create ONE main group for /api/admin with the base token check.
+	// Specific permissions are applied to specific routes.
 	adminAPI := app.Group("/api/admin", middleware.PermissionMiddleware(""))
+
+	// General Admin Profile (No specific permission required beyond being an admin)
 	adminAPI.Get("/dashboard", GetDashboardData)
 	adminAPI.Put("/update-profile", UpdateAdminProfile)
 	adminAPI.Put("/change-password", ChangePassword)
 	adminAPI.Post("/upload-avatar", UploadAvatar)
 	adminAPI.Put("/notifications", UpdateNotifications)
-	adminAPI.Get("/elections", ListElections)
+	adminAPI.Get("/elections", ListElections) // Viewing elections is open to all staff
 	adminAPI.Get("/config", GetSystemSettings)
 	adminAPI.Get("/election-results", GetElectionResults)
 
 	adminAPI.Post("/maintenance/sync-elections", ManualSyncElections)
 	adminAPI.Post("/maintenance/retry-votes", ManualRetryVotes)
 
-	// Voter Management
-	voterListMgmt := app.Group("/api/admin", middleware.PermissionMiddleware("manage_voters"))
-	voterListMgmt.Get("/voters", GetAllVoters)
-	voterListMgmt.Get("/voters/export", ExportVotersCSV)
+	// --- SPECIFIC PERMISSIONS APPLIED PER ROUTE ---
 
-	voterMgmt := app.Group("/api/admin", middleware.PermissionMiddleware("register_voter"))
-	voterMgmt.Post("/voter/register", RegisterVoter)
-	voterMgmt.Put("/voter/:id", UpdateVoter)
-	voterMgmt.Delete("/voter/:id", DeleteVoter)
-	voterMgmt.Post("/voter/block", BlockVoter)
-	voterMgmt.Post("/voter/unblock", UnblockVoter)
-	voterMgmt.Post("/voters/import", ImportVotersCSV)
+	// Voter List Management (manage_voters)
+	adminAPI.Get("/voters", middleware.PermissionMiddleware("manage_voters"), GetAllVoters)
+	adminAPI.Get("/voters/export", middleware.PermissionMiddleware("manage_voters"), ExportVotersCSV)
 
-	verifyMgmt := app.Group("/api/admin", middleware.PermissionMiddleware("verify_voter"))
-	verifyMgmt.Post("/voter/verify", VerifyVoter)
-	verifyMgmt.Post("/voter/reject", RejectVoter)
+	// Voter Registration & Management (register_voter)
+	adminAPI.Post("/voter/register", middleware.PermissionMiddleware("register_voter"), RegisterVoter)
+	adminAPI.Put("/voter/:id", middleware.PermissionMiddleware("register_voter"), UpdateVoter)
+	adminAPI.Delete("/voter/:id", middleware.PermissionMiddleware("register_voter"), DeleteVoter)
+	adminAPI.Post("/voter/block", middleware.PermissionMiddleware("register_voter"), BlockVoter)
+	adminAPI.Post("/voter/unblock", middleware.PermissionMiddleware("register_voter"), UnblockVoter)
+	adminAPI.Post("/voters/import", middleware.PermissionMiddleware("register_voter"), ImportVotersCSV)
 
-	partyAPI := app.Group("/api/admin", middleware.PermissionMiddleware("manage_parties"))
-	partyAPI.Post("/parties", CreateParty)
-	partyAPI.Get("/parties", ListParties)
-	partyAPI.Put("/parties/:id", UpdateParty)
-	partyAPI.Delete("/parties/:id", DeleteParty)
+	// Verification (verify_voter)
+	adminAPI.Post("/voter/verify", middleware.PermissionMiddleware("verify_voter"), VerifyVoter)
+	adminAPI.Post("/voter/reject", middleware.PermissionMiddleware("verify_voter"), RejectVoter)
 
-	// Candidates & Parties (Super Admin)
-	candidateAPI := app.Group("/api/admin", middleware.PermissionMiddleware("manage_candidates"))
-	candidateAPI.Post("/candidates", CreateCandidate)
-	candidateAPI.Get("/candidates", ListCandidates)
-	candidateAPI.Put("/candidates/:id", UpdateCandidate)
-	candidateAPI.Delete("/candidates/:id", DeleteCandidate)
+	// Parties (manage_parties)
+	adminAPI.Post("/parties", middleware.PermissionMiddleware("manage_parties"), CreateParty)
+	adminAPI.Get("/parties", middleware.PermissionMiddleware("manage_parties"), ListParties)
+	adminAPI.Put("/parties/:id", middleware.PermissionMiddleware("manage_parties"), UpdateParty)
+	adminAPI.Delete("/parties/:id", middleware.PermissionMiddleware("manage_parties"), DeleteParty)
 
-	electionAPI := app.Group("/api/admin", middleware.PermissionMiddleware("manage_elections"))
-	electionAPI.Post("/elections", CreateElection)
-	electionAPI.Put("/elections/:id", UpdateElection)
-	electionAPI.Delete("/elections/:id", DeleteElection)
-	electionAPI.Post("/elections/status", ToggleElectionStatus)
-	electionAPI.Post("/elections/publish", ToggleElectionPublish)
+	// Candidates (manage_candidates)
+	adminAPI.Post("/candidates", middleware.PermissionMiddleware("manage_candidates"), CreateCandidate)
+	adminAPI.Get("/candidates", middleware.PermissionMiddleware("manage_candidates"), ListCandidates)
+	adminAPI.Put("/candidates/:id", middleware.PermissionMiddleware("manage_candidates"), UpdateCandidate)
+	adminAPI.Delete("/candidates/:id", middleware.PermissionMiddleware("manage_candidates"), DeleteCandidate)
 
-	// Staff & Role Management (Super Admin & 'manage_admins')
+	// Elections (manage_elections)
+	adminAPI.Post("/elections", middleware.PermissionMiddleware("manage_elections"), CreateElection)
+	adminAPI.Put("/elections/:id", middleware.PermissionMiddleware("manage_elections"), UpdateElection)
+	adminAPI.Delete("/elections/:id", middleware.PermissionMiddleware("manage_elections"), DeleteElection)
+	adminAPI.Post("/elections/status", middleware.PermissionMiddleware("manage_elections"), ToggleElectionStatus)
+	adminAPI.Post("/elections/publish", middleware.PermissionMiddleware("manage_elections"), ToggleElectionPublish)
+
+	// Staff & Role Management (manage_admins)
+	// These use a different prefix (/api/auth/admin), so they were likely fine, but good to be safe.
 	staffMgmt := app.Group("/api/auth/admin", middleware.PermissionMiddleware("manage_admins"))
 	staffMgmt.Post("/create-sub-admin", CreateSubAdmin)
 	staffMgmt.Get("/roles", ListRolesHandler)
@@ -99,19 +103,19 @@ func RegisterRoutes(app *fiber.App) {
 	staffMgmt.Post("/toggle-availability", ToggleAvailabilityHandler)
 	staffMgmt.Post("/assign-roles", AssignRolesHandler)
 
-	// Admin List & Block (Matching admin.html legacy route)
+	// Admin List & Block (SUPER_ADMIN)
 	superAdminLegacy := app.Group("/auth/admin", middleware.PermissionMiddleware("SUPER_ADMIN"))
 	superAdminLegacy.Get("/list", ListAdmins)
 	superAdminLegacy.Post("/block", BlockSubAdmin)
 	superAdminLegacy.Post("/unblock", UnblockSubAdmin)
 	superAdminLegacy.Post("/update-role", UpdateAdminRoleHandler)
 
-	// Audit Logs
+	// Audit Logs (SUPER_ADMIN)
 	app.Get("/api/audit/logs", middleware.PermissionMiddleware("SUPER_ADMIN"), GetAuditLogs)
 	app.Post("/api/admin/config", middleware.PermissionMiddleware("SUPER_ADMIN"), UpdateSystemSettings)
 
+	// Blockchain Routes
 	bc := app.Group("/api/blockchain")
-
 	bc.Get("/verify/:election_id/:candidate_id", func(c *fiber.Ctx) error {
 		elecID, _ := c.ParamsInt("election_id")
 		candID, _ := c.ParamsInt("candidate_id")
@@ -131,8 +135,6 @@ func RegisterRoutes(app *fiber.App) {
 
 	bc.Get("/tx/:hash", func(c *fiber.Ctx) error {
 		hash := c.Params("hash")
-		// Logic to query eth client for transaction receipt
 		return utils.Success(c, fiber.Map{"tx_hash": hash, "status": "Mined"})
 	})
-
 }
