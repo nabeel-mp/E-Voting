@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"log"
@@ -30,7 +31,7 @@ func InitBlockchain() {
 	cfg := config.Config.Blockchain
 
 	if cfg.URL == "" || cfg.PrivateKey == "" || cfg.ContractAddress == "" {
-		log.Println("⚠️ Blockchain config missing. Skipping Blockchain init.")
+		log.Println(" Blockchain config missing. Skipping Blockchain init.")
 		return
 	}
 
@@ -101,7 +102,6 @@ func CastVoteOnChain(electionID uint, candidateID uint, voterID uint) (string, e
 		return "", errors.New("blockchain service not ready")
 	}
 
-	// LOCK: Prevent other votes from interfering with Nonce
 	chainMutex.Lock()
 	defer chainMutex.Unlock()
 
@@ -111,7 +111,10 @@ func CastVoteOnChain(electionID uint, candidateID uint, voterID uint) (string, e
 
 	eID := new(big.Int).SetUint64(uint64(electionID))
 	cID := new(big.Int).SetUint64(uint64(candidateID))
-	vID := new(big.Int).SetUint64(uint64(voterID))
+	salt := config.Config.JWTSecret
+	voterData := fmt.Sprintf("%d-%s", voterID, salt)
+	hashBytes := sha256.Sum256([]byte(voterData))
+	vID := new(big.Int).SetBytes(hashBytes[:])
 
 	tx, err := instance.CastVote(auth, eID, cID, vID)
 	if err != nil {

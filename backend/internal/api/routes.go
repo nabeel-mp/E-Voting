@@ -49,6 +49,9 @@ func RegisterRoutes(app *fiber.App) {
 	adminAPI.Get("/config", GetSystemSettings)
 	adminAPI.Get("/election-results", GetElectionResults)
 
+	adminAPI.Post("/maintenance/sync-elections", ManualSyncElections)
+	adminAPI.Post("/maintenance/retry-votes", ManualRetryVotes)
+
 	// Voter Management
 	voterListMgmt := app.Group("/api/admin", middleware.PermissionMiddleware("manage_voters"))
 	voterListMgmt.Get("/voters", GetAllVoters)

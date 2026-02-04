@@ -183,6 +183,11 @@ func CastVote(c *fiber.Ctx) error {
 		return utils.Error(c, 400, "You have already voted in this election")
 	}
 
+	var existingVote models.Vote
+	if err := database.PostgresDB.Where("election_id = ? AND voter_id = ?", req.ElectionID, voterID).First(&existingVote).Error; err == nil {
+		return utils.Error(c, 400, "You have already voted in this election")
+	}
+
 	// 4. Record Vote
 	voteHash := sha256.Sum256([]byte(fmt.Sprintf("%d-%d-%d", voter.ID, req.ElectionID, time.Now().UnixNano())))
 	voteHashStr := hex.EncodeToString(voteHash[:])
@@ -195,8 +200,8 @@ func CastVote(c *fiber.Ctx) error {
 	}
 
 	participation := models.ElectionParticipation{
-		VoterID:    voter.ID,
 		ElectionID: req.ElectionID,
+		VoterID:    voter.ID,
 		Timestamp:  time.Now(),
 	}
 
@@ -217,17 +222,36 @@ func CastVote(c *fiber.Ctx) error {
 	go func(eID, cID, vID uint, vHash string) {
 		txHash, err := service.CastVoteOnChain(eID, cID, vID)
 		if err != nil {
-			fmt.Printf("Blockchain Write failed: %v\n", err)
-			return
-		}
-		fmt.Printf("Vote written to blockchain! Tx Hash: %s\n", txHash)
+			log.Printf("CRITICAL: Blockchain write failed for VoteHash %s. Error: %v", vHash, err)
 
-		if err := database.PostgresDB.Model(&models.Vote{}).
-			Where("vote_hash = ?", voteHashStr).
-			Update("blockchain_tx", txHash).Error; err != nil {
-			log.Printf("Failed to save txhash %s to DB: %v", txHash, err)
+			service.SyncElectionsLogic()
+
+			log.Printf(" [Auto-Fix] Retrying Vote for %s...", vHash)
+			txHash, err = service.CastVoteOnChain(eID, cID, vID)
+
+			if err != nil {
+				log.Printf(" [Auto-Fix] Critical Failure: Retry also failed. Error: %v", err)
+				return
+			}
+		}
+		// fmt.Printf("Vote written to blockchain! Tx Hash: %s\n", txHash)
+
+		// if err := database.PostgresDB.Model(&models.Vote{}).
+		// 	Where("vote_hash = ?", voteHashStr).
+		// 	Update("blockchain_tx", txHash).Error; err != nil {
+		// 	log.Printf("Failed to save txhash %s to DB: %v", txHash, err)
+		// } else {
+		// 	log.Printf("Vote Record updated with txhash")
+		// }
+		log.Printf(" !!! Vote written to blockchain! Tx: %s", txHash)
+		result := database.PostgresDB.Model(&models.Vote{}).
+			Where("vote_hash = ?", vHash).
+			Update("blockchain_tx", txHash)
+
+		if result.Error != nil {
+			log.Printf("ERROR: Failed to update DB with TxHash %s: %v", txHash, result.Error)
 		} else {
-			log.Printf("Vote Record updated with txhash")
+			log.Printf("SUCCESS: Database updated with TxHash: %s", txHash)
 		}
 
 	}(req.ElectionID, req.CandidateID, voterID, voteHashStr)
@@ -237,5 +261,15 @@ func CastVote(c *fiber.Ctx) error {
 		"receipt":           voteHashStr,
 		"election_title":    election.Title,
 		"blockchain_status": "Processing in background",
+	})
+}
+
+func RetryFailedVotes(c *fiber.Ctx) error {
+	// Call the same logic the worker uses
+	count, logs := service.RetryVotesLogic()
+
+	return utils.Success(c, fiber.Map{
+		"repaired_count": count,
+		"logs":           logs,
 	})
 }
