@@ -5,7 +5,7 @@ import {
   Calendar, Plus, Loader2, Clock, ToggleLeft, ToggleRight, Vote, Lock,
   Pencil, X, MoreVertical, Trash2, AlertTriangle, Ban,
   MapPin, Building, ChevronDown, Layers, Search, Hash,
-  Share2, Eye, CheckCircle2
+  Share2, Eye, CheckCircle2, AlertCircle
 } from 'lucide-react';
 
 const ELECTION_TYPES = [
@@ -30,7 +30,10 @@ const Elections = () => {
   });
 
   const [showFormModal, setShowFormModal] = useState(false);
-  const [confirmModal, setConfirmModal] = useState({ show: false, type: null, data: null });
+  
+  // CHANGED: Renamed from confirmModal to confirmToast for clarity
+  const [confirmToast, setConfirmToast] = useState({ show: false, type: null, data: null });
+  
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const { addToast } = useToast();
@@ -101,7 +104,6 @@ const Elections = () => {
   useEffect(() => { initData(); }, []);
 
   // --- Live Status Timer ---
-  // Updates the UI every minute to check if elections have ended
   useEffect(() => {
     const timer = setInterval(() => {
       setTick(tick => tick + 1);
@@ -127,10 +129,8 @@ const Elections = () => {
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
   };
 
-  // Get current time in 'YYYY-MM-DDTHH:mm' format for min attributes
   const getCurrentDateTimeLocal = () => {
     const now = new Date();
-    // Adjust to local timezone
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
   };
@@ -173,21 +173,15 @@ const Elections = () => {
 
   // -- Action Handlers --
 
-  const handlePublishToggle = async (election) => {
+  // CHANGED: Use the toast system instead of window.confirm for publishing
+  const handlePublishToggle = (election) => {
     setActiveDropdown(null);
     const isPublishing = !election.is_published;
-    if (!window.confirm(`Are you sure you want to ${isPublishing ? 'PUBLISH' : 'UNPUBLISH'} results for "${election.title}"?`)) return;
-
-    try {
-      await api.post('/api/admin/elections/publish', {
-        election_id: election.ID,
-        publish: isPublishing
-      });
-      addToast(`Results ${isPublishing ? 'Published' : 'Unpublished'} successfully!`, "success");
-      initData();
-    } catch (err) {
-      addToast("Failed to update publish status", "error");
-    }
+    setConfirmToast({ 
+        show: true, 
+        type: isPublishing ? 'publish' : 'unpublish', 
+        data: election 
+    });
   };
 
   const handleStartDateChange = (e) => {
@@ -195,7 +189,6 @@ const Elections = () => {
     setForm(prev => ({
       ...prev,
       start_date: newStart,
-      // If end date is before new start date, clear end date
       end_date: (prev.end_date && prev.end_date < newStart) ? '' : prev.end_date
     }));
   };
@@ -266,13 +259,15 @@ const Elections = () => {
     finally { setSubmitting(false); }
   };
 
+  // CHANGED: Initiates the Toast Confirmation
   const initiateStatusChange = (election, type) => {
     setActiveDropdown(null);
-    setConfirmModal({ show: true, type: type, data: election });
+    setConfirmToast({ show: true, type: type, data: election });
   };
 
+  // CHANGED: Unified execution logic
   const executeStatusChange = async () => {
-    const { type, data } = confirmModal;
+    const { type, data } = confirmToast;
     if (!data) return;
 
     setSubmitting(true);
@@ -297,7 +292,16 @@ const Elections = () => {
         });
         addToast("Election stopped permanently.", "success");
       }
+      // Handle Publish logic here now as well
+      else if (type === 'publish' || type === 'unpublish') {
+         await api.post('/api/admin/elections/publish', {
+            election_id: data.ID,
+            publish: type === 'publish'
+         });
+         addToast(`Results ${type === 'publish' ? 'Published' : 'Unpublished'} successfully!`, "success");
+      }
       else {
+        // Resume/Pause
         const newStatus = type === 'resume';
         await api.post('/api/admin/elections/status', {
           election_id: data.ID,
@@ -306,7 +310,7 @@ const Elections = () => {
         addToast(`Election ${newStatus ? 'resumed' : 'paused'} successfully`, "success");
       }
       initData();
-      setConfirmModal({ show: false, type: null, data: null });
+      setConfirmToast({ show: false, type: null, data: null });
     } catch (err) {
       const msg = err.response?.data?.error || "Operation failed";
       addToast(msg, "error");
@@ -316,25 +320,25 @@ const Elections = () => {
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700 p-6 md:p-10 min-h-screen bg-[#f8fafc]">
+    <div className="space-y-8 md:space-y-10 animate-in fade-in duration-700 p-4 md:p-10 min-h-screen bg-[#f8fafc]">
 
       {/* --- HEADER --- */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full mb-4">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full">
             <Layers size={14} className="text-indigo-700" />
             <span className="text-indigo-800 text-[10px] font-black uppercase tracking-widest">Configuration</span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 leading-tight">
+          <h1 className="text-3xl md:text-5xl font-serif font-bold text-slate-900 leading-tight">
             Election <span className="italic text-slate-400 font-light">Manager</span>
           </h1>
-          <p className="text-slate-500 mt-3 text-lg font-light">
+          <p className="text-slate-500 text-sm md:text-lg font-light">
             Orchestrate elections across Districts, Municipalities, and Panchayats.
           </p>
         </div>
         <button
           onClick={() => { resetForm(); setShowFormModal(true); }}
-          className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transform hover:-translate-y-1 transition-all duration-300 group"
+          className="flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transform hover:-translate-y-1 transition-all duration-300 group w-full md:w-auto"
         >
           <Plus size={20} className="group-hover:rotate-90 transition-transform" /> New Election
         </button>
@@ -353,12 +357,12 @@ const Elections = () => {
           />
         </div>
 
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto w-full md:w-auto">
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto w-full md:w-auto no-scrollbar">
           {['ALL', 'LIVE', 'PAUSED', 'COMPLETED'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-300 whitespace-nowrap ${filterStatus === status
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-300 whitespace-nowrap flex-shrink-0 ${filterStatus === status
                 ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                 }`}
@@ -387,7 +391,6 @@ const Elections = () => {
           </div>
         ) : (
           filteredElections.map((election, idx) => {
-            // Updated dynamically by re-render every minute
             const isEnded = new Date(election.end_date) < new Date();
             const canUpdate = !election.is_active && !isEnded;
             const canDelete = !election.is_active || isEnded;
@@ -398,33 +401,33 @@ const Elections = () => {
             return (
               <div
                 key={election.ID}
-                className={`group relative bg-white border p-6 rounded-[2rem] flex flex-col md:flex-row gap-8 justify-between transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 hover:scale-[1.005]
+                className={`group relative bg-white border p-5 md:p-6 rounded-[2rem] flex flex-col md:flex-row gap-6 md:gap-8 justify-between transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50
                 ${isActiveElection
                     ? 'border-emerald-100 shadow-lg shadow-emerald-50'
                     : 'border-slate-200 shadow-sm'
                   }`}
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
-                <div className="flex items-start gap-6 w-full">
-                  <div className={`p-5 rounded-2xl shadow-sm flex-shrink-0 transition-colors duration-300 ${isActiveElection ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500'
+                <div className="flex items-start gap-4 md:gap-6 w-full">
+                  <div className={`p-4 md:p-5 rounded-2xl shadow-sm flex-shrink-0 transition-colors duration-300 ${isActiveElection ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500'
                     }`}>
-                    <Vote size={32} />
+                    <Vote size={28} className="md:w-8 md:h-8" />
                   </div>
 
-                  <div className="flex-grow">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <h3 className="text-2xl font-bold text-slate-900 group-hover:text-indigo-700 transition-colors font-serif">{election.title}</h3>
+                  <div className="flex-grow min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-2 md:mb-0">
+                        <h3 className="text-xl md:text-2xl font-bold text-slate-900 group-hover:text-indigo-700 transition-colors font-serif leading-tight">{election.title}</h3>
 
-                        {/* Publish Indicator Badge */}
                         {isPublished && (
-                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-bold uppercase tracking-wider">
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-bold uppercase tracking-wider w-fit">
                             <CheckCircle2 size={12} /> Published
                           </span>
                         )}
                       </div>
 
-                      <div className="relative">
+                      {/* Dropdown Menu - Top Right on Mobile & Desktop */}
+                      <div className="relative ml-2">
                         <button
                           onClick={() => setActiveDropdown(activeDropdown === election.ID ? null : election.ID)}
                           className={`p-2 rounded-xl transition-all ${activeDropdown === election.ID ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
@@ -432,8 +435,7 @@ const Elections = () => {
                           <MoreVertical size={20} />
                         </button>
                         {activeDropdown === election.ID && (
-                          <div ref={dropdownRef} className="absolute right-0 mt-2 w-64 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-200">
-
+                          <div ref={dropdownRef} className="absolute right-0 mt-2 w-56 md:w-64 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-200">
                             <button onClick={() => handleEdit(election)} disabled={!canUpdate} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl flex items-center gap-3 transition-colors ${canUpdate ? 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-600' : 'text-slate-300 cursor-not-allowed'}`}>
                               <Pencil size={16} /> Edit Details {!canUpdate && <Lock size={12} className="ml-auto" />}
                             </button>
@@ -441,7 +443,6 @@ const Elections = () => {
                               <Ban size={16} /> Stop Permanently {!canStop && <Lock size={12} className="ml-auto" />}
                             </button>
                             <div className="h-px bg-slate-100 my-1.5 mx-2"></div>
-                            {/* Updated Delete to use Confirmation Modal */}
                             <button onClick={() => initiateStatusChange(election, 'delete')} disabled={!canDelete} className={`w-full text-left px-3 py-2.5 text-sm rounded-xl flex items-center gap-3 transition-colors ${canDelete ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-300 cursor-not-allowed'}`}>
                               <Trash2 size={16} /> Delete {!canDelete && <Lock size={12} className="ml-auto" />}
                             </button>
@@ -471,16 +472,16 @@ const Elections = () => {
                       )}
                     </div>
 
-                    <p className="text-slate-500 mb-6 leading-relaxed text-sm max-w-3xl">{election.description}</p>
+                    <p className="text-slate-500 mb-6 leading-relaxed text-sm max-w-3xl line-clamp-2 md:line-clamp-none">{election.description}</p>
 
-                    <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-bold text-slate-500 uppercase tracking-wide">
                       <span className="flex items-center gap-2"><Calendar size={14} className="text-indigo-400" /> {new Date(election.start_date).toLocaleString()}</span>
                       <span className="flex items-center gap-2"><Clock size={14} className="text-indigo-400" /> {isEnded ? "Ended" : "Ends"}: {new Date(election.end_date).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex md:flex-col items-center justify-between md:justify-center gap-4 border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 min-w-[140px]">
+                <div className="flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 min-w-[140px]">
                   <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border flex items-center gap-2 shadow-sm
                         ${isEnded
                       ? 'bg-slate-100 border-slate-200 text-slate-500'
@@ -492,31 +493,29 @@ const Elections = () => {
                     {isEnded ? "COMPLETED" : (election.is_active ? "LIVE" : "PAUSED")}
                   </span>
 
-                  {/* Toggle Logic / Publish Logic */}
                   {!isEnded ? (
                     <button
                       onClick={() => initiateStatusChange(election, election.is_active ? 'pause' : 'resume')}
-                      className={`p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-md border
+                      className={`p-3 md:p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-md border
                                 ${election.is_active
                           ? 'bg-white border-emerald-100 text-emerald-500 hover:bg-emerald-50 hover:shadow-emerald-100'
                           : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                         }`}
                       title={election.is_active ? "Pause Election" : "Resume Election"}
                     >
-                      {election.is_active ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
+                      {election.is_active ? <ToggleRight size={32} className="md:w-9 md:h-9" /> : <ToggleLeft size={32} className="md:w-9 md:h-9" />}
                     </button>
                   ) : (
-                    // PUBLISH BUTTON FOR COMPLETED ELECTIONS
                     <button
                       onClick={() => handlePublishToggle(election)}
-                      className={`p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-md border
+                      className={`p-3 md:p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-md border
                                 ${isPublished
                           ? 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100'
                           : 'bg-white border-slate-200 text-slate-400 hover:text-indigo-500 hover:border-indigo-100'
                         }`}
                       title={isPublished ? "Results Published (Click to Unpublish)" : "Publish Results Now"}
                     >
-                      {isPublished ? <Eye size={30} /> : <Share2 size={30} />}
+                      {isPublished ? <Eye size={28} className="md:w-[30px] md:h-[30px]" /> : <Share2 size={28} className="md:w-[30px] md:h-[30px]" />}
                     </button>
                   )}
                 </div>
@@ -532,15 +531,16 @@ const Elections = () => {
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={resetForm} />
           <div className="relative bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] w-full max-w-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-10 md:slide-in-from-bottom-5 duration-300 flex flex-col max-h-[90vh] md:max-h-[85vh]">
 
-            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-[2.5rem]">
+            <div className="px-6 md:px-8 py-5 md:py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-[2.5rem]">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 tracking-tight font-serif">{editingId ? 'Edit Election' : 'Create Election'}</h2>
-                <p className="text-slate-500 text-sm mt-1">Fill in the details to configure the voting process.</p>
+                <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight font-serif">{editingId ? 'Edit Election' : 'Create Election'}</h2>
+                <p className="text-slate-500 text-xs md:text-sm mt-1">Fill in the details to configure the voting process.</p>
               </div>
               <button onClick={resetForm} className="text-slate-400 hover:text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 p-2 rounded-full transition-all shadow-sm"><X size={20} /></button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 overflow-y-auto custom-scrollbar space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 md:p-8 overflow-y-auto custom-scrollbar space-y-6">
+              {/* ... (Form Content Remains Same) ... */}
               <div className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-xs uppercase font-bold text-slate-500 tracking-wider">Election Title <span className="text-rose-500">*</span></label>
@@ -553,7 +553,7 @@ const Elections = () => {
               </div>
 
               {/* JURISDICTION SETTINGS */}
-              <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-6 space-y-6">
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5 md:p-6 space-y-6">
                 <h3 className="text-sm font-bold text-indigo-700 flex gap-2 items-center"><Building size={16} /> Jurisdiction Configuration</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -635,7 +635,7 @@ const Elections = () => {
                     type="datetime-local"
                     value={form.start_date}
                     onChange={handleStartDateChange}
-                    min={getCurrentDateTimeLocal()} // RESTRICTION: Current Time
+                    min={getCurrentDateTimeLocal()}
                     className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium"
                   />
                 </div>
@@ -646,7 +646,7 @@ const Elections = () => {
                     type="datetime-local"
                     value={form.end_date}
                     onChange={handleEndDateChange}
-                    min={form.start_date || getCurrentDateTimeLocal()} // RESTRICTION: After Start Date
+                    min={form.start_date || getCurrentDateTimeLocal()}
                     className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-slate-900 outline-none transition-all font-medium"
                   />
                 </div>
@@ -663,30 +663,63 @@ const Elections = () => {
         </div>
       )}
 
-      {/* --- CONFIRMATION MODAL --- */}
-      {confirmModal.show && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setConfirmModal({ show: false, type: null, data: null })} />
-          <div className="relative bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
-            <div className={`w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center ${confirmModal.type === 'stop' || confirmModal.type === 'delete' ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'}`}>
-              <AlertTriangle size={32} />
+      {/* --- CONFIRMATION TOAST (REPLACES MODAL) --- */}
+      {confirmToast.show && (
+        <div className="fixed bottom-6 right-6 z-[100] max-w-md w-full animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden">
+            
+            {/* Semantic Stripe */}
+            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+               confirmToast.type === 'stop' || confirmToast.type === 'delete' ? 'bg-rose-500' : 'bg-indigo-500'
+            }`}></div>
+
+            <div className="flex items-start gap-4 pl-2">
+               <div className={`p-3 rounded-full flex-shrink-0 ${
+                   confirmToast.type === 'stop' || confirmToast.type === 'delete' 
+                   ? 'bg-rose-50 text-rose-600' 
+                   : 'bg-indigo-50 text-indigo-600'
+               }`}>
+                  {confirmToast.type === 'stop' || confirmToast.type === 'delete' ? <AlertTriangle size={24} /> : <AlertCircle size={24} />}
+               </div>
+               
+               <div className="flex-grow">
+                 <h4 className="font-bold text-slate-900 text-lg">
+                    {confirmToast.type === 'stop' ? 'Stop Permanently?' : 
+                     confirmToast.type === 'delete' ? 'Delete Election?' :
+                     'Are you sure?'}
+                 </h4>
+                 <p className="text-slate-500 text-sm mt-1 leading-relaxed">
+                   {confirmToast.type === 'stop' ? "This action is irreversible." : 
+                    confirmToast.type === 'publish' ? `Publish results for "${confirmToast.data?.title}"?` :
+                    confirmToast.type === 'unpublish' ? `Unpublish results for "${confirmToast.data?.title}"?` :
+                    `Do you want to ${confirmToast.type} "${confirmToast.data?.title}"?`}
+                 </p>
+               </div>
+               
+               <button onClick={() => setConfirmToast({ show: false, type: null, data: null })} className="text-slate-400 hover:text-slate-600 p-1">
+                 <X size={18} />
+               </button>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-2 font-serif">
-              {confirmModal.type === 'stop'
-                ? 'Stop Permanently?'
-                : `${confirmModal.type?.charAt(0).toUpperCase() + confirmModal.type?.slice(1)} Election?`
-              }
-            </h3>
-            <p className="text-slate-500 mb-8 leading-relaxed text-sm">
-              {confirmModal.type === 'stop'
-                ? "This action is irreversible. The election will be closed immediately."
-                : `Are you sure you want to ${confirmModal.type} the election "${confirmModal.data?.title}"?`}
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmModal({ show: false, type: null, data: null })} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">Cancel</button>
-              <button onClick={executeStatusChange} disabled={submitting} className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg transition-all ${confirmModal.type === 'stop' || confirmModal.type === 'delete' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20'}`}>
-                {submitting ? <Loader2 className="animate-spin mx-auto" /> : 'Confirm'}
-              </button>
+
+            <div className="flex justify-end gap-3 mt-2 pl-2">
+               <button 
+                  onClick={() => setConfirmToast({ show: false, type: null, data: null })}
+                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                >
+                  Cancel
+               </button>
+               <button 
+                  onClick={executeStatusChange}
+                  disabled={submitting}
+                  className={`px-4 py-2 text-sm font-bold text-white rounded-lg shadow-md transition-transform active:scale-95 flex items-center gap-2 ${
+                    confirmToast.type === 'stop' || confirmToast.type === 'delete' 
+                    ? 'bg-rose-600 hover:bg-rose-700' 
+                    : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
+                >
+                  {submitting && <Loader2 size={14} className="animate-spin" />}
+                  Confirm
+               </button>
             </div>
           </div>
         </div>

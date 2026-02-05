@@ -219,6 +219,8 @@ func CastVote(c *fiber.Ctx) error {
 
 	tx.Commit()
 
+	go BroadcastVoteUpdate(election.Title)
+
 	go func(eID, cID, vID uint, vHash string) {
 		txHash, err := service.CastVoteOnChain(eID, cID, vID)
 		if err != nil {
@@ -234,15 +236,7 @@ func CastVote(c *fiber.Ctx) error {
 				return
 			}
 		}
-		// fmt.Printf("Vote written to blockchain! Tx Hash: %s\n", txHash)
 
-		// if err := database.PostgresDB.Model(&models.Vote{}).
-		// 	Where("vote_hash = ?", voteHashStr).
-		// 	Update("blockchain_tx", txHash).Error; err != nil {
-		// 	log.Printf("Failed to save txhash %s to DB: %v", txHash, err)
-		// } else {
-		// 	log.Printf("Vote Record updated with txhash")
-		// }
 		log.Printf(" !!! Vote written to blockchain! Tx: %s", txHash)
 		result := database.PostgresDB.Model(&models.Vote{}).
 			Where("vote_hash = ?", vHash).

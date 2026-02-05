@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext'; // Imported Toast Context
 import api from '../utils/api';
 import {
     LayoutDashboard,
@@ -19,18 +20,23 @@ import {
     Vote,
     Menu,
     X,
-    ShieldCheck
+    ShieldCheck,
+    AlertTriangle // Added for modal
 } from 'lucide-react';
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
+    const { addToast } = useToast(); // Hook for toast
     const location = useLocation();
+    
     const [systemName, setSystemName] = useState("E-Voting");
     const [systemLogo, setSystemLogo] = useState(null);
+    
+    // UI States
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false); // State for custom modal
 
     const isSuperAdmin = user?.is_super || user?.role === 'SUPER_ADMIN';
-    const permissions = user?.permissions || "";
 
     useEffect(() => {
         const fetchConfig = async () => {
@@ -50,7 +56,7 @@ const Sidebar = () => {
         fetchConfig();
     }, []);
 
-    // Menu Configuration - UPDATED REQUESTS
+    // Menu Configuration
     const menuItems = [
         { title: "Overview", path: "/admin", icon: <LayoutDashboard size={20} />, req: null },
         { title: "Elections", path: "/admin/elections", icon: <Calendar size={20} />, req: "manage_elections" },
@@ -84,55 +90,61 @@ const Sidebar = () => {
 
     const isActive = (path) => location.pathname === path;
 
-    const handleLogout = () => {
-        if (window.confirm("Are you sure you want to sign out?")) {
-            logout();
-        }
+    // --- LOGOUT HANDLERS ---
+    const initiateLogout = () => {
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = () => {
+        setShowLogoutModal(false);
+        logout();
+        addToast("Successfully signed out.", "success");
     };
 
     return (
         <>
-            {/* Mobile Toggle Button */}
+            {/* Mobile Toggle Button (Fixed Position) */}
             <button
                 onClick={() => setIsMobileOpen(!isMobileOpen)}
-                className="lg:hidden fixed top-4 left-4 z-[60] p-2 bg-white border border-slate-200 rounded-lg text-slate-600 shadow-lg"
+                className="lg:hidden fixed top-4 left-4 z-[60] p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 shadow-lg hover:bg-slate-50 transition-colors"
+                aria-label="Toggle Menu"
             >
                 {isMobileOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
             {/* Sidebar Container */}
             <aside className={`
-                fixed lg:static inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col shadow-2xl lg:shadow-none transition-transform duration-300 ease-in-out
+                fixed lg:static inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col shadow-2xl lg:shadow-none 
+                transition-transform duration-300 ease-in-out h-full
                 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}>
 
-                {/* 1. Header Section with National Emblem */}
-                <div className="h-24 flex items-center px-6 border-b border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center gap-4 w-full">
-                        <div className="shrink-0">
+                {/* 1. Header Section */}
+                <div className="h-24 flex items-center px-6 border-b border-slate-100 bg-slate-50/50 shrink-0">
+                    <div className="flex items-center gap-3 w-full overflow-hidden">
+                        <div className="shrink-0 w-10 h-10 flex items-center justify-center">
                             <img
                                 src={systemLogo ? `http://localhost:8080${systemLogo}` : "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/100px-Emblem_of_India.svg.png"}
-                                alt="National Emblem"
-                                className="h-10 w-auto object-contain"
+                                alt="Logo"
+                                className="max-h-full max-w-full object-contain"
                                 onError={(e) => {
-                                    // Fallback if custom logo fails
                                     e.target.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/100px-Emblem_of_India.svg.png";
                                 }}
                             />
                         </div>
-                        <div className="flex flex-col overflow-hidden">
+                        <div className="flex flex-col min-w-0">
                             <h1 className="font-black text-slate-900 text-lg tracking-tight truncate leading-none">
                                 SEC<span className="text-indigo-600">KERALA</span>
                             </h1>
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1 truncate">
                                 Admin Portal
                             </span>
                         </div>
                     </div>
                 </div>
 
-                {/* 2. Navigation Section */}
-                <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                {/* 2. Navigation Section (Scrollable) */}
+                <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
 
                     {/* Main Menu */}
                     <div className="space-y-1">
@@ -150,26 +162,16 @@ const Sidebar = () => {
                                         : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                                         }`}
                                 >
-                                    {/* Active Indicator */}
                                     {isActive(item.path) && (
                                         <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-indigo-600 rounded-r-full" />
                                     )}
-
-                                    {/* Icon */}
-                                    <span className={`transition-colors duration-200 ${isActive(item.path) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
-                                        }`}>
+                                    <span className={`transition-colors duration-200 shrink-0 ${isActive(item.path) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
                                         {item.icon}
                                     </span>
-
-                                    <span className="font-medium text-sm tracking-wide z-10">
+                                    <span className="font-medium text-sm tracking-wide z-10 truncate">
                                         {item.title}
                                     </span>
-
-                                    {/* Hover Arrow */}
-                                    <ChevronRight size={14} className={`ml-auto transition-all duration-300 ${isActive(item.path)
-                                        ? 'opacity-100 text-indigo-500 translate-x-0'
-                                        : 'opacity-0 -translate-x-2 group-hover:translate-x-0 group-hover:opacity-50'
-                                        }`} />
+                                    {isActive(item.path) && <ChevronRight size={14} className="ml-auto text-indigo-500" />}
                                 </Link>
                             ))}
                         </nav>
@@ -191,13 +193,10 @@ const Sidebar = () => {
                                         : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                                         }`}
                                 >
-                                    {isActive(item.path) && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-indigo-600 rounded-r-full" />
-                                    )}
-                                    <span className={`transition-colors ${isActive(item.path) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                                    <span className={`transition-colors shrink-0 ${isActive(item.path) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
                                         {item.icon}
                                     </span>
-                                    <span className="font-medium text-sm tracking-wide">
+                                    <span className="font-medium text-sm tracking-wide truncate">
                                         {item.title}
                                     </span>
                                 </Link>
@@ -206,8 +205,8 @@ const Sidebar = () => {
                     </div>
                 </div>
 
-                {/* 3. User Profile Footer */}
-                <div className="p-4 border-t border-slate-200 bg-slate-50/50">
+                {/* 3. User Profile Footer (Pinned to bottom) */}
+                <div className="p-4 border-t border-slate-200 bg-slate-50/50 shrink-0">
                     <div className="bg-white rounded-2xl p-3 border border-slate-200 flex items-center justify-between group hover:border-slate-300 hover:shadow-md transition-all duration-300">
                         <div className="flex items-center gap-3 overflow-hidden">
                             {/* Avatar */}
@@ -230,19 +229,19 @@ const Sidebar = () => {
 
                             {/* Details */}
                             <div className="flex flex-col min-w-0">
-                                <span className="text-sm font-bold text-slate-900 truncate block">
-                                    {user?.name || "Administrator"}
+                                <span className="text-sm font-bold text-slate-900 truncate block max-w-[100px]">
+                                    {user?.name || "Admin"}
                                 </span>
-                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 mt-0.5 inline-block w-fit truncate max-w-[120px]">
-                                    {isSuperAdmin ? 'SUPER ADMIN' : 'STAFF MEMBER'}
+                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 mt-0.5 inline-block w-fit truncate">
+                                    {isSuperAdmin ? 'SUPER ADMIN' : 'STAFF'}
                                 </span>
                             </div>
                         </div>
 
                         <button
-                            onClick={handleLogout}
+                            onClick={initiateLogout}
                             title="Sign Out"
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 hover:rotate-90 transform"
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-200"
                         >
                             <LogOut size={18} />
                         </button>
@@ -253,9 +252,39 @@ const Sidebar = () => {
             {/* Mobile Overlay */}
             {isMobileOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden"
+                    className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden animate-in fade-in duration-200"
                     onClick={() => setIsMobileOpen(false)}
                 />
+            )}
+
+            {/* --- LOGOUT CONFIRMATION MODAL --- */}
+            {showLogoutModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setShowLogoutModal(false)} />
+                    <div className="relative bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+                        <div className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center bg-rose-50 text-rose-500">
+                            <AlertTriangle size={32} />
+                        </div>
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2 font-serif">Sign Out?</h3>
+                        <p className="text-slate-500 mb-8 leading-relaxed text-sm">
+                            Are you sure you want to end your session? You will need to log in again to access the admin portal.
+                        </p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setShowLogoutModal(false)} 
+                                className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={confirmLogout} 
+                                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold shadow-lg shadow-rose-500/20 transition-all"
+                            >
+                                Sign Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     );

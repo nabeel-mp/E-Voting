@@ -7,6 +7,7 @@ import (
 	"E-voting/internal/utils"
 	"errors"
 	"strings"
+	"time"
 )
 
 func CreateRole(name string, permissions []string) error {
@@ -68,19 +69,61 @@ func CreateSubAdmin(
 	return nil
 }
 
-func AdminLogin(email, password string) (string, []string, *models.Admin, error) {
+func InitiateAdminLogin(email, password string) error {
 	var admin models.Admin
-	if err := database.PostgresDB.Preload("Roles").Where("email = ?", email).First(&admin).Error; err != nil {
-		return "", nil, nil, errors.New("invalid credentials")
+	if err := database.PostgresDB.Where("email = ?", email).First(&admin).Error; err != nil {
+		return errors.New("invalid credentials")
 	}
 
 	if !utils.CheckPassword(password, admin.Password) {
-		return "", nil, nil, errors.New("invalid credentials")
+		return errors.New("invalid credentials")
 	}
 
 	if !admin.IsAvailable {
-		return "", nil, nil, errors.New("your account is currently set to unavailable")
+		return errors.New("your account is currently set to unavailable")
 	}
+
+	if !admin.IsActive {
+		return errors.New("account is disabled")
+	}
+
+	// Generate OTP
+	otp := utils.GenerateOTP()
+
+	// Update Admin with OTP
+	admin.OTP = otp
+	admin.OTPExpiry = time.Now().Add(5 * time.Minute) // 5 minutes validity
+
+	if err := database.PostgresDB.Save(&admin).Error; err != nil {
+		return errors.New("failed to generate OTP")
+	}
+
+	// Send Email
+	err := utils.SendEmailOTP(admin.Email, otp)
+	if err != nil {
+		return errors.New("failed to send OTP email: " + err.Error())
+	}
+
+	return nil
+}
+
+func VerifyAdminLoginOTP(email, otp string) (string, []string, *models.Admin, error) {
+	var admin models.Admin
+	if err := database.PostgresDB.Preload("Roles").Where("email = ?", email).First(&admin).Error; err != nil {
+		return "", nil, nil, errors.New("admin not found")
+	}
+
+	if admin.OTP != otp {
+		return "", nil, nil, errors.New("invalid OTP")
+	}
+
+	if time.Now().After(admin.OTPExpiry) {
+		return "", nil, nil, errors.New("OTP expired")
+	}
+
+	// Clear OTP after successful verification
+	admin.OTP = ""
+	database.PostgresDB.Save(&admin)
 
 	var roleNames []string
 	permSet := make(map[string]bool)

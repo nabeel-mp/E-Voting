@@ -21,10 +21,11 @@ type VoterLoginReq struct {
 }
 
 type OTPVerifyReq struct {
-	VoterID string `json:"voter_id"`
-	OTP     string `json:"otp"`
+	VoterID       string `json:"voter_id"`
+	FirebaseToken string `json:"firebase_token"`
 }
 
+// 1. Check DB and Return Phone Number
 func VoterLogin(c *fiber.Ctx) error {
 	if repository.GetSettingValue("maintenance_mode") == "true" {
 		return utils.Error(c, 503, "System is currently under maintenance.")
@@ -47,22 +48,24 @@ func VoterLogin(c *fiber.Ctx) error {
 
 	fmt.Printf("Login Attempt: ID=%s Body=%s Ward=%s\n", req.VoterID, req.LocalBodyName, req.WardNo)
 
-	msg, err := service.InitiateVoterLogin(req.VoterID, req.Aadhaar, req.District, req.Block, req.LocalBodyName, req.WardNo)
+	mobile, err := service.InitiateVoterLogin(req.VoterID, req.Aadhaar, req.District, req.Block, req.LocalBodyName, req.WardNo)
 	if err != nil {
 		fmt.Printf(" Login Failed: %s\n", err.Error())
 		return utils.Error(c, 400, err.Error())
 	}
 
-	return utils.Success(c, fiber.Map{"message": msg})
+	return utils.Success(c, fiber.Map{
+		"message": "User verified",
+		"phone":   mobile,
+	})
 }
-
 func VerifyOTP(c *fiber.Ctx) error {
 	var req OTPVerifyReq
 	if err := c.BodyParser(&req); err != nil {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
-	token, err := service.VerifyVoterOTP(req.VoterID, req.OTP)
+	token, err := service.VerifyVoterFirebase(req.VoterID, req.FirebaseToken)
 	if err != nil {
 		return utils.Error(c, 400, err.Error())
 	}

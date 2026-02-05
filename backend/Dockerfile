@@ -6,6 +6,8 @@ WORKDIR /app
 # Install git for dependencies
 RUN apk add --no-cache git
 
+ENV GOPROXY=https://proxy.golang.org,direct
+
 # Copy dependency files
 COPY go.mod go.sum ./
 RUN go mod download

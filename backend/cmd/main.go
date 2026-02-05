@@ -5,6 +5,7 @@ import (
 	"E-voting/internal/config"
 	"E-voting/internal/database"
 	"E-voting/internal/service"
+	"E-voting/internal/utils"
 	"log"
 	"os"
 
@@ -15,6 +16,8 @@ import (
 func main() {
 
 	config.LoadConfig()
+
+	utils.InitFirebase()
 
 	database.ConnectPostgres()
 	database.ConnectMongo()

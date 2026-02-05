@@ -47,10 +47,16 @@ services:
       APP_ENV: production
       JWT_SECRET: ${JWT_SECRET}
 
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_EMAIL: ${SMTP_EMAIL}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      
       # Blockchain Configuration (PASS THESE TO THE CONTAINER)
       BLOCKCHAIN_URL: ${BLOCKCHAIN_URL}                      
       BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}      
       BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS}
+
       
       # Connect to Databases via Service Names (Docker Network)
       POSTGRES_HOST: postgres_db

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func matchLocalBody(dbName, inputName string) bool {
@@ -72,51 +71,44 @@ func InitiateVoterLogin(voterID, aadhaar, district, block, LocalBodyName, wardNo
 		return "", errors.New("Your account is pending verification.")
 	}
 
-	// --- OTP Generation ---
-
-	minutesStr := repository.GetSettingValue("otp_validity_duration")
-	minutes, err := strconv.Atoi(minutesStr)
-	if err != nil || minutes <= 0 {
-		minutes = 5
-	}
-	otp := utils.GenerateOTP()
-
-	voter.CurrentOTP = otp
-	voter.OTPExpiresAt = time.Now().Add(time.Duration(minutes) * time.Minute)
-
-	if err := repository.UpdateVoterOTP(voter); err != nil {
-		return "", errors.New("Failed to generate OTP. Please try again.")
+	mobile := strings.TrimSpace(voter.Mobile)
+	if !strings.HasPrefix(mobile, "+") {
+		mobile = "+91" + mobile
 	}
 
-	// Send SMS (Logs to terminal in Dev mode)
-	err = utils.SendSms(voter.Mobile, otp)
-	if err != nil {
-		fmt.Printf(" SMS Failed (Dev Mode): OTP is %s\n", otp)
-		return "OTP generated. (Check Console/SMS)", nil
-	}
-
-	return "OTP sent successfully to your registered mobile number", nil
+	return mobile, nil
 }
 
-func VerifyVoterOTP(voterID, otp string) (string, error) {
+func VerifyVoterFirebase(voterID, firebaseToken string) (string, error) {
+	// 1. Verify the Token with Firebase Admin SDK
+	token, err := utils.VerifyFirebaseToken(firebaseToken)
+	if err != nil {
+		return "", fmt.Errorf("invalid firebase token: %v", err)
+	}
+
+	// 2. Get the phone number from the token claims
+	firebasePhone, found := token.Claims["phone_number"].(string)
+	if !found {
+		return "", errors.New("firebase token does not contain phone number")
+	}
+
+	// 3. Find the Voter
 	voter, err := repository.FindVoterByID(voterID)
 	if err != nil {
 		return "", errors.New("voter not found")
 	}
 
-	if voter.CurrentOTP != otp {
-		return "", errors.New("incorrect OTP")
+	// 4. SECURITY CHECK: Ensure the phone verified by Firebase matches the Voter's registered phone
+	storedMobile := strings.TrimSpace(voter.Mobile)
+	if !strings.HasPrefix(storedMobile, "+") {
+		storedMobile = "+91" + storedMobile
 	}
 
-	if time.Now().After(voter.OTPExpiresAt) {
-		return "", errors.New("OTP expired, please request a new one")
+	if storedMobile != firebasePhone {
+		return "", errors.New("phone number mismatch: verified phone does not match registered voter phone")
 	}
 
-	// Clear OTP after success
-	voter.CurrentOTP = ""
-	repository.UpdateVoterOTP(voter)
-
-	// Generate Token with Role "VOTER"
-	token, err := utils.GenerateJWT(voter.ID, "VOTER", "vote", false, voter.FullName, voter.VoterID, "")
-	return token, err
+	// 5. Generate Internal App JWT
+	appToken, err := utils.GenerateJWT(voter.ID, "VOTER", "vote", false, voter.FullName, voter.VoterID, "")
+	return appToken, err
 }

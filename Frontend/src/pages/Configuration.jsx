@@ -2,17 +2,8 @@ import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { 
-  Sliders, 
-  Save, 
-  Loader2, 
-  Server, 
-  Globe, 
-  ShieldAlert, 
-  ToggleLeft, 
-  ToggleRight,
-  RotateCcw,
-  Settings,
-  Database
+  Sliders, Save, Loader2, Server, Globe, ShieldAlert, 
+  ToggleLeft, ToggleRight, RotateCcw, Settings, Database
 } from 'lucide-react';
 
 const Configuration = () => {
@@ -27,7 +18,6 @@ const Configuration = () => {
     try {
       const res = await api.get('/api/admin/config');
       if (res.data.success) {
-        // Filter out 'max_session_duration' so it doesn't appear in the list
         const visibleSettings = (res.data.data || []).filter(
           s => s.key !== 'max_session_duration'
         );
@@ -98,38 +88,37 @@ const Configuration = () => {
     }).join(' ');
   };
 
-  // Calculate changes to enable/disable buttons
   const hasChanges = settings.some(s => {
       const orig = originalSettings.find(o => o.key === s.key);
       return orig && orig.value !== s.value;
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 h-[calc(100vh-100px)] flex flex-col p-6 md:p-10 bg-[#f8fafc]">
+    <div className="space-y-8 animate-in fade-in duration-500 min-h-screen flex flex-col p-4 sm:p-6 lg:p-10 bg-[#f8fafc]">
       
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0 border-b border-slate-200 pb-8">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full mb-4">
+      {/* --- HEADER SECTION --- */}
+      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 shrink-0 border-b border-slate-200 pb-8">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full">
               <Settings size={14} className="text-indigo-700" />
               <span className="text-indigo-800 text-[10px] font-black uppercase tracking-widest">Environment Variables</span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 leading-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-slate-900 leading-tight">
             System <span className="italic text-slate-400 font-light">Configuration</span>
           </h1>
-          <p className="text-slate-500 mt-3 text-lg font-light">
+          <p className="text-slate-500 text-sm sm:text-base font-light">
             Manage global settings and environmental parameters.
           </p>
         </div>
         
-        <div className="flex gap-4">
+        <div className="flex gap-3 w-full xl:w-auto">
             <button 
                 onClick={fetchSettings}
                 disabled={!hasChanges && !loading}
-                className={`p-3 rounded-xl border transition-all ${
+                className={`p-3.5 rounded-xl border transition-all flex items-center justify-center ${
                     hasChanges 
                     ? 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 shadow-sm' 
-                    : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                    : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
                 }`}
                 title="Reset Changes"
             >
@@ -139,10 +128,10 @@ const Configuration = () => {
             <button 
                 onClick={handleSave}
                 disabled={saving || !hasChanges}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 transform hover:-translate-y-0.5 ${
+                className={`flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all shadow-lg active:scale-95 transform hover:-translate-y-0.5 ${
                     hasChanges
                     ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300 shadow-none'
                 }`}
             >
                 {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
@@ -151,40 +140,40 @@ const Configuration = () => {
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* --- MAIN CONTENT AREA --- */}
       {loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-indigo-500">
+        <div className="flex-1 flex flex-col items-center justify-center text-indigo-500 py-20">
             <Loader2 className="animate-spin mb-4" size={48} />
             <p className="text-slate-400 text-lg animate-pulse font-medium">Loading system configuration...</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pb-10 pr-2">
+        <div className="flex-1 space-y-8 pb-10">
             {Object.entries(groupedSettings).map(([category, items]) => (
-                <div key={category} className="bg-white border border-slate-100 rounded-[2.5rem] shadow-xl shadow-slate-200/50 overflow-hidden">
+                <div key={category} className="bg-white border border-slate-100 rounded-2xl sm:rounded-[2.5rem] shadow-xl shadow-slate-200/50 overflow-hidden">
                     
                     {/* Category Header */}
-                    <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
-                        <div className="p-2.5 bg-white rounded-xl text-indigo-600 border border-slate-200 shadow-sm">
+                    <div className="px-6 py-5 sm:px-8 sm:py-6 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
+                        <div className="p-2.5 bg-white rounded-xl text-indigo-600 border border-slate-200 shadow-sm shrink-0">
                             {getCategoryIcon(category)}
                         </div>
                         <div>
-                            <h3 className="font-bold text-xl text-slate-900 font-serif">{category}</h3>
-                            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Configuration Group</p>
+                            <h3 className="font-bold text-lg sm:text-xl text-slate-900 font-serif">{category}</h3>
+                            <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider font-bold">Configuration Group</p>
                         </div>
                     </div>
 
                     {/* Settings Grid */}
-                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                    <div className="p-5 sm:p-8 grid grid-cols-1 lg:grid-cols-2 gap-x-8 lg:gap-x-12 gap-y-6 sm:gap-y-8">
                         {items.map((setting) => (
                             <div key={setting.key} className="group">
-                                <div className="flex justify-between items-start mb-2">
-                                    <label className="text-sm font-bold text-slate-600 group-hover:text-indigo-600 transition-colors">
+                                <div className="flex justify-between items-center mb-2 h-8">
+                                    <label className="text-sm font-bold text-slate-600 group-hover:text-indigo-600 transition-colors truncate pr-2">
                                         {formatKey(setting.key)}
                                     </label>
                                     {setting.type === 'boolean' && (
                                         <button 
                                             onClick={() => handleChange(setting.key, setting.value === 'true' ? 'false' : 'true')}
-                                            className={`transition-colors duration-300 ${setting.value === 'true' ? 'text-emerald-500' : 'text-slate-300'}`}
+                                            className={`transition-colors duration-300 shrink-0 ${setting.value === 'true' ? 'text-emerald-500' : 'text-slate-300'}`}
                                         >
                                             {setting.value === 'true' ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
                                         </button>
@@ -192,9 +181,9 @@ const Configuration = () => {
                                 </div>
 
                                 {setting.type === 'boolean' ? (
-                                    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3 px-4">
-                                        <span className="text-xs text-slate-500 font-medium">{setting.description}</span>
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase border ${
+                                    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3 px-4 h-[50px]">
+                                        <span className="text-xs text-slate-500 font-medium truncate pr-4">{setting.description}</span>
+                                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase border shrink-0 ${
                                             setting.value === 'true' 
                                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                                             : 'bg-slate-100 text-slate-500 border-slate-200'
@@ -210,7 +199,7 @@ const Configuration = () => {
                                             onChange={(e) => handleChange(setting.key, e.target.value)}
                                             className="w-full bg-slate-50 border border-slate-200 text-slate-700 px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-400 font-mono text-sm shadow-inner"
                                         />
-                                        <p className="text-xs text-slate-400 mt-2 ml-1 font-medium">{setting.description}</p>
+                                        <p className="text-xs text-slate-400 mt-2 ml-1 font-medium truncate">{setting.description}</p>
                                     </div>
                                 )}
                             </div>

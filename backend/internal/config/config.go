@@ -28,10 +28,11 @@ type AppConfig struct {
 		PrivateKey      string
 		ContractAddress string
 	}
-	Twilio struct {
-		AccountSID string
-		AuthToken  string
-		FromNumber string
+	SMTP struct {
+		Host     string
+		Port     string
+		Email    string
+		Password string
 	}
 }
 
@@ -68,9 +69,16 @@ func LoadConfig() {
 	Config.Blockchain.PrivateKey = os.Getenv("BLOCKCHAIN_PRIVATE_KEY")
 	Config.Blockchain.ContractAddress = os.Getenv("BLOCKCHAIN_CONTRACT_ADDRESS")
 
-	Config.Twilio.AccountSID = os.Getenv("TWILIO_ACCOUNT_SID")
-	Config.Twilio.AuthToken = os.Getenv("TWILIO_AUTH_TOKEN")
-	Config.Twilio.FromNumber = os.Getenv("TWILIO_PHONE_NUMBER")
+	Config.SMTP.Host = os.Getenv("SMTP_HOST")
+	Config.SMTP.Port = os.Getenv("SMTP_PORT")
+	Config.SMTP.Email = os.Getenv("SMTP_EMAIL")
+	Config.SMTP.Password = os.Getenv("SMTP_PASSWORD")
+
+	if Config.SMTP.Host == "" || Config.SMTP.Port == "" {
+		log.Println("CRITICAL ERROR: SMTP Configuration is missing. Check .env file.")
+	} else {
+		log.Printf("SMTP Config Loaded: %s:%s", Config.SMTP.Host, Config.SMTP.Port)
+	}
 
 	log.Println("Config loaded")
 }

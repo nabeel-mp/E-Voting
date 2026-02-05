@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { 
   Users, 
   Vote, 
@@ -19,6 +20,7 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { addToast } = useToast();
   
   const [stats, setStats] = useState({ 
     TotalVoters: 0, 
@@ -28,6 +30,9 @@ const Dashboard = () => {
   });
   const [activeElectionsList, setActiveElectionsList] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Use a ref to prevent WebSocket double-connection in React Strict Mode (optional safety)
+  const wsRef = useRef(null);
 
   const fetchData = async () => {
     try {
@@ -54,9 +59,57 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
-    const intervalId = setInterval(fetchData, 5000);
-    return () => clearInterval(intervalId);
-  }, []);
+
+    // --- WEBSOCKET SETUP ---
+    // Establish connection to the backend real-time endpoint
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+        return; 
+    }
+    const wsUrl = 'ws://localhost:8080/ws/notifications';
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("Connected to Real-time Notifications");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Handle Vote Cast Event
+        if (data.type === "VOTE_CAST") {
+          // 1. Show Success Notification
+          addToast(`New vote cast in ${data.election}!`, 'success');
+          
+          // 2. Refresh Dashboard Data Immediately
+          fetchData();
+        }
+      } catch (e) {
+        console.error("WS Parse Error", e);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("Disconnected from Notifications");
+    };
+
+    ws.onerror = (error) => {
+      // In development, this might log if the server isn't running yet
+      console.log("WebSocket connection status:", ws.readyState);
+    };
+
+    // Fallback polling (every 10 seconds instead of 5, since we have WS)
+    const intervalId = setInterval(fetchData, 10000);
+
+    return () => {
+      clearInterval(intervalId);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current =null;
+      }
+    };
+  }, [addToast]); // Added addToast to dependencies
 
   const cards = [
     { 

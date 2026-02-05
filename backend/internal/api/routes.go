@@ -5,6 +5,7 @@ import (
 	"E-voting/internal/service"
 	"E-voting/internal/utils"
 
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -13,6 +14,17 @@ func RegisterRoutes(app *fiber.App) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return utils.Success(c, service.HealthCheck())
 	})
+
+	app.Use("/ws", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			c.Locals("allowed", true)
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+
+	})
+
+	app.Get("/ws/notifications", websocket.New(WebSocketHandler))
 
 	// --- PUBLIC ROUTES ---
 	public := app.Group("/api/public")
@@ -24,6 +36,7 @@ func RegisterRoutes(app *fiber.App) {
 	// 1. Auth Routes (Public)
 	auth := app.Group("/api/auth")
 	auth.Post("/admin/login", AdminLogin)
+	auth.Post("/admin/verify-otp", VerifyAdminOTP)
 	auth.Post("/voter/login", VoterLogin)
 	auth.Post("/voter/verify-otp", VerifyOTP)
 	auth.Post("/voter/register", RegisterVoter)
@@ -38,8 +51,6 @@ func RegisterRoutes(app *fiber.App) {
 	common.Get("/kerala-data", GetReferenceData)
 
 	// 2. Admin API Routes
-	// We create ONE main group for /api/admin with the base token check.
-	// Specific permissions are applied to specific routes.
 	adminAPI := app.Group("/api/admin", middleware.PermissionMiddleware(""))
 
 	// General Admin Profile (No specific permission required beyond being an admin)

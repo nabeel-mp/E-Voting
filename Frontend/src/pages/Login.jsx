@@ -15,12 +15,19 @@ import {
   LayoutDashboard,
   Server,
   ShieldCheck,
-  Globe
+  Globe,
+  KeyRound,
+  ArrowLeft
 } from 'lucide-react';
 
 const Login = () => {
+  // Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  
+  // UI States
+  const [step, setStep] = useState('credentials'); // 'credentials' | 'otp'
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,41 +36,56 @@ const Login = () => {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevents the browser from reloading the page
+  const handleCredentialsSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
     setError('');
     
     try {
+      // Step 1: Validate Credentials & Request OTP
       const res = await api.post('/api/auth/admin/login', { email, password });
       
-      // 1. Explicitly check for success flag
+      if (res.data.success) {
+        addToast(res.data.message || "OTP sent to your email", "success");
+        setStep('otp'); // Move to OTP step
+      } else {
+        setError(res.data.message || 'Login failed.');
+      }
+    } catch (err) {
+      console.error("Credential Error:", err);
+      if (err.response) {
+         setError(err.response.data.error || err.response.data.message || 'Invalid credentials.');
+      } else {
+         setError('Unable to reach server.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      // Step 2: Verify OTP
+      const res = await api.post('/api/auth/admin/verify-otp', { email, otp });
+
       if (res.data.success) {
         addToast("Welcome back, Administrator", "success");
         localStorage.setItem('admin_token', res.data.data.token);
         login(res.data.data.token);
-        
-        // 2. Redirect ONLY happens here (Success path)
         navigate('/admin');
       } else {
-        // 3. Handle case where server responds (200 OK) but login failed
-        // This prevents "doing nothing" and shows the error instead
-        setError(res.data.message || 'Login failed. Please check credentials.');
+        setError(res.data.message || 'Invalid OTP.');
       }
     } catch (err) {
-      console.error("Login Error:", err);
-      
-      // 4. Handle 4xx/5xx Errors explicitly without redirecting
+      console.error("OTP Error:", err);
       if (err.response) {
-         // Server responded with an error code (e.g., 401, 403)
-         // We capture 'error' OR 'message' fields to be safe
-         setError(err.response.data.error || err.response.data.message || 'Login failed. Please check credentials.');
-      } else if (err.request) {
-         // Network error (Server unreachable)
-         setError('Unable to reach server. Please check your connection.');
+        setError(err.response.data.error || err.response.data.message || 'Verification failed.');
       } else {
-         // Unexpected error
-         setError('An unexpected error occurred during login.');
+        setError('An unexpected error occurred.');
       }
     } finally {
       setLoading(false);
@@ -120,7 +142,7 @@ const Login = () => {
                     Monitor. <br/>Manage. <br/><span className="text-indigo-400 italic font-serif">Secure.</span>
                 </h2>
                 <p className="text-slate-300 font-light leading-relaxed">
-                    Restricted access for election officials. Manage districts, monitor voting nodes, and oversee the electoral process in real-time.
+                    Restricted access for election officials. Two-factor authentication is now required for all administrative actions.
                 </p>
             </div>
 
@@ -144,10 +166,14 @@ const Login = () => {
                 
                 <div className="mb-10">
                     <h3 className="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
-                        Admin Authentication
+                        {step === 'credentials' ? 'Admin Authentication' : 'Verify Identity'}
                         <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></div>
                     </h3>
-                    <p className="text-sm text-slate-500">Please enter your official credentials to continue.</p>
+                    <p className="text-sm text-slate-500">
+                        {step === 'credentials' 
+                            ? 'Please enter your official credentials to continue.' 
+                            : `Enter the OTP sent to ${email}`}
+                    </p>
                 </div>
 
                 {/* Error Display - Animated */}
@@ -165,58 +191,110 @@ const Login = () => {
                     )}
                 </AnimatePresence>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    
-                    {/* Email Input */}
-                    <div className="space-y-2">
-                        <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">Official Email</label>
-                        <div className="relative group">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
-                            <input 
-                                type="email"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 font-bold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal"
-                                placeholder="admin@sec.kerala.gov.in"
-                            />
+                {/* STEP 1: EMAIL & PASSWORD */}
+                {step === 'credentials' && (
+                    <motion.form 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        onSubmit={handleCredentialsSubmit} 
+                        className="space-y-6"
+                    >
+                        <div className="space-y-2">
+                            <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">Official Email</label>
+                            <div className="relative group">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
+                                <input 
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 font-bold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                                    placeholder="admin@sec.kerala.gov.in"
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Password Input */}
-                    <div className="space-y-2">
-                        <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">Password</label>
-                        <div className="relative group">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
-                            <input 
-                                type={showPassword ? "text" : "password"}
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-12 text-slate-900 font-bold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal"
-                                placeholder="••••••••••••"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                        <div className="space-y-2">
+                            <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">Password</label>
+                            <div className="relative group">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
+                                <input 
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-12 text-slate-900 font-bold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                                    placeholder="••••••••••••"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                                >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="pt-2">
+                            <button 
+                                type="submit" 
+                                disabled={loading} 
+                                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-xl shadow-indigo-600/20 transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2"
                             >
-                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                {loading ? <Loader2 className="animate-spin" size={20}/> : "Verify & Send OTP"}
                             </button>
                         </div>
-                    </div>
+                    </motion.form>
+                )}
 
-                    <div className="pt-2">
-                        <button 
-                            type="submit" 
-                            disabled={loading} 
-                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-xl shadow-indigo-600/20 transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2"
-                        >
-                            {loading ? <Loader2 className="animate-spin" size={20}/> : "Access Dashboard"}
-                        </button>
-                    </div>
+                {/* STEP 2: OTP INPUT */}
+                {step === 'otp' && (
+                    <motion.form 
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        onSubmit={handleOtpSubmit} 
+                        className="space-y-6"
+                    >
+                        <div className="space-y-2">
+                            <label className="text-[11px] uppercase font-black text-slate-400 tracking-widest ml-1">One-Time Password</label>
+                            <div className="relative group">
+                                <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
+                                <input 
+                                    type="text"
+                                    required
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    maxLength={6}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 font-bold focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 placeholder:font-normal tracking-[0.25em]"
+                                    placeholder="000000"
+                                    autoFocus
+                                />
+                            </div>
+                            <p className="text-xs text-slate-400 pl-1">Enter the 6-digit code sent to your email.</p>
+                        </div>
 
-                </form>
+                        <div className="pt-2 flex flex-col gap-3">
+                            <button 
+                                type="submit" 
+                                disabled={loading} 
+                                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold shadow-xl shadow-emerald-600/20 transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2"
+                            >
+                                {loading ? <Loader2 className="animate-spin" size={20}/> : "Confirm OTP"}
+                            </button>
+                            
+                            <button 
+                                type="button" 
+                                onClick={() => { setStep('credentials'); setOtp(''); setError(''); }}
+                                className="w-full py-3 text-slate-500 hover:text-slate-700 font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                            >
+                                <ArrowLeft size={16} /> Back to Login
+                            </button>
+                        </div>
+                    </motion.form>
+                )}
 
                 {/* Footer Link */}
                 <div className="mt-10 pt-6 border-t border-slate-100 flex flex-col items-center gap-3 text-center">

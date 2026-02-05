@@ -12,13 +12,35 @@ type AdminLoginRequest struct {
 	Password string `json:"password"`
 }
 
+type VerifyOTPRequest struct {
+	Email string `json:"email"`
+	OTP   string `json:"otp"`
+}
+
 func AdminLogin(c *fiber.Ctx) error {
 	var req AdminLoginRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.Error(c, 400, "Invalid request")
 	}
 
-	token, permissions, admin, err := service.AdminLogin(req.Email, req.Password)
+	err := service.InitiateAdminLogin(req.Email, req.Password)
+	if err != nil {
+		return utils.Error(c, 401, err.Error())
+	}
+
+	return utils.Success(c, fiber.Map{
+		"message": "OTP sent to your email. Please verify.",
+		"email":   req.Email,
+	})
+}
+
+func VerifyAdminOTP(c *fiber.Ctx) error {
+	var req VerifyOTPRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Error(c, 400, "Invalid request")
+	}
+
+	token, permissions, admin, err := service.VerifyAdminLoginOTP(req.Email, req.OTP)
 	if err != nil {
 		return utils.Error(c, 401, err.Error())
 	}
