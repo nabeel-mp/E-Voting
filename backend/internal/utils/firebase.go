@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"log"
+	"os"
 	"path/filepath"
 
 	firebase "firebase.google.com/go/v4"
@@ -13,9 +14,17 @@ import (
 var FirebaseAuth *auth.Client
 
 func InitFirebase() {
-	serviceAccountKeyPath := filepath.Join(".", "serviceAccountKey.json")
+	var opt option.ClientOption
+	if jsonCreds := os.Getenv("FIREBASE_CREDENTIALS"); jsonCreds != "" {
+		opt = option.WithCredentialsJSON([]byte(jsonCreds))
+		log.Println("Firebase initialized using Environment Variable")
+	} else {
+		// 2. Fallback to File (For Local Development)
+		serviceAccountKeyPath := filepath.Join(".", "serviceAccountKey.json")
+		opt = option.WithCredentialsFile(serviceAccountKeyPath)
+		log.Println("Firebase initialized using local file")
+	}
 
-	opt := option.WithCredentialsFile(serviceAccountKeyPath)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
 		log.Fatalf("error initializing firebase app: %v", err)
