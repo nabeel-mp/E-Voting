@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"path/filepath"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
@@ -15,13 +14,12 @@ var FirebaseAuth *auth.Client
 
 func InitFirebase() {
 	var opt option.ClientOption
-	if jsonCreds := os.Getenv("FIREBASE_CREDENTIALS"); jsonCreds != "" {
-		opt = option.WithCredentialsJSON([]byte(jsonCreds))
+	creds := os.Getenv("FIREBASE_CREDENTIALS")
+	if creds != "" {
+		opt = option.WithCredentialsJSON([]byte(creds))
 		log.Println("Firebase initialized using Environment Variable")
 	} else {
-		// 2. Fallback to File (For Local Development)
-		serviceAccountKeyPath := filepath.Join(".", "serviceAccountKey.json")
-		opt = option.WithCredentialsFile(serviceAccountKeyPath)
+		opt = option.WithCredentialsFile("serviceAccountKey.json")
 		log.Println("Firebase initialized using local file")
 	}
 
