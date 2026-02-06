@@ -24,6 +24,7 @@ import VotingBooth from './pages/VotingBooth';
 import Landing from './pages/Landing';
 import VoterApply from './pages/VoterApply';
 import VoterResults from './pages/ViewResult';
+import VoterStatus from './pages/VoterStatus';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
             <Route path="/voter/login" element={<VoterLogin />} />
             <Route path="/voter/apply" element={<VoterApply />} />
             <Route path="/results" element={<VoterResults />} />
+            <Route path="/voter/status" element={<VoterStatus />} />
 
             {/* <Route path="/live-results" element={<PublicResults />} /> */}
 

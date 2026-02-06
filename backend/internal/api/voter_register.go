@@ -324,3 +324,31 @@ func ImportVotersCSV(c *fiber.Ctx) error {
 		"message": fmt.Sprintf("Import complete. Success: %d, Failed/Skipped: %d", successCount, failCount),
 	})
 }
+
+func CheckVoterStatus(c *fiber.Ctx) error {
+	voterID := c.Params("voterId")
+
+	if voterID == "" {
+		return utils.Error(c, 400, "Voter ID is required")
+	}
+
+	voter, err := repository.FindVoterByID(voterID)
+	if err != nil {
+		return utils.Error(c, 404, "Voter ID not found")
+	}
+
+	// Determine status logic
+	status := "Pending"
+	if voter.IsBlocked {
+		status = "Blocked"
+	} else if voter.IsVerified {
+		status = "Verified"
+	}
+
+	// Return ONLY public safe data
+	return utils.Success(c, fiber.Map{
+		"FullName": voter.FullName,
+		"VoterID":  voter.VoterID,
+		"Status":   status,
+	})
+}

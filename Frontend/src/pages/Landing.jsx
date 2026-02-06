@@ -215,8 +215,8 @@ const Landing = () => {
               </div>
               <div>
                 <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2 sm:mb-3">Check Your Status</h3>
-                <p className="text-sm sm:text-base text-slate-500 leading-relaxed mb-4 sm:mb-6">Verify your inclusion in the 2026 Electoral Roll. Simply enter your EPIC number to find your booth.</p>
-                <Link to="/voter/login" className="inline-flex items-center gap-2 font-black text-blue-600 text-xs sm:text-sm hover:underline tracking-wider uppercase">
+                <p className="text-sm sm:text-base text-slate-500 leading-relaxed mb-4 sm:mb-6">Verify your inclusion in the 2026 Electoral Roll. Simply enter your VOTERID number to find your booth.</p>
+                <Link to="/voter/status" className="inline-flex items-center gap-2 font-black text-blue-600 text-xs sm:text-sm hover:underline tracking-wider uppercase">
                   Search Voter List <ArrowUpRight size={14}/>
                 </Link>
               </div>

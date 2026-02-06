@@ -126,53 +126,77 @@ const VoterLogin = () => {
   };
 
   // --- STEP 1: VERIFY DETAILS & SEND FIREBASE OTP ---
-  const handleInit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    
-    if (!formData.district || !formData.localBodyName || !formData.wardNo) {
-        setError("Please select all location details.");
-        setLoading(false); return;
-    }
+ const handleInit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError('');
 
-    try {
-      // 1. Check Credentials with Backend
-      const payload = {
-        voter_id: formData.voter_id,
-        aadhaar: formData.aadhaar,
-        district: formData.district,
-        block: formData.block,
-        local_body_type: formData.localBodyType,
-        local_body_name: formData.localBodyName,
-        ward_no: String(formData.wardNo)
-      };
+  if (!formData.district || !formData.localBodyName || !formData.wardNo) {
+    setError("Please select all location details.");
+    setLoading(false);
+    return;
+  }
 
-      const res = await api.post('/api/auth/voter/login', payload);
+  try {
+    // 1. Check Credentials with Backend
+    const payload = {
+      voter_id: formData.voter_id,
+      aadhaar: formData.aadhaar,
+      district: formData.district,
+      block: formData.block,
+      local_body_type: formData.localBodyType,
+      local_body_name: formData.localBodyName,
+      ward_no: String(formData.wardNo)
+    };
 
-      if (res.data.success) {
-        const mobileNumber = res.data.data.mobile; // Backend must return this!
-        
-        // 2. Trigger Firebase SMS
-        generateRecaptcha();
-        const appVerifier = window.recaptchaVerifier;
-        
-        const confirmationResult = await signInWithPhoneNumber(auth, mobileNumber, appVerifier);
-        
-        // 3. Store confirmation result for Step 2
-        window.confirmationResult = confirmationResult;
-        setVerificationId(confirmationResult.verificationId);
-        
-        setServerMsg("OTP sent via Firebase to registered mobile.");
-        setStep(2);
+    const res = await api.post('/api/auth/voter/login', payload);
+
+    if (res.data.success) {
+      // Use "phone" to match your backend response
+      let mobileNumber = res.data.data.phone;
+
+      if (!mobileNumber) {
+        throw new Error("Phone number not found in server response.");
       }
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || "Details do not match our records.");
-      if (window.recaptchaVerifier) window.recaptchaVerifier.clear();
-    } finally {
-      setLoading(false);
+
+      // Ensure the number is in E.164 format (starts with +)
+      // If your DB doesn't store the +, add it here or in the backend
+      if (!mobileNumber.startsWith('+')) {
+        mobileNumber = `+91${mobileNumber}`; // Example for India
+      }
+
+      console.log("Sending OTP to:", mobileNumber);
+
+      // 2. Trigger Firebase SMS
+      generateRecaptcha();
+      const appVerifier = window.recaptchaVerifier;
+
+      const confirmationResult = await signInWithPhoneNumber(auth, mobileNumber, appVerifier);
+
+      // 3. Store confirmation result for Step 2
+      window.confirmationResult = confirmationResult;
+      setVerificationId(confirmationResult.verificationId);
+
+      setServerMsg("OTP sent via Firebase to registered mobile.");
+      setStep(2);
     }
-  };
+  } catch (err) {
+    console.error("Login Error:", err);
+    setError(err.response?.data?.error || err.message || "Authentication failed.");
+
+    // Safely clear reCAPTCHA to prevent the "RecaptchaVerifier.clear" crash
+    if (window.recaptchaVerifier && typeof window.recaptchaVerifier.clear === 'function') {
+      try {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
+      } catch (cleanupErr) {
+        console.error("Cleanup error:", cleanupErr);
+      }
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   // --- STEP 2: VERIFY OTP & LOGIN ---
   const [otpCode, setOtpCode] = useState('');

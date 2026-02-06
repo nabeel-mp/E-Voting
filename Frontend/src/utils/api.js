@@ -53,4 +53,9 @@ api.interceptors.response.use(
   }
 );
 
+export const checkVoterStatus = async (voterId) => {
+  const response = await api.get(`/api/public/check-status/${voterId}`);
+  return response.data;
+};
+
 export default api;

@@ -30,6 +30,7 @@ func RegisterRoutes(app *fiber.App) {
 	public := app.Group("/api/public")
 	public.Get("/elections", GetPublishedElections)
 	public.Get("/results", GetElectionResults)
+	public.Get("/check-status/:voterId", CheckVoterStatus)
 
 	// --- API ROUTES ---
 

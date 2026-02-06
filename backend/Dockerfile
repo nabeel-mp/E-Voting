@@ -29,6 +29,8 @@ WORKDIR /root/
 # Copy binary from builder
 COPY --from=builder /app/main .
 
+COPY serviceAccountKey.json .
+
 # Create uploads directory (Critical for your avatar logic)
 RUN mkdir -p uploads/avatars
 
