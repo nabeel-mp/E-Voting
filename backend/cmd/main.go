@@ -41,7 +41,7 @@ func main() {
 	app.Static("/uploads", "./uploads")
 	api.RegisterRoutes(app)
 
-	log.Printf(" %s running on port %s",
+	log.Printf(" %s (AIR IS WORKING!) running on port %s",
 		config.Config.AppName,
 		config.Config.Port,
 	)

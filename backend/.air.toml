@@ -1,0 +1,24 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  # The command to build your application (matches your Dockerfile build path)
+  cmd = "go build -o ./tmp/main ./cmd/main.go"
+  # The binary to run after building
+  bin = "./tmp/main"
+  # Watch for changes in these extensions
+  include_ext = ["go", "tpl", "tmpl", "html"]
+  # Ignore these directories
+  exclude_dir = ["assets", "tmp", "vendor", "uploads"]
+  # Delay in milliseconds after a file change before building
+  delay = 1000
+  # Stop the running binary on error
+  stop_on_error = true
+
+[log]
+  # Show timestamp in logs
+  time = true
+
+[misc]
+  # Delete tmp directory on exit
+  clean_on_exit = true

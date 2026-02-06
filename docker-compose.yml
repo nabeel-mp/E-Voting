@@ -34,7 +34,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: evoting_backend
     restart: always
     depends_on:
@@ -44,14 +44,14 @@ services:
       - "8080:8080" # Exposes Backend API to localhost:8080
     environment:
       APP_PORT: 8080
-      APP_ENV: production
+      APP_ENV: development
       JWT_SECRET: ${JWT_SECRET}
 
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_EMAIL: ${SMTP_EMAIL}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
-      
+
       # Blockchain Configuration (PASS THESE TO THE CONTAINER)
       BLOCKCHAIN_URL: ${BLOCKCHAIN_URL}                      
       BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}      
@@ -68,7 +68,8 @@ services:
       MONGO_URI: "mongodb://mongo_db:27017"
       MONGO_DB: ${MONGO_DB:-evoting_logs}
     volumes:
-      - ./backend/uploads:/root/uploads
+      - ./backend:/app
+      - ./backend/uploads:/app/uploads
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
