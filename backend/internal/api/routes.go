@@ -36,7 +36,7 @@ func RegisterRoutes(app *fiber.App) {
 
 	// 1. Auth Routes (Public)
 	auth := app.Group("/api/auth")
-	auth.Post("/admin/login", AdminLogin)
+	auth.Post("/admin-login", AdminLogin)
 	auth.Post("/admin/verify-otp", VerifyAdminOTP)
 	auth.Post("/voter/login", VoterLogin)
 	auth.Post("/voter/verify-otp", VerifyOTP)

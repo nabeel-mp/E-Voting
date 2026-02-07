@@ -43,7 +43,7 @@ const Login = () => {
     
     try {
       // Step 1: Validate Credentials & Request OTP
-      const res = await api.post('/api/auth/admin/login', { email, password });
+      const res = await api.post('/api/auth/admin-login', { email, password });
       
       if (res.data.success) {
         addToast(res.data.message || "OTP sent to your email", "success");
