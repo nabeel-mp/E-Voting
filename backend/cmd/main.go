@@ -19,10 +19,9 @@ func main() {
 
 	utils.InitFirebase()
 
-	database.SeedSuperAdmin()
-
 	database.ConnectPostgres()
 	database.ConnectMongo()
+	database.SeedSuperAdmin()
 	database.SeedKeralaAdminData()
 
 	service.InitBlockchain()
