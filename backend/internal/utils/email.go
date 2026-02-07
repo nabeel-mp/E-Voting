@@ -3,10 +3,16 @@ package utils
 import (
 	"E-voting/internal/config"
 	"fmt"
+	"log"
 	"net/smtp"
 )
 
 func SendEmailOTP(toEmail, otp string) error {
+
+	log.Println("========================================")
+	log.Printf("⚠️ EMAIL BYPASS: OTP for %s is: %s", toEmail, otp)
+	log.Println("========================================")
+
 	from := config.Config.SMTP.Email
 	password := config.Config.SMTP.Password
 	host := config.Config.SMTP.Host
