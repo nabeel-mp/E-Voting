@@ -35,7 +35,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       
       if (isAdminRequest) {
-        if (!url.includes('/login')) { 
+        if (!url.includes('/login') && !url.includes('admin-login')) { 
             localStorage.removeItem('admin_token');
             window.location.href = '/login'; 
         }
